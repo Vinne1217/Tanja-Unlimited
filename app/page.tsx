@@ -1,7 +1,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { ArrowRight, Sparkles, RefreshCw, Heart } from 'lucide-react';
+import { ArrowRight, Sparkles, RefreshCw, Heart, Phone } from 'lucide-react';
 
 export default function HomePage() {
   return (
