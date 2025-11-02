@@ -1,90 +1,201 @@
+'use client';
+
+import { motion } from 'framer-motion';
+import { Phone, Mail, CheckCircle } from 'lucide-react';
+
 export default function HandLetteringPage() {
   return (
-    <section className="max-w-6xl mx-auto space-y-12">
+    <div className="min-h-screen">
       {/* Hero */}
-      <div className="text-center space-y-4">
-        <h1 className="text-6xl font-bold" style={{
-          fontFamily: 'Georgia, serif',
-          fontStyle: 'italic'
-        }}>
-          Hand Lettering & Calligraphy
-        </h1>
-        <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-          Beautiful hand-lettered designs and professional calligraphy services by Tanja Kisker
-        </p>
-      </div>
+      <section className="relative py-24 bg-gradient-editorial overflow-hidden">
+        <div className="absolute inset-0 pattern-block-print"></div>
+        
+        <div className="relative max-w-7xl mx-auto px-6 lg:px-12 text-center">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.7 }}
+          >
+            <p className="text-sm uppercase tracking-widest text-warmOchre mb-6">
+              Art & Typography
+            </p>
+            <h1 className="text-6xl lg:text-7xl font-serif font-medium text-deepIndigo mb-6">
+              Hand Lettering<br />& Calligraphy
+            </h1>
+            <div className="w-24 h-1 bg-warmOchre mx-auto mb-8"></div>
+            <p className="text-lg text-softCharcoal max-w-2xl mx-auto leading-relaxed">
+              Beautiful hand-lettered designs and professional calligraphy services by Tanja Kisker
+            </p>
+          </motion.div>
+        </div>
+      </section>
 
       {/* Services */}
-      <div className="grid md:grid-cols-2 gap-8">
-        <div className="bg-gradient-to-br from-pink-50 to-purple-50 rounded-2xl p-8 shadow-lg">
-          <h2 className="text-3xl font-bold mb-4 text-fuchsia-600">Uppdrag Handtextning</h2>
-          <p className="text-gray-700 leading-relaxed mb-4">
-            Professional hand lettering for special projects, invitations, logos, and custom designs. Each piece is carefully crafted with attention to detail and artistic flair.
-          </p>
-          <ul className="space-y-2 text-gray-700">
-            <li>✓ Wedding invitations</li>
-            <li>✓ Event signage</li>
-            <li>✓ Logo design</li>
-            <li>✓ Custom artwork</li>
-          </ul>
-        </div>
+      <section className="py-24 bg-ivory">
+        <div className="max-w-7xl mx-auto px-6 lg:px-12">
+          <div className="grid lg:grid-cols-2 gap-12">
+            <motion.div
+              initial={{ opacity: 0, x: -30 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.7 }}
+              className="bg-warmIvory border border-warmOchre/20 p-10"
+            >
+              <div className="mb-6">
+                <svg className="w-12 h-12 text-warmOchre" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M12 19l7-7 3 3-7 7-3-3z"/>
+                  <path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/>
+                  <path d="M2 2l7.586 7.586"/>
+                </svg>
+              </div>
+              <h2 className="text-3xl font-serif text-deepIndigo mb-4">
+                Uppdrag Handtextning
+              </h2>
+              <div className="w-16 h-1 bg-warmOchre mb-6"></div>
+              <p className="text-softCharcoal leading-relaxed mb-6">
+                Professional hand lettering for special projects, invitations, logos, and custom designs. 
+                Each piece is carefully crafted with attention to detail and artistic flair.
+              </p>
+              <ul className="space-y-3">
+                <li className="flex items-start gap-3 text-softCharcoal">
+                  <CheckCircle className="w-5 h-5 text-warmOchre flex-shrink-0 mt-0.5" />
+                  <span>Wedding invitations</span>
+                </li>
+                <li className="flex items-start gap-3 text-softCharcoal">
+                  <CheckCircle className="w-5 h-5 text-warmOchre flex-shrink-0 mt-0.5" />
+                  <span>Event signage</span>
+                </li>
+                <li className="flex items-start gap-3 text-softCharcoal">
+                  <CheckCircle className="w-5 h-5 text-warmOchre flex-shrink-0 mt-0.5" />
+                  <span>Logo design</span>
+                </li>
+                <li className="flex items-start gap-3 text-softCharcoal">
+                  <CheckCircle className="w-5 h-5 text-warmOchre flex-shrink-0 mt-0.5" />
+                  <span>Custom artwork</span>
+                </li>
+              </ul>
+            </motion.div>
 
-        <div className="bg-gradient-to-br from-blue-50 to-cyan-50 rounded-2xl p-8 shadow-lg">
-          <h2 className="text-3xl font-bold mb-4 text-blue-600">Distansutbildning i Reklamtexning</h2>
-          <p className="text-gray-700 leading-relaxed mb-4">
-            Distance learning course in commercial hand lettering. Learn the art of beautiful handwriting and calligraphy from anywhere.
-          </p>
-          <ul className="space-y-2 text-gray-700">
-            <li>✓ Online instruction</li>
-            <li>✓ Flexible schedule</li>
-            <li>✓ Personal feedback</li>
-            <li>✓ Certificate upon completion</li>
-          </ul>
+            <motion.div
+              initial={{ opacity: 0, x: 30 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.7 }}
+              className="bg-cream border border-mutedRose/20 p-10"
+            >
+              <div className="mb-6">
+                <svg className="w-12 h-12 text-mutedRose" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/>
+                  <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
+                </svg>
+              </div>
+              <h2 className="text-3xl font-serif text-deepIndigo mb-4">
+                Distansutbildning i Reklamtexning
+              </h2>
+              <div className="w-16 h-1 bg-mutedRose mb-6"></div>
+              <p className="text-softCharcoal leading-relaxed mb-6">
+                Distance learning course in commercial hand lettering. Learn the art of beautiful 
+                handwriting and calligraphy from anywhere.
+              </p>
+              <ul className="space-y-3">
+                <li className="flex items-start gap-3 text-softCharcoal">
+                  <CheckCircle className="w-5 h-5 text-mutedRose flex-shrink-0 mt-0.5" />
+                  <span>Online instruction</span>
+                </li>
+                <li className="flex items-start gap-3 text-softCharcoal">
+                  <CheckCircle className="w-5 h-5 text-mutedRose flex-shrink-0 mt-0.5" />
+                  <span>Flexible schedule</span>
+                </li>
+                <li className="flex items-start gap-3 text-softCharcoal">
+                  <CheckCircle className="w-5 h-5 text-mutedRose flex-shrink-0 mt-0.5" />
+                  <span>Personal feedback</span>
+                </li>
+                <li className="flex items-start gap-3 text-softCharcoal">
+                  <CheckCircle className="w-5 h-5 text-mutedRose flex-shrink-0 mt-0.5" />
+                  <span>Certificate upon completion</span>
+                </li>
+              </ul>
+            </motion.div>
+          </div>
         </div>
-      </div>
+      </section>
 
       {/* Portfolio */}
-      <div className="bg-white rounded-2xl p-8 shadow-lg">
-        <h2 className="text-3xl font-bold mb-6">Our Calligraphy Designs</h2>
-        <p className="text-gray-700 leading-relaxed mb-6">
-          Tanja Unlimited prints our own designs, which we then tailor or transform into high-quality products. The motifs are mainly taken from Tanja Kisker's calligraphy. These designs can be found on:
-        </p>
-        <div className="grid md:grid-cols-4 gap-4">
-          <div className="bg-gradient-to-br from-fuchsia-100 to-pink-100 rounded-lg p-4 text-center">
-            <span className="text-2xl mb-2 block">👕</span>
-            <p className="font-semibold">Blouses & Tunics</p>
+      <section className="py-24 bg-warmIvory">
+        <div className="max-w-7xl mx-auto px-6 lg:px-12">
+          <div className="text-center mb-16">
+            <h2 className="text-4xl font-serif font-medium text-deepIndigo mb-6">
+              Our Calligraphy Designs
+            </h2>
+            <div className="w-24 h-1 bg-warmOchre mx-auto mb-8"></div>
+            <p className="text-softCharcoal leading-relaxed max-w-3xl mx-auto">
+              Tanja Unlimited prints our own designs, which we then tailor or transform into high-quality 
+              products. The motifs are mainly taken from Tanja Kisker's calligraphy. These designs can be found on:
+            </p>
           </div>
-          <div className="bg-gradient-to-br from-blue-100 to-cyan-100 rounded-lg p-4 text-center">
-            <span className="text-2xl mb-2 block">👜</span>
-            <p className="font-semibold">Handbags</p>
-          </div>
-          <div className="bg-gradient-to-br from-purple-100 to-pink-100 rounded-lg p-4 text-center">
-            <span className="text-2xl mb-2 block">📱</span>
-            <p className="font-semibold">Phone & iPad Cases</p>
-          </div>
-          <div className="bg-gradient-to-br from-orange-100 to-red-100 rounded-lg p-4 text-center">
-            <span className="text-2xl mb-2 block">🧣</span>
-            <p className="font-semibold">Scarves & Pillows</p>
+
+          <div className="grid md:grid-cols-4 gap-6">
+            {[
+              { title: 'Blouses & Tunics', color: 'warmOchre' },
+              { title: 'Handbags', color: 'mutedRose' },
+              { title: 'Phone & iPad Cases', color: 'terracotta' },
+              { title: 'Scarves & Pillows', color: 'sage' }
+            ].map((item, idx) => (
+              <motion.div
+                key={idx}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.5, delay: idx * 0.1 }}
+                className="bg-ivory border border-warmOchre/20 p-8 text-center hover:border-warmOchre transition-all duration-300"
+              >
+                <div className="w-16 h-16 mx-auto mb-4 flex items-center justify-center bg-gradient-textile">
+                  <div className={`w-8 h-8 border-2 border-${item.color}`}></div>
+                </div>
+                <p className="font-serif text-deepIndigo">{item.title}</p>
+              </motion.div>
+            ))}
           </div>
         </div>
-      </div>
+      </section>
 
       {/* Contact CTA */}
-      <div className="bg-gradient-to-br from-indigoDeep to-indigoDeep/80 rounded-2xl p-8 text-white text-center shadow-2xl">
-        <h3 className="text-3xl font-bold mb-4">Interested in Hand Lettering Services?</h3>
-        <p className="text-cream text-lg mb-6">
-          Contact Tanja Kisker to discuss your project or enroll in our distance learning course
-        </p>
-        <div className="flex flex-wrap justify-center gap-4">
-          <a href="tel:+46706332220" className="px-6 py-3 bg-ochreRed text-white rounded-full hover:bg-white hover:text-ochreRed transition font-semibold shadow-lg">
-            📞 Call +46 70 633 22 20
-          </a>
-          <a href="mailto:info@tanjaunlimited.se" className="px-6 py-3 bg-white text-indigoDeep rounded-full hover:bg-ochreRed hover:text-white transition font-semibold shadow-lg">
-            ✉️ Email Us
-          </a>
+      <section className="relative py-24 bg-deepIndigo text-ivory overflow-hidden">
+        <div className="absolute inset-0 pattern-quilted opacity-20"></div>
+        
+        <div className="relative max-w-4xl mx-auto px-6 lg:px-12 text-center">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.7 }}
+          >
+            <h3 className="text-4xl font-serif font-medium mb-6">
+              Interested in Hand Lettering Services?
+            </h3>
+            <p className="text-warmIvory/80 text-lg mb-12 leading-relaxed max-w-2xl mx-auto">
+              Contact Tanja Kisker to discuss your project or enroll in our distance learning course
+            </p>
+            
+            <div className="flex flex-wrap justify-center gap-4">
+              <a 
+                href="tel:+46706332220" 
+                className="inline-flex items-center gap-3 px-8 py-4 bg-warmOchre text-deepIndigo hover:bg-antiqueGold transition-all duration-300 font-medium"
+              >
+                <Phone className="w-5 h-5" />
+                <span>Call +46 70 633 22 20</span>
+              </a>
+              <a 
+                href="mailto:info@tanjaunlimited.se" 
+                className="inline-flex items-center gap-3 px-8 py-4 border-2 border-ivory text-ivory hover:bg-ivory hover:text-deepIndigo transition-all duration-300 font-medium"
+              >
+                <Mail className="w-5 h-5" />
+                <span>Email Us</span>
+              </a>
+            </div>
+          </motion.div>
         </div>
-      </div>
-    </section>
+      </section>
+    </div>
   );
 }
-

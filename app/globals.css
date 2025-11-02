@@ -1,23 +1,113 @@
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400;1,500&family=Inter:wght@300;400;500;600;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 :root {
-  --brand-bg: #F6F1E8;
-  --brand-fg: #111111;
-  --brand-accent: #A13E2A;
+  /* Sophisticated color palette */
+  --color-ivory: #F7F4EE;
+  --color-warm-ivory: #F2EDE4;
+  --color-deep-indigo: #2B3A67;
+  --color-indigo-deep: #1E2847;
+  --color-warm-ochre: #D4A574;
+  --color-muted-rose: #D4A5A5;
+  --color-antique-gold: #C9A961;
+  --color-terracotta: #B85F4E;
+  --color-warm-black: #2A2A2A;
+  
+  /* Typography */
+  --font-serif: 'Cormorant Garamond', Georgia, serif;
+  --font-sans: 'Inter', system-ui, sans-serif;
 }
 
-body {
-  background: var(--brand-bg);
-  color: var(--brand-fg);
+@layer base {
+  html {
+    @apply scroll-smooth;
+  }
+  
+  body {
+    @apply bg-ivory text-warmBlack font-sans antialiased;
+    font-feature-settings: 'liga' 1, 'calt' 1;
+    letter-spacing: 0.01em;
+  }
+  
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-serif font-medium;
+    letter-spacing: -0.01em;
+  }
+  
+  h1 {
+    @apply text-5xl md:text-6xl;
+  }
+  
+  h2 {
+    @apply text-4xl md:text-5xl;
+  }
+  
+  h3 {
+    @apply text-3xl md:text-4xl;
+  }
+  
+  p {
+    @apply leading-relaxed;
+  }
+  
+  a {
+    @apply text-deepIndigo transition-colors duration-200;
+  }
+  
+  a:hover {
+    @apply text-warmOchre;
+  }
+  
+  *:focus-visible {
+    @apply outline-2 outline-offset-2 outline-deepIndigo;
+  }
 }
 
-a { color: var(--brand-accent); }
+@layer components {
+  /* Elegant button styles */
+  .btn-primary {
+    @apply px-8 py-3 bg-deepIndigo text-ivory font-medium tracking-wide transition-all duration-300;
+    @apply hover:bg-indigoDeep hover:shadow-lg;
+  }
+  
+  .btn-secondary {
+    @apply px-8 py-3 border-2 border-deepIndigo text-deepIndigo font-medium tracking-wide transition-all duration-300;
+    @apply hover:bg-deepIndigo hover:text-ivory;
+  }
+  
+  /* Textile-inspired patterns */
+  .pattern-block-print {
+    background-image: 
+      radial-gradient(circle at 20% 50%, rgba(212, 165, 116, 0.1) 0%, transparent 50%),
+      radial-gradient(circle at 80% 80%, rgba(43, 58, 103, 0.1) 0%, transparent 50%);
+  }
+  
+  .pattern-quilted {
+    background-image: 
+      linear-gradient(45deg, transparent 48%, rgba(212, 165, 116, 0.05) 49%, rgba(212, 165, 116, 0.05) 51%, transparent 52%),
+      linear-gradient(-45deg, transparent 48%, rgba(212, 165, 116, 0.05) 49%, rgba(212, 165, 116, 0.05) 51%, transparent 52%);
+    background-size: 40px 40px;
+  }
+}
 
-*:focus-visible {
-  outline: 2px dashed var(--brand-accent);
-  outline-offset: 2px;
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+  
+  .gradient-editorial {
+    background: linear-gradient(135deg, #F7F4EE 0%, #F2EDE4 50%, #E8DFD0 100%);
+  }
+  
+  .gradient-textile {
+    background: linear-gradient(to bottom right, 
+      rgba(43, 58, 103, 0.05), 
+      rgba(212, 165, 116, 0.05)
+    );
+  }
 }
 
 
