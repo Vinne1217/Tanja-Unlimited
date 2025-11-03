@@ -2,6 +2,7 @@
 
 import { motion } from 'framer-motion';
 import { MapPin, Calendar, Phone, MessageCircle } from 'lucide-react';
+import { useTranslation } from '@/lib/useTranslation';
 
 type Event = {
   title: string;
@@ -13,6 +14,7 @@ type Event = {
 };
 
 export default function EventsPage() {
+  const { t } = useTranslation();
   const events: Event[] = [
     { title: 'Sy- och Hantverksfestivalen', dates: '21-23 februari', location: 'Stockholm', address: 'Stockholmsmässan, Mässvägen 1, 125 80 Älvsjö, Sweden' },
     { title: 'Handwerk & Design', dates: '12-16 mars', location: 'München', country: 'TYSKLAND', address: 'Messe München, Am Messesee 2, 81829 München, Germany' },
@@ -71,16 +73,15 @@ export default function EventsPage() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.7 }}
           >
-            <p className="text-sm uppercase tracking-widest text-warmOchre mb-6">
-              2025 European Tour
+            <p className="text-sm uppercase tracking-widest text-ochre mb-6">
+              {t.events.subtitle}
             </p>
-            <h1 className="text-6xl lg:text-7xl font-serif font-medium text-deepIndigo mb-6">
-              Exhibitions & Events
+            <h1 className="text-6xl lg:text-7xl font-serif font-medium text-indigo mb-6">
+              {t.events.title}
             </h1>
-            <div className="w-24 h-1 bg-warmOchre mx-auto mb-8"></div>
-            <p className="text-lg text-softCharcoal max-w-2xl mx-auto leading-relaxed">
-              Meet us at fairs and exhibitions across Europe. Come see The Tanja Jacket 
-              and our hand-crafted collection in person.
+            <div className="w-24 h-1 bg-ochre mx-auto mb-8"></div>
+            <p className="text-lg text-graphite max-w-2xl mx-auto leading-relaxed font-light">
+              {t.events.description}
             </p>
           </motion.div>
         </div>
@@ -108,7 +109,7 @@ export default function EventsPage() {
                   alt={image.alt} 
                   className="w-full h-full object-cover group-hover:scale-105 transition duration-700"
                 />
-                <div className="absolute inset-0 bg-deepIndigo/0 group-hover:bg-deepIndigo/20 transition-all duration-500"></div>
+                <div className="absolute inset-0 bg-indigo/0 group-hover:bg-indigo/20 transition-all duration-500"></div>
               </motion.div>
             ))}
           </div>
@@ -119,15 +120,15 @@ export default function EventsPage() {
       <section className="py-24 bg-ivory">
         <div className="max-w-5xl mx-auto px-6 lg:px-12">
           <div className="text-center mb-16">
-            <h2 className="text-4xl font-serif font-medium text-deepIndigo mb-6">
-              Upcoming Events
+            <h2 className="text-4xl font-serif font-medium text-indigo mb-6">
+              {t.events.upcomingEvents}
             </h2>
-            <div className="w-24 h-1 bg-warmOchre mx-auto"></div>
+            <div className="w-24 h-1 bg-ochre mx-auto"></div>
           </div>
 
           <div className="relative">
             {/* Timeline line */}
-            <div className="absolute left-0 md:left-1/2 top-0 bottom-0 w-px bg-warmOchre/30 transform md:-translate-x-1/2"></div>
+            <div className="absolute left-0 md:left-1/2 top-0 bottom-0 w-px bg-ochre/30 transform md:-translate-x-1/2"></div>
 
             {upcoming.map((event, idx) => (
               <motion.div
@@ -141,14 +142,14 @@ export default function EventsPage() {
                 }`}
               >
                 {/* Timeline dot */}
-                <div className={`absolute left-0 md:left-1/2 top-6 w-4 h-4 bg-warmOchre rounded-full border-4 border-ivory transform ${
+                <div className={`absolute left-0 md:left-1/2 top-6 w-4 h-4 bg-ochre rounded-full border-4 border-ivory transform ${
                   idx % 2 === 0 ? 'md:-translate-x-1/2' : 'md:-translate-x-1/2'
                 } -translate-y-1/2`}></div>
 
                 <div className={`ml-8 md:ml-0 ${idx % 2 === 0 ? 'md:mr-12' : 'md:ml-12'}`}>
-                  <div className="bg-cream border border-warmOchre/20 p-8 hover:border-warmOchre hover:shadow-lg transition-all duration-300">
+                  <div className="bg-cream border border-ochre/20 p-8 hover:border-ochre hover:shadow-lg transition-all duration-300">
                     <div className="flex items-start justify-between mb-4 flex-wrap gap-4">
-                      <div className="flex items-center gap-2 text-warmOchre">
+                      <div className="flex items-center gap-2 text-ochre">
                         <Calendar className="w-4 h-4" />
                         <span className="text-sm font-medium uppercase tracking-wider">
                           {event.dates}
@@ -158,21 +159,21 @@ export default function EventsPage() {
                         href={getMapUrl(event.address)} 
                         target="_blank" 
                         rel="noopener noreferrer"
-                        className="inline-flex items-center gap-2 px-4 py-2 bg-deepIndigo text-ivory text-xs uppercase tracking-wider hover:bg-indigoDeep transition-colors"
+                        className="inline-flex items-center gap-2 px-4 py-2 bg-indigo text-ivory text-xs uppercase tracking-wider hover:bg-indigoDeep transition-colors"
                       >
                         <MapPin className="w-3 h-3" />
-                        <span>View Map</span>
+                        <span>{t.events.viewMap}</span>
                       </a>
                     </div>
                     
-                    <h3 className="text-2xl font-serif text-deepIndigo mb-3">
+                    <h3 className="text-2xl font-serif text-indigo mb-3">
                       {event.title}
                     </h3>
                     
-                    <div className="space-y-1 text-softCharcoal">
+                    <div className="space-y-1 text-graphite font-light">
                       <p className="font-medium">{event.location}</p>
                       {event.country && (
-                        <p className="text-xs uppercase tracking-widest text-warmOchre">
+                        <p className="text-xs uppercase tracking-widest text-ochre">
                           {event.country}
                         </p>
                       )}
@@ -190,24 +191,24 @@ export default function EventsPage() {
         <section className="py-16 bg-warmIvory">
           <div className="max-w-5xl mx-auto px-6 lg:px-12">
             <div className="text-center mb-12">
-              <h3 className="text-2xl font-serif text-softCharcoal/60 mb-4">
-                Past Events
+              <h3 className="text-2xl font-serif text-graphite/60 mb-4">
+                {t.events.pastEvents}
               </h3>
-              <div className="w-16 h-px bg-softCharcoal/20 mx-auto"></div>
+              <div className="w-16 h-px bg-graphite/20 mx-auto"></div>
             </div>
 
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 opacity-60">
               {past.map((event, idx) => (
-                <div key={idx} className="bg-cream border border-warmOchre/10 p-6">
-                  <p className="text-xs uppercase tracking-widest text-warmOchre mb-3">
+                <div key={idx} className="bg-cream border border-ochre/10 p-6">
+                  <p className="text-xs uppercase tracking-widest text-ochre mb-3">
                     {event.dates}
                   </p>
-                  <h4 className="text-lg font-serif text-deepIndigo mb-2">
+                  <h4 className="text-lg font-serif text-indigo mb-2">
                     {event.title}
                   </h4>
-                  <p className="text-sm text-softCharcoal">{event.location}</p>
+                  <p className="text-sm text-graphite font-light">{event.location}</p>
                   {event.country && (
-                    <p className="text-xs text-softCharcoal/60 mt-1">{event.country}</p>
+                    <p className="text-xs text-graphite/60 mt-1">{event.country}</p>
                   )}
                 </div>
               ))}
@@ -217,7 +218,7 @@ export default function EventsPage() {
       )}
 
       {/* Contact CTA */}
-      <section className="relative py-20 bg-deepIndigo text-ivory overflow-hidden">
+      <section className="relative py-20 bg-indigo text-ivory overflow-hidden">
         <div className="absolute inset-0 pattern-quilted opacity-20"></div>
         
         <div className="relative max-w-4xl mx-auto px-6 lg:px-12 text-center">
@@ -228,16 +229,16 @@ export default function EventsPage() {
             transition={{ duration: 0.7 }}
           >
             <h3 className="text-3xl font-serif font-medium mb-6">
-              Contact for Private Viewings
+              {t.events.ctaTitle}
             </h3>
-            <p className="text-warmIvory/80 text-lg mb-10 leading-relaxed max-w-2xl mx-auto">
-              Want to see our collection before these events? Call or WhatsApp Tanja Kisker
+            <p className="text-ivory/80 text-lg mb-10 leading-relaxed max-w-2xl mx-auto font-light">
+              {t.events.ctaDescription}
             </p>
             
             <div className="flex flex-wrap justify-center gap-4">
               <a 
                 href="tel:+46706332220" 
-                className="inline-flex items-center gap-3 px-8 py-4 bg-warmOchre text-deepIndigo hover:bg-antiqueGold transition-all duration-300 font-medium"
+                className="inline-flex items-center gap-3 px-8 py-4 bg-ochre text-indigo hover:bg-clay transition-all duration-300 font-medium tracking-wider shadow-lg"
               >
                 <Phone className="w-5 h-5" />
                 <span>+46 70 633 22 20</span>
@@ -246,10 +247,10 @@ export default function EventsPage() {
                 href="https://wa.me/46706332220" 
                 target="_blank" 
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-3 px-8 py-4 border-2 border-ivory text-ivory hover:bg-ivory hover:text-deepIndigo transition-all duration-300 font-medium"
+                className="inline-flex items-center gap-3 px-8 py-4 border-2 border-ivory text-ivory hover:bg-ivory hover:text-indigo transition-all duration-300 font-medium tracking-wider"
               >
                 <MessageCircle className="w-5 h-5" />
-                <span>WhatsApp</span>
+                <span>{t.events.whatsapp}</span>
               </a>
             </div>
           </motion.div>
