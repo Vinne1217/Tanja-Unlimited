@@ -81,7 +81,7 @@ export const translations = {
       shopNow: 'Shop Now',
       aboutTitle: 'About Our Collections',
       handcrafted: 'Handcrafted Quality',
-      handcraftedDesc: 'Each piece is sewn by Tanja's own seamstresses using hand-quilted fabrics that were previously worn as camel blankets or saris by the women of Rajasthan, India.',
+      handcraftedDesc: 'Each piece is sewn by Tanja\'s own seamstresses using hand-quilted fabrics that were previously worn as camel blankets or saris by the women of Rajasthan, India.',
       reversibleDesign: 'Reversible Design',
       reversibleDesc: 'The famous Tanja Jacket is completely reversible with two different fronts—you get two unique jackets in one!',
       sustainable: 'Sustainable Fashion',
