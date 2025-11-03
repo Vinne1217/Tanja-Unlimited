@@ -8,21 +8,37 @@ export default {
   theme: {
     extend: {
       colors: {
-        // Sophisticated color palette inspired by Rajasthan textiles
-        ivory: '#F7F4EE',
-        warmIvory: '#F2EDE4',
-        deepIndigo: '#2B3A67',
-        indigoDeep: '#1E2847',
-        warmOchre: '#D4A574',
-        mutedRose: '#D4A5A5',
-        antiqueGold: '#C9A961',
-        terracotta: '#B85F4E',
-        sage: '#8B9A7E',
-        warmBlack: '#2A2A2A',
-        softCharcoal: '#4A4A4A',
-        cream: '#FAF8F3',
-        // Legacy colors for compatibility
-        ochreRed: '#A13E2A'
+        // Artisanal color palette: Rajasthan craft meets Scandinavian minimalism
+        // Backgrounds
+        ivory: '#F7F4EE',        // Cotton ivory - soft, paper-like
+        warmIvory: '#F2EDE4',    // Warmer variation
+        cream: '#FAF8F3',        // Lightest tone
+        
+        // Primary colors
+        indigo: '#2F3A4A',       // Deep indigo - artisanal, not corporate
+        deepIndigo: '#2F3A4A',   // Alias for consistency
+        indigoDeep: '#253141',   // Darker shade
+        
+        // Secondary & accents
+        ochre: '#C9974C',        // Burnished ochre - natural dyes
+        warmOchre: '#C9974C',    // Alias
+        clay: '#C97E63',         // Clay rose - Rajasthan textiles
+        mutedRose: '#C97E63',    // Alias
+        clayDark: '#B36B54',     // Darker clay for contrast
+        
+        // Supporting tones
+        terracotta: '#D4917A',   // Softer terracotta
+        sage: '#8B9A7E',         // Muted sage green
+        antiqueBronze: '#A67C52', // Bronze tone
+        
+        // Neutrals
+        graphite: '#4A4440',     // Warm graphite
+        softCharcoal: '#5A5550', // Softer charcoal
+        warmBlack: '#1E1C1A',    // Off-black with warmth
+        
+        // Legacy compatibility
+        antiqueGold: '#C9974C',
+        ochreRed: '#C97E63'
       },
       fontFamily: {
         serif: ['Cormorant Garamond', 'Georgia', 'serif'],

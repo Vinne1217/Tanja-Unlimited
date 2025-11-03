@@ -5,16 +5,31 @@
 @tailwind utilities;
 
 :root {
-  /* Sophisticated color palette */
+  /* Artisanal color palette: Rajasthan craft meets Scandinavian minimalism */
   --color-ivory: #F7F4EE;
   --color-warm-ivory: #F2EDE4;
-  --color-deep-indigo: #2B3A67;
-  --color-indigo-deep: #1E2847;
-  --color-warm-ochre: #D4A574;
-  --color-muted-rose: #D4A5A5;
-  --color-antique-gold: #C9A961;
-  --color-terracotta: #B85F4E;
-  --color-warm-black: #2A2A2A;
+  --color-cream: #FAF8F3;
+  
+  /* Primary - Deep indigo (artisanal, not corporate) */
+  --color-indigo: #2F3A4A;
+  --color-indigo-deep: #253141;
+  
+  /* Secondary - Burnished ochre (natural dyes) */
+  --color-ochre: #C9974C;
+  
+  /* Accent - Clay rose (Rajasthan textiles) */
+  --color-clay: #C97E63;
+  --color-clay-dark: #B36B54;
+  
+  /* Supporting tones */
+  --color-terracotta: #D4917A;
+  --color-sage: #8B9A7E;
+  --color-bronze: #A67C52;
+  
+  /* Neutrals - warm graphite and off-black */
+  --color-graphite: #4A4440;
+  --color-charcoal: #5A5550;
+  --color-warm-black: #1E1C1A;
   
   /* Typography */
   --font-serif: 'Cormorant Garamond', Georgia, serif;
@@ -29,12 +44,13 @@
   body {
     @apply bg-ivory text-warmBlack font-sans antialiased;
     font-feature-settings: 'liga' 1, 'calt' 1;
-    letter-spacing: 0.01em;
+    letter-spacing: 0.015em;
+    font-weight: 400;
   }
   
   h1, h2, h3, h4, h5, h6 {
     @apply font-serif font-medium;
-    letter-spacing: -0.01em;
+    letter-spacing: 0.02em; /* Increased for elegance */
   }
   
   h1 {
@@ -54,11 +70,11 @@
   }
   
   a {
-    @apply text-deepIndigo transition-colors duration-200;
+    @apply text-indigo transition-colors duration-300;
   }
   
   a:hover {
-    @apply text-warmOchre;
+    @apply text-ochre;
   }
   
   *:focus-visible {
@@ -69,27 +85,57 @@
 @layer components {
   /* Elegant button styles */
   .btn-primary {
-    @apply px-8 py-3 bg-deepIndigo text-ivory font-medium tracking-wide transition-all duration-300;
+    @apply px-8 py-4 bg-indigo text-ivory font-medium tracking-wider transition-all duration-300;
     @apply hover:bg-indigoDeep hover:shadow-lg;
+    box-shadow: 0 2px 8px rgba(47, 58, 74, 0.15);
   }
   
   .btn-secondary {
-    @apply px-8 py-3 border-2 border-deepIndigo text-deepIndigo font-medium tracking-wide transition-all duration-300;
-    @apply hover:bg-deepIndigo hover:text-ivory;
+    @apply px-8 py-4 border-2 border-ochre text-indigo font-medium tracking-wider transition-all duration-300;
+    @apply hover:bg-indigo hover:text-ivory hover:border-indigo;
   }
   
-  /* Textile-inspired patterns */
+  /* Textile-inspired patterns - refined for artisanal feel */
   .pattern-block-print {
     background-image: 
-      radial-gradient(circle at 20% 50%, rgba(212, 165, 116, 0.1) 0%, transparent 50%),
-      radial-gradient(circle at 80% 80%, rgba(43, 58, 103, 0.1) 0%, transparent 50%);
+      radial-gradient(circle at 20% 50%, rgba(201, 151, 76, 0.08) 0%, transparent 50%),
+      radial-gradient(circle at 80% 80%, rgba(47, 58, 74, 0.08) 0%, transparent 50%),
+      radial-gradient(circle at 50% 20%, rgba(201, 126, 99, 0.05) 0%, transparent 50%);
   }
   
   .pattern-quilted {
     background-image: 
-      linear-gradient(45deg, transparent 48%, rgba(212, 165, 116, 0.05) 49%, rgba(212, 165, 116, 0.05) 51%, transparent 52%),
-      linear-gradient(-45deg, transparent 48%, rgba(212, 165, 116, 0.05) 49%, rgba(212, 165, 116, 0.05) 51%, transparent 52%);
+      linear-gradient(45deg, transparent 48%, rgba(201, 151, 76, 0.04) 49%, rgba(201, 151, 76, 0.04) 51%, transparent 52%),
+      linear-gradient(-45deg, transparent 48%, rgba(201, 151, 76, 0.04) 49%, rgba(201, 151, 76, 0.04) 51%, transparent 52%);
     background-size: 40px 40px;
+  }
+  
+  /* Fabric grain texture overlay */
+  .texture-fabric {
+    position: relative;
+  }
+  
+  .texture-fabric::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image: 
+      repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(74, 68, 64, 0.02) 2px, rgba(74, 68, 64, 0.02) 4px),
+      repeating-linear-gradient(90deg, transparent, transparent 2px, rgba(74, 68, 64, 0.02) 2px, rgba(74, 68, 64, 0.02) 4px);
+    pointer-events: none;
+  }
+  
+  /* Stitched line divider */
+  .divider-stitched {
+    position: relative;
+    height: 2px;
+    background: repeating-linear-gradient(
+      90deg,
+      var(--color-ochre),
+      var(--color-ochre) 10px,
+      transparent 10px,
+      transparent 20px
+    );
   }
 }
 
@@ -99,14 +145,28 @@
   }
   
   .gradient-editorial {
-    background: linear-gradient(135deg, #F7F4EE 0%, #F2EDE4 50%, #E8DFD0 100%);
+    background: linear-gradient(135deg, #F7F4EE 0%, #F2EDE4 50%, rgba(201, 151, 76, 0.08) 100%);
   }
   
   .gradient-textile {
     background: linear-gradient(to bottom right, 
-      rgba(43, 58, 103, 0.05), 
-      rgba(212, 165, 116, 0.05)
+      rgba(47, 58, 74, 0.04), 
+      rgba(201, 126, 99, 0.06)
     );
+  }
+  
+  .gradient-warm {
+    background: linear-gradient(135deg, 
+      rgba(247, 244, 238, 1) 0%, 
+      rgba(242, 237, 228, 1) 50%, 
+      rgba(201, 151, 76, 0.1) 100%
+    );
+  }
+  
+  /* Soft paper texture */
+  .paper-texture {
+    background-image: 
+      url("data:image/svg+xml,%3Csvg width='100' height='100' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' /%3E%3C/filter%3E%3Crect width='100' height='100' filter='url(%23noise)' opacity='0.03' /%3E%3C/svg%3E");
   }
 }
 
