@@ -10,6 +10,8 @@ export type Product = {
   description?: string;
   image?: string;
   inStock: boolean;
+  stripeProductId?: string;
+  stripePriceId?: string;
 };
 
 export type Category = {
@@ -88,7 +90,10 @@ export const products: Product[] = [
     currency: 'SEK',
     category: 'tanja-jacket',
     description: 'Hand-quilted silk jacket, reversible with two different fronts',
-    inStock: true
+    image: '/Images/Short Jacket Silk (SJS).webp',
+    inStock: true,
+    stripeProductId: 'prod_TM8HrnCVZxAkzA',
+    stripePriceId: 'price_1SPQ0nP6vvUUervCNY9ApxdL'
   },
   {
     id: 'ljsf-001',
@@ -97,7 +102,10 @@ export const products: Product[] = [
     currency: 'SEK',
     category: 'tanja-jacket',
     description: 'Fitted long silk jacket, completely reversible',
-    inStock: true
+    image: '/Images/Long Jacket Silk fitted (LJSf).webp',
+    inStock: true,
+    stripeProductId: 'prod_TM8KNMKe85ZYMM',
+    stripePriceId: 'price_1SPQ3cP6vvUUervCRevV3pPO'
   },
   {
     id: 'sjcilw-001',
@@ -106,7 +114,10 @@ export const products: Product[] = [
     currency: 'SEK',
     category: 'tanja-jacket',
     description: 'Cotton jacket in imperial line design, white',
-    inStock: true
+    image: '/Images/Short jacket Cotton Imperial Line White (SJCilW).webp',
+    inStock: true,
+    stripeProductId: 'prod_TM8ObxolUedP4W',
+    stripePriceId: 'price_1SPQ7MP6vvUUervCPTBo0sHM'
   },
   {
     id: 'njcilw-001',
@@ -115,7 +126,10 @@ export const products: Product[] = [
     currency: 'SEK',
     category: 'tanja-jacket',
     description: 'Nehru style cotton jacket in imperial line, white',
-    inStock: true
+    image: '/Images/Nehru Jacket Cotton imperial line White (NJCilW).webp',
+    inStock: true,
+    stripeProductId: 'prod_TM8PR5YzRhLcGo',
+    stripePriceId: 'price_1SPQ8KP6vvUUervCFalBRK9b'
   },
   {
     id: 'ljckils-001',
@@ -124,7 +138,10 @@ export const products: Product[] = [
     currency: 'SEK',
     category: 'tanja-jacket',
     description: 'Knee-length cotton jacket in imperial line, silver',
-    inStock: true
+    image: '/Images/Long Jacket Cotton knee imperial line Silver (LJCkilS).webp',
+    inStock: true,
+    stripeProductId: 'prod_TM8U3Iw6TlUoba',
+    stripePriceId: 'price_1SPQDlP6vvUUervCQP2ffvW4'
   },
   {
     id: 'ljcfils-001',
@@ -133,7 +150,10 @@ export const products: Product[] = [
     currency: 'SEK',
     category: 'tanja-jacket',
     description: 'Fitted long cotton jacket in imperial line, silver',
-    inStock: true
+    image: '/Images/Long Jacket Cotton fitted imperial line Silver (LJCfilS).webp',
+    inStock: true,
+    stripeProductId: 'prod_TM8WtsmaCpBGLm',
+    stripePriceId: 'price_1SPQFTP6vvUUervCCpDjI6u5'
   },
   {
     id: 'ljckilg-001',

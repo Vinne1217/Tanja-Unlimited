@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import { ArrowLeft, ShoppingCart, Heart, Share2, CheckCircle } from 'lucide-react';
 import Link from 'next/link';
 import { getCategoryBySlug, getProductById, formatPrice } from '@/lib/products';
+import BuyNowButton from '@/components/BuyNowButton';
 import { use } from 'react';
 
 export default function ProductDetailPage({ 
@@ -65,22 +66,32 @@ export default function ProductDetailPage({
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.7 }}
             >
-              <div className="relative bg-gradient-textile pattern-quilted aspect-square flex items-center justify-center border border-warmOchre/20">
+              <div className="relative aspect-square border border-ochre/20 overflow-hidden bg-warmIvory">
                 {/* Sale Badge */}
                 {product.salePrice && (
-                  <div className="absolute top-6 right-6 px-4 py-2 bg-terracotta text-ivory text-sm uppercase tracking-widest font-medium">
+                  <div className="absolute top-6 right-6 px-4 py-2 bg-terracotta text-ivory text-sm uppercase tracking-widest font-medium z-10">
                     On Sale
                   </div>
                 )}
                 
-                {/* Placeholder Image */}
-                <div className="text-warmOchre/20">
-                  <svg className="w-48 h-48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1">
-                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
-                    <circle cx="8.5" cy="8.5" r="1.5"/>
-                    <path d="M21 15l-5-5L5 21"/>
-                  </svg>
-                </div>
+                {/* Product Image or Placeholder */}
+                {product.image ? (
+                  <img 
+                    src={product.image} 
+                    alt={product.name}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <div className="w-full h-full bg-gradient-textile pattern-quilted flex items-center justify-center">
+                    <div className="text-ochre/20">
+                      <svg className="w-48 h-48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1">
+                        <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                        <circle cx="8.5" cy="8.5" r="1.5"/>
+                        <path d="M21 15l-5-5L5 21"/>
+                      </svg>
+                    </div>
+                  </div>
+                )}
               </div>
             </motion.div>
 
@@ -158,21 +169,32 @@ export default function ProductDetailPage({
               </div>
 
               {/* Actions */}
-              <div className="border-t border-warmOchre/20 pt-6 space-y-4">
-                <a 
-                  href="tel:+46706332220"
-                  className="flex items-center justify-center gap-3 w-full px-8 py-4 bg-deepIndigo text-ivory hover:bg-indigoDeep transition-all duration-300 font-medium"
-                >
-                  <ShoppingCart className="w-5 h-5" />
-                  <span>Call to Order</span>
-                </a>
-                
-                <a 
-                  href="mailto:info@tanjaunlimited.se"
-                  className="flex items-center justify-center gap-3 w-full px-8 py-4 border-2 border-deepIndigo text-deepIndigo hover:bg-deepIndigo hover:text-ivory transition-all duration-300 font-medium"
-                >
-                  <span>Email for Details</span>
-                </a>
+              <div className="border-t border-ochre/20 pt-6 space-y-4">
+                {product.stripePriceId ? (
+                  <>
+                    <BuyNowButton product={product} />
+                    <p className="text-xs text-graphite/60 text-center">
+                      Secure checkout powered by Stripe
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <a 
+                      href="tel:+46706332220"
+                      className="flex items-center justify-center gap-3 w-full px-8 py-4 bg-indigo text-ivory hover:bg-indigoDeep transition-all duration-300 font-medium"
+                    >
+                      <ShoppingCart className="w-5 h-5" />
+                      <span>Call to Order</span>
+                    </a>
+                    
+                    <a 
+                      href="mailto:info@tanjaunlimited.se"
+                      className="flex items-center justify-center gap-3 w-full px-8 py-4 border-2 border-indigo text-indigo hover:bg-indigo hover:text-ivory transition-all duration-300 font-medium"
+                    >
+                      <span>Email for Details</span>
+                    </a>
+                  </>
+                )}
 
                 <div className="flex gap-4">
                   <button className="flex-1 flex items-center justify-center gap-2 px-6 py-3 border border-warmOchre/20 text-softCharcoal hover:border-warmOchre hover:text-warmOchre transition-all duration-300">
