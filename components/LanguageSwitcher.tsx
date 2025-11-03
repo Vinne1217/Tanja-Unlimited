@@ -1,13 +1,13 @@
 'use client';
 import { usePathname, useSearchParams, useRouter } from 'next/navigation';
 
-const locales = ['sv', 'de', 'en'] as const;
+const locales = ['en', 'sv', 'de'] as const;
 
 export default function LanguageSwitcher() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const router = useRouter();
-  const current = searchParams.get('lang') || 'sv';
+  const current = searchParams.get('lang') || 'en'; // Default to English
 
   function setLang(lang: string) {
     const params = new URLSearchParams(searchParams as any);
@@ -21,7 +21,11 @@ export default function LanguageSwitcher() {
         <button
           key={l}
           onClick={() => setLang(l)}
-          className={`px-2 py-1 border rounded ${current === l ? 'bg-cream border-ochreRed' : 'bg-white'}`}
+          className={`px-3 py-1 border transition-all duration-200 ${
+            current === l 
+              ? 'bg-ochre border-ochre text-indigo font-medium' 
+              : 'bg-transparent border-graphite/20 text-graphite hover:border-ochre hover:text-ochre'
+          }`}
         >
           {l.toUpperCase()}
         </button>
