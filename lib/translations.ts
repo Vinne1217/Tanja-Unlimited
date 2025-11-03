@@ -125,7 +125,7 @@ export const translations = {
       handcrafted: 'Handcrafted',
       handcraftedDesc: 'Every piece is carefully made by skilled artisans, ensuring exceptional quality and attention to detail in each unique item.',
       artistic: 'Artistic',
-      artisticDesc: 'Our designs blend traditional Indian textiles with modern Scandinavian aesthetics, featuring Tanja's original calligraphy artwork.',
+      artisticDesc: 'Our designs blend traditional Indian textiles with modern Scandinavian aesthetics, featuring Tanja\'s original calligraphy artwork.',
       visitAtelier: 'Visit Our Atelier',
       goteborgStore: 'Göteborg Store',
       whereToFind: 'Where to Find Us'
