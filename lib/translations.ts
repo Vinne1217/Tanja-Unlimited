@@ -55,7 +55,7 @@ export const translations = {
         title: 'Our Philosophy',
         description: 'Tanja Unlimited offers the largest selection of high-quality silk and cashmere scarves in Sweden. We craft unique designer garments from antique fabrics, silk dresses, genuine pashmina shawls, and antique suzani shawls.',
         calligraphy: 'Calligraphy Art',
-        calligraphyDesc: 'Tanja's original calligraphy artwork on blouses, tunics, accessories, and home textiles.',
+        calligraphyDesc: 'Tanja\'s original calligraphy artwork on blouses, tunics, accessories, and home textiles.',
         reversible: 'Reversible Design',
         reversibleDesc: 'Each Tanja Jacket has two fronts—two different jackets in one, hand-quilted by our seamstresses.',
         heritage: 'Upcycled Heritage',
