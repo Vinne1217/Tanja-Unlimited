@@ -57,10 +57,10 @@ export default function RootLayout({ children }: { children: ReactNode }) {
                   Contact
                 </a>
                 <a 
-                  href="/book" 
+                  href="/webshop" 
                   className="px-6 py-2 bg-deepIndigo text-ivory hover:bg-indigoDeep transition-all duration-300"
                 >
-                  Book Visit
+                  Webshop
                 </a>
               </nav>
             </div>
@@ -121,28 +121,28 @@ export default function RootLayout({ children }: { children: ReactNode }) {
                     href="https://www.facebook.com/tanjaunlimited" 
                     target="_blank" 
                     rel="noopener noreferrer"
-                    className="p-2 border border-ivory/20 hover:border-warmOchre hover:bg-warmOchre/10 transition-all duration-300"
+                    className="p-3 bg-ivory/10 hover:bg-warmOchre hover:text-deepIndigo transition-all duration-300 group"
                     aria-label="Facebook"
                   >
-                    <Facebook className="w-5 h-5" />
+                    <Facebook className="w-5 h-5 text-ivory group-hover:text-deepIndigo" fill="currentColor" />
                   </a>
                   <a 
                     href="https://www.instagram.com/tanjaunlimited/" 
                     target="_blank" 
                     rel="noopener noreferrer"
-                    className="p-2 border border-ivory/20 hover:border-warmOchre hover:bg-warmOchre/10 transition-all duration-300"
+                    className="p-3 bg-ivory/10 hover:bg-warmOchre hover:text-deepIndigo transition-all duration-300 group"
                     aria-label="Instagram"
                   >
-                    <Instagram className="w-5 h-5" />
+                    <Instagram className="w-5 h-5 text-ivory group-hover:text-deepIndigo" />
                   </a>
                   <a 
                     href="https://se.linkedin.com/company/tanja-unlimited-ab" 
                     target="_blank" 
                     rel="noopener noreferrer"
-                    className="p-2 border border-ivory/20 hover:border-warmOchre hover:bg-warmOchre/10 transition-all duration-300"
+                    className="p-3 bg-ivory/10 hover:bg-warmOchre hover:text-deepIndigo transition-all duration-300 group"
                     aria-label="LinkedIn"
                   >
-                    <Linkedin className="w-5 h-5" />
+                    <Linkedin className="w-5 h-5 text-ivory group-hover:text-deepIndigo" fill="currentColor" />
                   </a>
                 </div>
                 <p className="text-xs text-warmIvory/60">
