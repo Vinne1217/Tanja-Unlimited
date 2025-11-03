@@ -3,8 +3,10 @@
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { Newspaper, ShoppingBag, MapPin, Users } from 'lucide-react';
+import { useTranslation } from '@/lib/useTranslation';
 
 export default function AboutPage() {
+  const { t } = useTranslation();
   return (
     <div className="min-h-screen">
       {/* Hero */}
@@ -17,15 +19,15 @@ export default function AboutPage() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.7 }}
           >
-            <p className="text-sm uppercase tracking-widest text-warmOchre mb-6">
-              Our Story & Philosophy
+            <p className="text-sm uppercase tracking-widest text-ochre mb-6">
+              {t.about.subtitle}
             </p>
-            <h1 className="text-6xl lg:text-7xl font-serif font-medium text-deepIndigo mb-6">
-              About Tanja Unlimited
+            <h1 className="text-6xl lg:text-7xl font-serif font-medium text-indigo mb-6">
+              {t.about.title}
             </h1>
-            <div className="w-24 h-1 bg-warmOchre mx-auto mb-8"></div>
-            <p className="text-lg text-softCharcoal max-w-2xl mx-auto leading-relaxed">
-              Discover our story, values, and commitment to sustainable fashion and craftsmanship
+            <div className="w-24 h-1 bg-ochre mx-auto mb-8"></div>
+            <p className="text-lg text-graphite max-w-2xl mx-auto leading-relaxed font-light">
+              {t.about.description}
             </p>
           </motion.div>
         </div>
@@ -43,13 +45,13 @@ export default function AboutPage() {
             >
               <Link 
                 href="/about/press" 
-                className="group block bg-cream border border-warmOchre/20 p-8 hover:border-warmOchre hover:shadow-lg transition-all duration-300"
+                className="group block bg-cream border border-ochre/20 p-8 hover:border-ochre hover:shadow-lg transition-all duration-300"
               >
-                <Newspaper className="w-10 h-10 text-warmOchre mb-4 group-hover:text-deepIndigo transition-colors" />
-                <h3 className="text-xl font-serif text-deepIndigo mb-2 group-hover:text-warmOchre transition-colors">
-                  Press
+                <Newspaper className="w-10 h-10 text-ochre mb-4 group-hover:text-indigo transition-colors" />
+                <h3 className="text-xl font-serif text-indigo mb-2 group-hover:text-ochre transition-colors">
+                  {t.about.press}
                 </h3>
-                <p className="text-sm text-softCharcoal">Media coverage and press releases</p>
+                <p className="text-sm text-graphite font-light">{t.about.pressDesc}</p>
               </Link>
             </motion.div>
 
@@ -61,13 +63,13 @@ export default function AboutPage() {
             >
               <Link 
                 href="/about/webshop-info" 
-                className="group block bg-cream border border-warmOchre/20 p-8 hover:border-warmOchre hover:shadow-lg transition-all duration-300"
+                className="group block bg-cream border border-ochre/20 p-8 hover:border-ochre hover:shadow-lg transition-all duration-300"
               >
-                <ShoppingBag className="w-10 h-10 text-mutedRose mb-4 group-hover:text-deepIndigo transition-colors" />
-                <h3 className="text-xl font-serif text-deepIndigo mb-2 group-hover:text-warmOchre transition-colors">
-                  Webshop Info
+                <ShoppingBag className="w-10 h-10 text-clay mb-4 group-hover:text-indigo transition-colors" />
+                <h3 className="text-xl font-serif text-indigo mb-2 group-hover:text-ochre transition-colors">
+                  {t.about.webshopInfo}
                 </h3>
-                <p className="text-sm text-softCharcoal">How to shop and order</p>
+                <p className="text-sm text-graphite font-light">{t.about.webshopInfoDesc}</p>
               </Link>
             </motion.div>
 
@@ -79,13 +81,13 @@ export default function AboutPage() {
             >
               <Link 
                 href="/about/tanja-in-india" 
-                className="group block bg-cream border border-warmOchre/20 p-8 hover:border-warmOchre hover:shadow-lg transition-all duration-300"
+                className="group block bg-cream border border-ochre/20 p-8 hover:border-ochre hover:shadow-lg transition-all duration-300"
               >
-                <MapPin className="w-10 h-10 text-terracotta mb-4 group-hover:text-deepIndigo transition-colors" />
-                <h3 className="text-xl font-serif text-deepIndigo mb-2 group-hover:text-warmOchre transition-colors">
-                  Tanja in India
+                <MapPin className="w-10 h-10 text-terracotta mb-4 group-hover:text-indigo transition-colors" />
+                <h3 className="text-xl font-serif text-indigo mb-2 group-hover:text-ochre transition-colors">
+                  {t.about.tanjaInIndia}
                 </h3>
-                <p className="text-sm text-softCharcoal">Our connection to Rajasthan</p>
+                <p className="text-sm text-graphite font-light">{t.about.tanjaInIndiaDesc}</p>
               </Link>
             </motion.div>
 
@@ -97,13 +99,13 @@ export default function AboutPage() {
             >
               <Link 
                 href="/sister-unlimited" 
-                className="group block bg-cream border border-warmOchre/20 p-8 hover:border-warmOchre hover:shadow-lg transition-all duration-300"
+                className="group block bg-cream border border-ochre/20 p-8 hover:border-ochre hover:shadow-lg transition-all duration-300"
               >
-                <Users className="w-10 h-10 text-sage mb-4 group-hover:text-deepIndigo transition-colors" />
-                <h3 className="text-xl font-serif text-deepIndigo mb-2 group-hover:text-warmOchre transition-colors">
-                  Sister Unlimited
+                <Users className="w-10 h-10 text-sage mb-4 group-hover:text-indigo transition-colors" />
+                <h3 className="text-xl font-serif text-indigo mb-2 group-hover:text-ochre transition-colors">
+                  {t.about.sisterUnlimited}
                 </h3>
-                <p className="text-sm text-softCharcoal">Our sister brand</p>
+                <p className="text-sm text-graphite font-light">{t.about.sisterUnlimitedDesc}</p>
               </Link>
             </motion.div>
           </div>
@@ -121,20 +123,15 @@ export default function AboutPage() {
               transition={{ duration: 0.7 }}
               className="space-y-6"
             >
-              <h2 className="text-4xl font-serif font-medium text-deepIndigo">
-                Our Story
+              <h2 className="text-4xl font-serif font-medium text-indigo">
+                {t.about.ourStory}
               </h2>
-              <div className="w-16 h-1 bg-warmOchre"></div>
-              <p className="text-softCharcoal leading-relaxed">
-                Tanja Unlimited offers unique fashion pieces handcrafted from textiles with a rich history. 
-                Our signature piece, The Tanja Jacket, is sewn by our own seamstresses from hand-quilted 
-                cotton or silk fabrics that were previously worn by the women of Rajasthan, India, as camel 
-                blankets or saris.
+              <div className="w-16 h-1 bg-ochre"></div>
+              <p className="text-graphite leading-relaxed font-light">
+                {t.about.storyP1}
               </p>
-              <p className="text-softCharcoal leading-relaxed">
-                Each Tanja jacket is completely reversible with two different fronts—giving you two unique 
-                jackets in one. We also create the Tanja rug from recycled antique camel blankets, featuring 
-                several layers of hand-quilted, beautifully worn cotton fabrics.
+              <p className="text-graphite leading-relaxed font-light">
+                {t.about.storyP2}
               </p>
             </motion.div>
 
@@ -145,7 +142,7 @@ export default function AboutPage() {
               transition={{ duration: 0.7 }}
               className="relative"
             >
-              <div className="aspect-[4/5] bg-gradient-textile pattern-quilted border border-warmOchre/20"></div>
+              <div className="aspect-[4/5] bg-gradient-textile pattern-quilted border border-ochre/20"></div>
             </motion.div>
           </div>
         </div>
@@ -155,10 +152,10 @@ export default function AboutPage() {
       <section className="py-24 bg-ivory">
         <div className="max-w-7xl mx-auto px-6 lg:px-12">
           <div className="text-center mb-16">
-            <h2 className="text-4xl font-serif font-medium text-deepIndigo mb-6">
-              Our Values
+            <h2 className="text-4xl font-serif font-medium text-indigo mb-6">
+              {t.about.ourValues}
             </h2>
-            <div className="w-24 h-1 bg-warmOchre mx-auto"></div>
+            <div className="w-24 h-1 bg-ochre mx-auto"></div>
           </div>
 
           <div className="grid md:grid-cols-3 gap-10">
@@ -169,15 +166,14 @@ export default function AboutPage() {
               transition={{ duration: 0.6 }}
               className="text-center"
             >
-              <div className="w-20 h-20 mx-auto mb-6 flex items-center justify-center bg-warmOchre/10">
-                <svg className="w-10 h-10 text-warmOchre" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <div className="w-20 h-20 mx-auto mb-6 flex items-center justify-center bg-ochre/10">
+                <svg className="w-10 h-10 text-ochre" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
                 </svg>
               </div>
-              <h3 className="text-xl font-serif text-deepIndigo mb-4">Sustainability</h3>
-              <p className="text-softCharcoal leading-relaxed">
-                We give new life to antique fabrics and textiles, reducing waste while preserving 
-                traditional craftsmanship and cultural heritage.
+              <h3 className="text-xl font-serif text-indigo mb-4">{t.about.sustainability}</h3>
+              <p className="text-graphite leading-relaxed font-light">
+                {t.about.sustainabilityDesc}
               </p>
             </motion.div>
 
@@ -188,16 +184,15 @@ export default function AboutPage() {
               transition={{ duration: 0.6, delay: 0.1 }}
               className="text-center"
             >
-              <div className="w-20 h-20 mx-auto mb-6 flex items-center justify-center bg-mutedRose/10">
-                <svg className="w-10 h-10 text-mutedRose" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <div className="w-20 h-20 mx-auto mb-6 flex items-center justify-center bg-clay/10">
+                <svg className="w-10 h-10 text-clay" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
                   <circle cx="12" cy="7" r="4"/>
                 </svg>
               </div>
-              <h3 className="text-xl font-serif text-deepIndigo mb-4">Handcrafted</h3>
-              <p className="text-softCharcoal leading-relaxed">
-                Every piece is carefully made by skilled artisans, ensuring exceptional quality and 
-                attention to detail in each unique item.
+              <h3 className="text-xl font-serif text-indigo mb-4">{t.about.handcrafted}</h3>
+              <p className="text-graphite leading-relaxed font-light">
+                {t.about.handcraftedDesc}
               </p>
             </motion.div>
 
@@ -215,10 +210,9 @@ export default function AboutPage() {
                   <path d="M2 2l7.586 7.586"/>
                 </svg>
               </div>
-              <h3 className="text-xl font-serif text-deepIndigo mb-4">Artistic</h3>
-              <p className="text-softCharcoal leading-relaxed">
-                Our designs blend traditional Indian textiles with modern Scandinavian aesthetics, 
-                featuring Tanja's original calligraphy artwork.
+              <h3 className="text-xl font-serif text-indigo mb-4">{t.about.artistic}</h3>
+              <p className="text-graphite leading-relaxed font-light">
+                {t.about.artisticDesc}
               </p>
             </motion.div>
           </div>
@@ -226,7 +220,7 @@ export default function AboutPage() {
       </section>
 
       {/* Location */}
-      <section className="relative py-24 bg-deepIndigo text-ivory overflow-hidden">
+      <section className="relative py-24 bg-indigo text-ivory overflow-hidden">
         <div className="absolute inset-0 pattern-block-print opacity-50"></div>
         
         <div className="relative max-w-7xl mx-auto px-6 lg:px-12">
@@ -237,13 +231,13 @@ export default function AboutPage() {
               viewport={{ once: true }}
               transition={{ duration: 0.7 }}
             >
-              <h3 className="text-3xl font-serif font-medium mb-6">Visit Our Atelier</h3>
-              <div className="w-16 h-1 bg-warmOchre mb-8"></div>
+              <h3 className="text-3xl font-serif font-medium mb-6">{t.about.visitAtelier}</h3>
+              <div className="w-16 h-1 bg-ochre mb-8"></div>
               
               <div className="space-y-6">
                 <div>
-                  <h4 className="text-lg font-medium mb-3 text-warmOchre">Göteborg Store</h4>
-                  <p className="text-warmIvory/80 mb-4 leading-relaxed">
+                  <h4 className="text-lg font-medium mb-3 text-ochre">{t.about.goteborgStore}</h4>
+                  <p className="text-ivory/80 mb-4 leading-relaxed font-light">
                     Molinsgatan 13<br/>
                     411 33 Göteborg<br/>
                     Sweden
@@ -252,10 +246,10 @@ export default function AboutPage() {
                     href="http://maps.google.se/maps?q=Molinsgatan+13,+Göteborg" 
                     target="_blank" 
                     rel="noopener noreferrer"
-                    className="inline-flex items-center gap-2 px-6 py-3 bg-warmOchre text-deepIndigo hover:bg-antiqueGold transition-all duration-300"
+                    className="inline-flex items-center gap-2 px-6 py-3 bg-ochre text-indigo hover:bg-clay transition-all duration-300 tracking-wider"
                   >
                     <MapPin className="w-4 h-4" />
-                    <span>View on Map</span>
+                    <span>{t.events.viewMap}</span>
                   </a>
                 </div>
               </div>
@@ -267,23 +261,23 @@ export default function AboutPage() {
               viewport={{ once: true }}
               transition={{ duration: 0.7 }}
             >
-              <h4 className="text-lg font-medium mb-6 text-warmOchre">Where to Find Us</h4>
-              <ul className="space-y-4 text-warmIvory/80">
+              <h4 className="text-lg font-medium mb-6 text-ochre">{t.about.whereToFind}</h4>
+              <ul className="space-y-4 text-ivory/80 font-light">
                 <li className="flex items-start gap-3">
-                  <span className="text-warmOchre mt-1">—</span>
+                  <span className="text-ochre mt-1">—</span>
                   <span>Bra Under i Focus, Göteborg</span>
                 </li>
                 <li className="flex items-start gap-3">
-                  <span className="text-warmOchre mt-1">—</span>
+                  <span className="text-ochre mt-1">—</span>
                   <span>European Trade Fairs</span>
                 </li>
                 <li className="flex items-start gap-3">
-                  <span className="text-warmOchre mt-1">—</span>
+                  <span className="text-ochre mt-1">—</span>
                   <span>Online at shop.tanjaunlimited.se</span>
                 </li>
               </ul>
-              <p className="mt-8 text-warmIvory/80">
-                Ring Tanja Kisker: <a href="tel:+46706332220" className="text-warmOchre font-medium hover:text-antiqueGold transition-colors">0706332220</a>
+              <p className="mt-8 text-ivory/80 font-light">
+                Ring Tanja Kisker: <a href="tel:+46706332220" className="text-ochre font-medium hover:text-clay transition-colors">0706332220</a>
               </p>
             </motion.div>
           </div>

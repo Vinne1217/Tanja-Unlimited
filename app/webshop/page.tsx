@@ -4,8 +4,10 @@ import { motion } from 'framer-motion';
 import { ShoppingBag, ArrowRight } from 'lucide-react';
 import Link from 'next/link';
 import { categories } from '@/lib/products';
+import { useTranslation } from '@/lib/useTranslation';
 
 export default function WebshopPage() {
+  const { t } = useTranslation();
   const categoryIcons: Record<string, React.ReactNode> = {
     jacket: (
       <svg className="w-12 h-12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -66,18 +68,17 @@ export default function WebshopPage() {
             transition={{ duration: 0.7 }}
           >
             <div className="inline-flex items-center gap-3 mb-6">
-              <ShoppingBag className="w-6 h-6 text-warmOchre" />
-              <p className="text-sm uppercase tracking-widest text-warmOchre">
-                Shop Online
+              <ShoppingBag className="w-6 h-6 text-ochre" />
+              <p className="text-sm uppercase tracking-widest text-ochre">
+                {t.webshop.subtitle}
               </p>
             </div>
-            <h1 className="text-6xl lg:text-7xl font-serif font-medium text-deepIndigo mb-6">
-              Webshop
+            <h1 className="text-6xl lg:text-7xl font-serif font-medium text-indigo mb-6">
+              {t.webshop.title}
             </h1>
-            <div className="w-24 h-1 bg-warmOchre mx-auto mb-8"></div>
-            <p className="text-lg text-softCharcoal max-w-2xl mx-auto leading-relaxed">
-              Explore our unique collection of hand-crafted textiles, reversible jackets, 
-              calligraphy art, and sustainable fashion pieces from Rajasthan
+            <div className="w-24 h-1 bg-ochre mx-auto mb-8"></div>
+            <p className="text-lg text-graphite max-w-2xl mx-auto leading-relaxed font-light">
+              {t.webshop.description}
             </p>
           </motion.div>
         </div>
@@ -87,10 +88,10 @@ export default function WebshopPage() {
       <section className="py-24 bg-ivory">
         <div className="max-w-7xl mx-auto px-6 lg:px-12">
           <div className="text-center mb-16">
-            <h2 className="text-4xl font-serif font-medium text-deepIndigo mb-6">
-              Shop by Category
+            <h2 className="text-4xl font-serif font-medium text-indigo mb-6">
+              {t.webshop.shopByCategory}
             </h2>
-            <div className="w-24 h-1 bg-warmOchre mx-auto"></div>
+            <div className="w-24 h-1 bg-ochre mx-auto"></div>
           </div>
 
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">

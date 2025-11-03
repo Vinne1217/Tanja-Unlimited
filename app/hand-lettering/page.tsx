@@ -2,8 +2,10 @@
 
 import { motion } from 'framer-motion';
 import { Phone, Mail, CheckCircle } from 'lucide-react';
+import { useTranslation } from '@/lib/useTranslation';
 
 export default function HandLetteringPage() {
+  const { t } = useTranslation();
   return (
     <div className="min-h-screen">
       {/* Hero */}
@@ -16,15 +18,15 @@ export default function HandLetteringPage() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.7 }}
           >
-            <p className="text-sm uppercase tracking-widest text-warmOchre mb-6">
-              Art & Typography
+            <p className="text-sm uppercase tracking-widest text-ochre mb-6">
+              {t.handLettering.subtitle}
             </p>
-            <h1 className="text-6xl lg:text-7xl font-serif font-medium text-deepIndigo mb-6">
-              Hand Lettering<br />& Calligraphy
+            <h1 className="text-6xl lg:text-7xl font-serif font-medium text-indigo mb-6">
+              {t.handLettering.title}
             </h1>
-            <div className="w-24 h-1 bg-warmOchre mx-auto mb-8"></div>
-            <p className="text-lg text-softCharcoal max-w-2xl mx-auto leading-relaxed">
-              Beautiful hand-lettered designs and professional calligraphy services by Tanja Kisker
+            <div className="w-24 h-1 bg-ochre mx-auto mb-8"></div>
+            <p className="text-lg text-graphite max-w-2xl mx-auto leading-relaxed font-light">
+              {t.handLettering.description}
             </p>
           </motion.div>
         </div>

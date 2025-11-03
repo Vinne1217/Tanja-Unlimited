@@ -3,8 +3,10 @@
 import ContactForm from '@/components/ContactForm';
 import { motion } from 'framer-motion';
 import { Calendar, Sparkles, Phone, CheckCircle } from 'lucide-react';
+import { useTranslation } from '@/lib/useTranslation';
 
 export default function BookPage() {
+  const { t } = useTranslation();
   return (
     <div className="min-h-screen">
       {/* Hero */}
@@ -17,15 +19,15 @@ export default function BookPage() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.7 }}
           >
-            <p className="text-sm uppercase tracking-widest text-warmOchre mb-6">
-              Private Appointments
+            <p className="text-sm uppercase tracking-widest text-ochre mb-6">
+              {t.book.subtitle}
             </p>
-            <h1 className="text-6xl lg:text-7xl font-serif font-medium text-deepIndigo mb-6">
-              Book an Appointment
+            <h1 className="text-6xl lg:text-7xl font-serif font-medium text-indigo mb-6">
+              {t.book.title}
             </h1>
-            <div className="w-24 h-1 bg-warmOchre mx-auto mb-8"></div>
-            <p className="text-lg text-softCharcoal max-w-2xl mx-auto leading-relaxed">
-              Schedule a private viewing, atelier visit, or consultation with Tanja Kisker
+            <div className="w-24 h-1 bg-ochre mx-auto mb-8"></div>
+            <p className="text-lg text-graphite max-w-2xl mx-auto leading-relaxed font-light">
+              {t.book.description}
             </p>
           </motion.div>
         </div>
