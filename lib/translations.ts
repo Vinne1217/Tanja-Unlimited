@@ -164,7 +164,7 @@ export const translations = {
     contact: {
       subtitle: 'Get In Touch',
       title: 'Contact Us',
-      description: 'Have questions? Want to book an appointment? We'd love to hear from you.',
+      description: 'Have questions? Want to book an appointment? We\'d love to hear from you.',
       contactInfo: 'Contact Information',
       phone: 'Phone',
       email: 'Email',
@@ -194,7 +194,7 @@ export const translations = {
       requestBooking: 'Request a Booking',
       ctaTitle: 'Opening Hours',
       ctaDesc: 'By appointment only',
-      ctaNote: 'Contact us to schedule your visit at a time that works for you. We're flexible and happy to accommodate your schedule.'
+      ctaNote: 'Contact us to schedule your visit at a time that works for you. We\'re flexible and happy to accommodate your schedule.'
     },
     
     // Webshop
