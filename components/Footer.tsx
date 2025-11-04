@@ -1,16 +1,14 @@
 'use client';
 
+import { Suspense } from 'react';
 import { Phone, Mail, Facebook, Instagram, Linkedin } from 'lucide-react';
 import { useTranslation } from '@/lib/useTranslation';
 
-export default function Footer() {
+function FooterContent() {
   const { t } = useTranslation();
 
   return (
-    <footer className="bg-indigo text-ivory relative overflow-hidden">
-      {/* Subtle pattern overlay */}
-      <div className="absolute inset-0 pattern-block-print opacity-50"></div>
-      
+    <>
       <div className="relative max-w-7xl mx-auto px-6 lg:px-12 py-16">
         <div className="grid md:grid-cols-12 gap-12 mb-12">
           {/* Brand */}
@@ -94,6 +92,21 @@ export default function Footer() {
           </div>
         </div>
       </div>
+    </>
+  );
+}
+
+export default function Footer() {
+  return (
+    <footer className="bg-indigo text-ivory relative overflow-hidden">
+      {/* Subtle pattern overlay */}
+      <div className="absolute inset-0 pattern-block-print opacity-50"></div>
+      
+      <Suspense fallback={
+        <div className="max-w-7xl mx-auto px-6 lg:px-12 py-16 text-center text-sm">Loading...</div>
+      }>
+        <FooterContent />
+      </Suspense>
     </footer>
   );
 }
