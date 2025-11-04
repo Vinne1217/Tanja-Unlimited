@@ -1,3 +1,8 @@
+'use client';
+
+// Mark as dynamic to support client-side rendering
+export const dynamic = 'force-dynamic';
+
 export default function TanjaInIndiaPage() {
   return (
     <section className="max-w-4xl mx-auto space-y-8">

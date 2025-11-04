@@ -3,6 +3,9 @@
 import { motion } from 'framer-motion';
 import { Phone, Mail, Globe, CheckCircle } from 'lucide-react';
 
+// Mark as dynamic to support client-side rendering
+export const dynamic = 'force-dynamic';
+
 export default function PressPage() {
   return (
     <div className="min-h-screen">

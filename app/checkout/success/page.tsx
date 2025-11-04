@@ -6,6 +6,9 @@ import { motion } from 'framer-motion';
 import { CheckCircle, ArrowRight } from 'lucide-react';
 import Link from 'next/link';
 
+// Mark as dynamic to support useSearchParams
+export const dynamic = 'force-dynamic';
+
 export default function CheckoutSuccessPage() {
   const searchParams = useSearchParams();
   const sessionId = searchParams.get('session_id');

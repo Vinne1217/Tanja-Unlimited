@@ -1,4 +1,9 @@
+'use client';
+
 // Journal / Stories skeleton; will connect to Sanity later
+// Mark as dynamic to support client-side rendering
+export const dynamic = 'force-dynamic';
+
 export default function StoriesPage() {
   const stories = [
     { title: 'Behind the Tanja Jacket', excerpt: 'Hand-quilted fabrics and reversible design.' }
