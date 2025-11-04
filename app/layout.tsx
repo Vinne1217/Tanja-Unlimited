@@ -8,6 +8,9 @@ export const metadata = {
   description: 'Sophisticated, handcrafted fashion from Rajasthan. Reversible jackets, silk textiles, and calligraphy art.',
 };
 
+// Force all pages to be dynamic to support useSearchParams throughout the app
+export const dynamic = 'force-dynamic';
+
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en">
