@@ -7,6 +7,9 @@ import { getCategoryBySlug, getProductById, formatPrice } from '@/lib/products';
 import BuyNowButton from '@/components/BuyNowButton';
 import { use } from 'react';
 
+// Mark as dynamic to support client-side rendering
+export const dynamic = 'force-dynamic';
+
 export default function ProductDetailPage({ 
   params 
 }: { 

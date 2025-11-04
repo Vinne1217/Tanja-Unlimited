@@ -6,6 +6,9 @@ import Link from 'next/link';
 import { getCategoryBySlug, getProductsByCategory, formatPrice } from '@/lib/products';
 import { use } from 'react';
 
+// Mark as dynamic to support client-side rendering
+export const dynamic = 'force-dynamic';
+
 export default function CategoryPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = use(params);
   const category = getCategoryBySlug(slug);
