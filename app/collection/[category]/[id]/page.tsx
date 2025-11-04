@@ -2,6 +2,7 @@ import { getProduct } from '@/lib/catalog';
 import ProductPurchase from './purchase';
 
 export const revalidate = 300;
+export const dynamic = 'force-dynamic';
 
 export default async function ProductPage({ 
   params 
