@@ -4,7 +4,9 @@ import { upsertCampaign, deleteCampaign } from '@/lib/campaigns';
 
 export async function POST(req: NextRequest) {
   const auth = req.headers.get('authorization') ?? '';
-  if (auth !== `Bearer ${process.env.CUSTOMER_API_KEY}`) {
+  // Accept either FRONTEND_API_KEY (correct name) or CUSTOMER_API_KEY (legacy)
+  const expectedKey = process.env.FRONTEND_API_KEY || process.env.CUSTOMER_API_KEY;
+  if (auth !== `Bearer ${expectedKey}`) {
     return new NextResponse('Unauthorized', { status: 401 });
   }
   const body = await req.json();
