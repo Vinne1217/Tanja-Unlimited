@@ -6,6 +6,9 @@ import Link from 'next/link';
 import { categories } from '@/lib/products';
 import { useTranslation } from '@/lib/useTranslation';
 
+// Mark as dynamic to support useSearchParams
+export const dynamic = 'force-dynamic';
+
 export default function WebshopPage() {
   const { t } = useTranslation();
   const categoryIcons: Record<string, React.ReactNode> = {

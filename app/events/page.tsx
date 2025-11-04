@@ -4,6 +4,9 @@ import { motion } from 'framer-motion';
 import { MapPin, Calendar, Phone, MessageCircle } from 'lucide-react';
 import { useTranslation } from '@/lib/useTranslation';
 
+// Mark as dynamic to support useSearchParams
+export const dynamic = 'force-dynamic';
+
 type Event = {
   title: string;
   dates: string;

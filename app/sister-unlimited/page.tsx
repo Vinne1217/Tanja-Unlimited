@@ -1,5 +1,10 @@
+'use client';
+
 import ContactForm from '@/components/ContactForm';
 import Link from 'next/link';
+
+// Mark as dynamic to support client-side rendering
+export const dynamic = 'force-dynamic';
 
 export default function SisterUnlimitedPage() {
   return (

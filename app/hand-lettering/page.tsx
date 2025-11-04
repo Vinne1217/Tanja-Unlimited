@@ -4,6 +4,9 @@ import { motion } from 'framer-motion';
 import { Phone, Mail, CheckCircle } from 'lucide-react';
 import { useTranslation } from '@/lib/useTranslation';
 
+// Mark as dynamic to support useSearchParams
+export const dynamic = 'force-dynamic';
+
 export default function HandLetteringPage() {
   const { t } = useTranslation();
   return (

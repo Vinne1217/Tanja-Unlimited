@@ -5,6 +5,9 @@ import { motion } from 'framer-motion';
 import { Phone, Mail, MapPin } from 'lucide-react';
 import { useTranslation } from '@/lib/useTranslation';
 
+// Mark as dynamic to support useSearchParams
+export const dynamic = 'force-dynamic';
+
 export default function ContactPage() {
   const { t } = useTranslation();
   return (

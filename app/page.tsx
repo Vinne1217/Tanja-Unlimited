@@ -4,6 +4,9 @@ import { motion } from 'framer-motion';
 import { ArrowRight, Sparkles, RefreshCw, Heart, Phone } from 'lucide-react';
 import { useTranslation } from '@/lib/useTranslation';
 
+// Mark as dynamic to support useSearchParams
+export const dynamic = 'force-dynamic';
+
 export default function HomePage() {
   const { t } = useTranslation();
   
