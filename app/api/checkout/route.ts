@@ -1,14 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY ?? '', { apiVersion: '2025-02-24.acacia' });
-
 type CartItem = {
   quantity: number;
   stripePriceId: string; // from Source: variant price or product price
 };
 
 export async function POST(req: NextRequest) {
+  // Initialize Stripe at runtime to avoid build-time errors
+  if (!process.env.STRIPE_SECRET_KEY) {
+    return NextResponse.json({ error: 'Stripe configuration missing' }, { status: 500 });
+  }
+  
+  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, { apiVersion: '2025-02-24.acacia' });
+
   const { items, customerEmail, successUrl, cancelUrl } = (await req.json()) as {
     items: CartItem[];
     customerEmail?: string;
