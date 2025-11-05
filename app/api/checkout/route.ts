@@ -26,8 +26,10 @@ export async function POST(req: NextRequest) {
   };
 
   // Check for campaign prices and use them if available
+  const campaignData: Record<string, string> = {};
+  
   const line_items = await Promise.all(
-    items.map(async (item) => {
+    items.map(async (item, index) => {
       let priceId = item.stripePriceId;
       let campaignId: string | undefined;
 
@@ -38,10 +40,15 @@ export async function POST(req: NextRequest) {
         if (campaignPrice?.hasCampaignPrice && campaignPrice.stripePriceId) {
           priceId = campaignPrice.stripePriceId;
           campaignId = campaignPrice.campaignId;
+          campaignData[`product_${index}_campaign`] = campaignId || '';
+          campaignData[`product_${index}_id`] = item.productId;
           console.log(`🎯 Using campaign price: ${priceId} for product: ${item.productId}`);
           console.log(`   Campaign: ${campaignPrice.campaignName} (${campaignId})`);
         } else {
           console.log(`📝 Using default price: ${priceId} for product: ${item.productId}`);
+          if (item.productId) {
+            campaignData[`product_${index}_id`] = item.productId;
+          }
         }
       }
 
@@ -52,15 +59,23 @@ export async function POST(req: NextRequest) {
     })
   );
 
+  // Build comprehensive metadata for Source portal
+  const sessionMetadata = {
+    tenant: process.env.SOURCE_TENANT_ID ?? TENANT_ID,
+    source: 'tanja_website',
+    website: 'tanja-unlimited.onrender.com',
+    ...campaignData
+  };
+
+  console.log('📦 Creating checkout session with metadata:', sessionMetadata);
+
   const session = await stripe.checkout.sessions.create({
     mode: 'payment',
     customer_email: customerEmail,
     line_items,
     success_url: successUrl,
     cancel_url: cancelUrl,
-    metadata: { 
-      tenant: process.env.SOURCE_TENANT_ID ?? TENANT_ID
-    }
+    metadata: sessionMetadata
   });
 
   console.log(`✅ Checkout session created: ${session.id}`);
