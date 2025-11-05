@@ -27,7 +27,8 @@ export default function BuyNowButton({ product }: BuyNowButtonProps) {
           items: [
             {
               quantity: 1,
-              stripePriceId: product.stripePriceId
+              stripePriceId: product.stripePriceId,
+              productId: product.id // Pass productId to check for campaign prices
             }
           ],
           successUrl: `${window.location.origin}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,

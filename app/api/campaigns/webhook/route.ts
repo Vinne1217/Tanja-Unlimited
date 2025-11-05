@@ -1,22 +1,137 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { revalidatePath } from 'next/cache';
 import { upsertCampaign, deleteCampaign } from '@/lib/campaigns';
+import { 
+  storeCampaignPrice, 
+  expireCampaignPrice, 
+  isEventProcessed,
+  getActiveCampaignPrices 
+} from '@/lib/campaign-price-service';
+
+const TENANT_ID = 'tanjaunlimited';
 
 export async function POST(req: NextRequest) {
   const auth = req.headers.get('authorization') ?? '';
   // Accept either FRONTEND_API_KEY (correct name) or CUSTOMER_API_KEY (legacy)
   const expectedKey = process.env.FRONTEND_API_KEY || process.env.CUSTOMER_API_KEY;
+  
   if (auth !== `Bearer ${expectedKey}`) {
+    console.warn('❌ Unauthorized webhook attempt');
     return new NextResponse('Unauthorized', { status: 401 });
   }
+
   const body = await req.json();
   const action: string = body.action;
+  const eventId: string | undefined = body.eventId;
+
+  console.log(`📥 Webhook received: ${action}`, eventId ? `(event: ${eventId})` : '');
+
+  // Check for duplicate events (idempotency)
+  if (eventId && await isEventProcessed(TENANT_ID, eventId)) {
+    console.log(`⚠️  Event ${eventId} already processed, skipping`);
+    return NextResponse.json({ 
+      success: true, 
+      message: 'Event already processed',
+      duplicate: true 
+    });
+  }
+
+  // Handle ping
+  if (action === 'ping') {
+    console.log('🏓 Ping received');
+    return NextResponse.json({ success: true, message: 'Pong' });
+  }
+
+  // Handle price events (campaign pricing)
+  if (action === 'price.created' || action === 'price.updated') {
+    const priceUpdate = body.priceUpdate;
+    
+    if (!priceUpdate?.stripePriceId || !priceUpdate?.originalProductId) {
+      console.error('❌ Missing required price fields:', priceUpdate);
+      return NextResponse.json({ 
+        success: false, 
+        message: 'Missing required fields' 
+      }, { status: 400 });
+    }
+
+    const result = await storeCampaignPrice(TENANT_ID, priceUpdate, eventId);
+    
+    if (result.success) {
+      // Revalidate pages to show new campaign prices
+      revalidatePath('/webshop');
+      revalidatePath('/collection');
+      revalidatePath('/');
+    }
+
+    return NextResponse.json({ 
+      success: result.success, 
+      message: result.message,
+      priceId: priceUpdate.stripePriceId,
+      productId: priceUpdate.originalProductId
+    });
+  }
+
+  if (action === 'price.deleted') {
+    const campaignId = body.priceUpdate?.campaignId;
+    
+    if (!campaignId) {
+      console.error('❌ Missing campaignId for price.deleted');
+      return NextResponse.json({ 
+        success: false, 
+        message: 'Missing campaignId' 
+      }, { status: 400 });
+    }
+
+    const result = await expireCampaignPrice(TENANT_ID, campaignId);
+    
+    if (result.success) {
+      revalidatePath('/webshop');
+      revalidatePath('/collection');
+    }
+
+    return NextResponse.json({ 
+      success: result.success, 
+      message: result.message 
+    });
+  }
+
+  // Handle campaign metadata events (legacy support)
   const c = body.campaign;
-  if (action === 'deleted') deleteCampaign(c.id);
-  else if (action === 'created' || action === 'updated' || action === 'price.updated' || action === 'ping') upsertCampaign(c);
+  if (action === 'deleted' && c?.id) {
+    deleteCampaign(c.id);
+  } else if (action === 'created' || action === 'updated') {
+    if (c) upsertCampaign(c);
+  }
+
   revalidatePath('/');
   revalidatePath('/collection');
-  return NextResponse.json({ success: true, message: 'Campaign updated successfully', action });
+  revalidatePath('/webshop');
+
+  return NextResponse.json({ 
+    success: true, 
+    message: 'Campaign webhook processed', 
+    action 
+  });
+}
+
+// GET endpoint - return active campaign prices
+export async function GET() {
+  try {
+    const campaigns = await getActiveCampaignPrices(TENANT_ID);
+    
+    return NextResponse.json({
+      success: true,
+      campaigns,
+      count: campaigns.length
+    });
+  } catch (error) {
+    console.error('Error fetching campaigns:', error);
+    return NextResponse.json({ 
+      success: false, 
+      campaigns: [], 
+      count: 0 
+    }, { status: 500 });
+  }
 }
 
 

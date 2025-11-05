@@ -1,10 +1,12 @@
 'use client';
 
+import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { ArrowLeft, ShoppingCart, Heart, Share2, CheckCircle } from 'lucide-react';
 import Link from 'next/link';
 import { getCategoryBySlug, getProductById, formatPrice } from '@/lib/products';
 import BuyNowButton from '@/components/BuyNowButton';
+import CampaignBadge from '@/components/CampaignBadge';
 import { use } from 'react';
 
 // Mark as dynamic to support client-side rendering
@@ -18,6 +20,7 @@ export default function ProductDetailPage({
   const { slug, id } = use(params);
   const category = getCategoryBySlug(slug);
   const product = getProductById(id);
+  const [campaignPrice, setCampaignPrice] = useState<number | null>(null);
 
   if (!product || !category) {
     return (
@@ -105,34 +108,45 @@ export default function ProductDetailPage({
               transition={{ duration: 0.7 }}
               className="space-y-8"
             >
-              {/* Title & Price */}
+              {/* Title */}
               <div>
-                <h1 className="text-4xl lg:text-5xl font-serif font-medium text-deepIndigo mb-4">
+                <h1 className="text-4xl lg:text-5xl font-serif font-medium text-deepIndigo mb-6">
                   {product.name}
                 </h1>
                 
-                <div className="flex items-baseline gap-3 mb-6">
-                  {product.salePrice ? (
-                    <>
-                      <span className="text-4xl font-serif text-terracotta">
-                        {formatPrice(product.salePrice, product.currency)}
-                      </span>
-                      <span className="text-2xl text-softCharcoal/50 line-through">
+                {/* Campaign Badge & Price (if campaign exists) */}
+                <CampaignBadge 
+                  productId={product.id}
+                  defaultPrice={product.price}
+                  currency={product.currency || 'SEK'}
+                  onCampaignFound={setCampaignPrice}
+                />
+                
+                {/* Regular Price Display (if no campaign) */}
+                {!campaignPrice && (
+                  <div className="flex items-baseline gap-3 mb-6">
+                    {product.salePrice ? (
+                      <>
+                        <span className="text-4xl font-serif text-terracotta">
+                          {formatPrice(product.salePrice, product.currency)}
+                        </span>
+                        <span className="text-2xl text-softCharcoal/50 line-through">
+                          {formatPrice(product.price, product.currency)}
+                        </span>
+                        <span className="px-3 py-1 bg-terracotta/10 text-terracotta text-sm font-medium">
+                          Save {formatPrice(product.price - product.salePrice, product.currency)}
+                        </span>
+                      </>
+                    ) : (
+                      <span className="text-4xl font-serif text-deepIndigo">
                         {formatPrice(product.price, product.currency)}
                       </span>
-                      <span className="px-3 py-1 bg-terracotta/10 text-terracotta text-sm font-medium">
-                        Save {formatPrice(product.price - product.salePrice, product.currency)}
-                      </span>
-                    </>
-                  ) : (
-                    <span className="text-4xl font-serif text-deepIndigo">
-                      {formatPrice(product.price, product.currency)}
-                    </span>
-                  )}
-                </div>
+                    )}
+                  </div>
+                )}
 
                 {/* Stock Status */}
-                <div className="flex items-center gap-2 text-sage">
+                <div className="flex items-center gap-2 text-sage mt-6">
                   <CheckCircle className="w-5 h-5" />
                   <span className="text-sm font-medium">In Stock</span>
                 </div>
