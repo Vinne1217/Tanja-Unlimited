@@ -32,15 +32,31 @@ export default function CampaignBadge({
   useEffect(() => {
     async function fetchCampaign() {
       try {
+        // Add timeout to prevent infinite loading
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 3000);
+
         // Check for active campaign price
-        const res = await fetch(`/api/campaigns/price?productId=${productId}`);
+        const res = await fetch(`/api/campaigns/price?productId=${productId}`, {
+          signal: controller.signal
+        });
+        
+        clearTimeout(timeoutId);
+
+        if (!res.ok) {
+          throw new Error('Failed to fetch campaign');
+        }
+
         const data = await res.json();
 
         if (data.hasCampaignPrice && data.stripePriceId) {
           setCampaign(data);
 
           // Fetch actual price from Stripe
-          const priceRes = await fetch(`/api/stripe/price?id=${data.stripePriceId}`);
+          const priceRes = await fetch(`/api/stripe/price?id=${data.stripePriceId}`, {
+            signal: controller.signal
+          });
+          
           if (priceRes.ok) {
             const priceData = await priceRes.json();
             const actualPrice = priceData.unit_amount / 100; // Convert öre to SEK
@@ -53,7 +69,8 @@ export default function CampaignBadge({
           }
         }
       } catch (error) {
-        console.error('Error fetching campaign:', error);
+        // Silently fail - just don't show campaign badge
+        console.warn('Campaign lookup skipped:', error instanceof Error ? error.message : 'Unknown error');
       } finally {
         setLoading(false);
       }

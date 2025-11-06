@@ -25,7 +25,7 @@ export async function POST(req: NextRequest) {
     cancelUrl: string;
   };
 
-  // Check for campaign prices and use them if available
+  // Check for campaign prices and use them if available (with timeout protection)
   const campaignData: Record<string, string> = {};
   
   const line_items = await Promise.all(
@@ -33,19 +33,36 @@ export async function POST(req: NextRequest) {
       let priceId = item.stripePriceId;
       let campaignId: string | undefined;
 
-      // If productId provided, check for campaign price
+      // If productId provided, check for campaign price (with timeout)
       if (item.productId) {
-        const campaignPrice = await getCampaignPriceForProduct(TENANT_ID, item.productId);
-        
-        if (campaignPrice?.hasCampaignPrice && campaignPrice.stripePriceId) {
-          priceId = campaignPrice.stripePriceId;
-          campaignId = campaignPrice.campaignId;
-          campaignData[`product_${index}_campaign`] = campaignId || '';
-          campaignData[`product_${index}_id`] = item.productId;
-          console.log(`🎯 Using campaign price: ${priceId} for product: ${item.productId}`);
-          console.log(`   Campaign: ${campaignPrice.campaignName} (${campaignId})`);
-        } else {
-          console.log(`📝 Using default price: ${priceId} for product: ${item.productId}`);
+        try {
+          // Add timeout to prevent blocking checkout
+          const campaignPricePromise = getCampaignPriceForProduct(TENANT_ID, item.productId);
+          const timeoutPromise = new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('Campaign lookup timeout')), 3000)
+          );
+          
+          const campaignPrice = await Promise.race([
+            campaignPricePromise,
+            timeoutPromise
+          ]) as Awaited<ReturnType<typeof getCampaignPriceForProduct>>;
+          
+          if (campaignPrice?.hasCampaignPrice && campaignPrice.stripePriceId) {
+            priceId = campaignPrice.stripePriceId;
+            campaignId = campaignPrice.campaignId;
+            campaignData[`product_${index}_campaign`] = campaignId || '';
+            campaignData[`product_${index}_id`] = item.productId;
+            console.log(`🎯 Using campaign price: ${priceId} for product: ${item.productId}`);
+            console.log(`   Campaign: ${campaignPrice.campaignName} (${campaignId})`);
+          } else {
+            console.log(`📝 Using default price: ${priceId} for product: ${item.productId}`);
+            if (item.productId) {
+              campaignData[`product_${index}_id`] = item.productId;
+            }
+          }
+        } catch (error) {
+          // Campaign lookup failed or timed out - use default price
+          console.warn(`⚠️ Campaign lookup failed for ${item.productId}, using default price:`, error instanceof Error ? error.message : 'Unknown error');
           if (item.productId) {
             campaignData[`product_${index}_id`] = item.productId;
           }

@@ -77,6 +77,7 @@ export async function storeCampaignPrice(
 
 /**
  * Get active campaign price for a product
+ * Returns null if no campaign or if Source API is unavailable (fail gracefully)
  */
 export async function getCampaignPriceForProduct(
   tenantId: string,
@@ -89,13 +90,24 @@ export async function getCampaignPriceForProduct(
   metadata?: Record<string, any>;
 } | null> {
   try {
+    // Note: Source campaign-prices API endpoint may not be implemented yet
+    // This will gracefully return null if the endpoint doesn't exist
     const res = await sourceFetch(
-      `/v1/campaign-prices?tenantId=${tenantId}&productId=${productId}&status=active`
+      `/v1/campaign-prices?tenantId=${tenantId}&productId=${productId}&status=active`,
+      {
+        // Add timeout to prevent blocking
+        signal: AbortSignal.timeout(2000)
+      }
     );
 
     if (!res.ok) {
-      console.warn(`No campaign price found for product: ${productId}`);
-      return null;
+      // 404 = endpoint doesn't exist yet, or no campaigns
+      if (res.status === 404) {
+        console.log(`ℹ️  No campaign price API or no campaigns for product: ${productId}`);
+      } else {
+        console.warn(`Campaign API returned ${res.status} for product: ${productId}`);
+      }
+      return { hasCampaignPrice: false };
     }
 
     const data = await res.json();
@@ -123,8 +135,9 @@ export async function getCampaignPriceForProduct(
       metadata: activeCampaign.metadata,
     };
   } catch (error) {
-    console.error('Error fetching campaign price:', error);
-    return null;
+    // Fail gracefully - return no campaign if API is down or times out
+    console.warn(`Campaign lookup skipped for ${productId}:`, error instanceof Error ? error.message : 'Unknown error');
+    return { hasCampaignPrice: false };
   }
 }
 
