@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react';
 import { Tag, Sparkles } from 'lucide-react';
-import Stripe from 'stripe';
 
 type CampaignBadgeProps = {
   productId: string;
@@ -11,12 +10,17 @@ type CampaignBadgeProps = {
   onCampaignFound?: (campaignPrice: number) => void;
 };
 
-type CampaignData = {
-  hasCampaignPrice: boolean;
-  stripePriceId?: string;
-  campaignId?: string;
-  campaignName?: string;
-  metadata?: Record<string, any>;
+type PriceInfo = {
+  found: boolean;
+  priceId?: string;
+  amount?: number;
+  currency?: string;
+  isCampaign?: boolean;
+  campaignInfo?: {
+    originalAmount?: number;
+    discountPercent?: number;
+    description?: string;
+  };
 };
 
 export default function CampaignBadge({
@@ -25,47 +29,36 @@ export default function CampaignBadge({
   currency = 'SEK',
   onCampaignFound
 }: CampaignBadgeProps) {
-  const [campaign, setCampaign] = useState<CampaignData | null>(null);
-  const [campaignPrice, setCampaignPrice] = useState<number | null>(null);
+  const [priceInfo, setPriceInfo] = useState<PriceInfo | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    async function fetchCampaign() {
+    async function fetchPrice() {
       try {
-        // Add timeout to prevent infinite loading
+        // Query Stripe directly for latest price (Kraftverk approach)
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 3000);
 
-        // Check for active campaign price
-        const res = await fetch(`/api/campaigns/price?productId=${productId}`, {
+        const res = await fetch(`/api/products/price?productId=${productId}`, {
           signal: controller.signal
         });
         
         clearTimeout(timeoutId);
 
         if (!res.ok) {
-          throw new Error('Failed to fetch campaign');
+          setLoading(false);
+          return;
         }
 
-        const data = await res.json();
+        const data: PriceInfo = await res.json();
 
-        if (data.hasCampaignPrice && data.stripePriceId) {
-          setCampaign(data);
-
-          // Fetch actual price from Stripe
-          const priceRes = await fetch(`/api/stripe/price?id=${data.stripePriceId}`, {
-            signal: controller.signal
-          });
+        if (data.found && data.isCampaign && data.amount) {
+          setPriceInfo(data);
+          const campaignPrice = data.amount / 100; // Convert cents to SEK
           
-          if (priceRes.ok) {
-            const priceData = await priceRes.json();
-            const actualPrice = priceData.unit_amount / 100; // Convert öre to SEK
-            setCampaignPrice(actualPrice);
-            
-            // Notify parent component
-            if (onCampaignFound) {
-              onCampaignFound(actualPrice);
-            }
+          // Notify parent component
+          if (onCampaignFound) {
+            onCampaignFound(campaignPrice);
           }
         }
       } catch (error) {
@@ -76,15 +69,17 @@ export default function CampaignBadge({
       }
     }
 
-    fetchCampaign();
+    fetchPrice();
   }, [productId, onCampaignFound]);
 
-  if (loading || !campaign?.hasCampaignPrice || !campaignPrice) {
+  if (loading || !priceInfo?.isCampaign || !priceInfo.campaignInfo) {
     return null;
   }
 
-  const discountAmount = defaultPrice - campaignPrice;
-  const discountPercent = Math.round((discountAmount / defaultPrice) * 100);
+  const campaignPrice = priceInfo.amount! / 100; // Convert cents to SEK
+  const originalPrice = priceInfo.campaignInfo.originalAmount! / 100;
+  const discountAmount = originalPrice - campaignPrice;
+  const discountPercent = priceInfo.campaignInfo.discountPercent || 0;
 
   return (
     <div className="space-y-3">
@@ -97,24 +92,24 @@ export default function CampaignBadge({
       {/* Price Display with Strikethrough */}
       <div className="flex items-baseline gap-3">
         <span className="text-4xl font-serif text-terracotta">
-          {campaignPrice.toLocaleString('sv-SE')} {currency}
+          {campaignPrice.toLocaleString('sv-SE')} {currency.toUpperCase()}
         </span>
         <span className="text-2xl text-graphite/50 line-through">
-          {defaultPrice.toLocaleString('sv-SE')} {currency}
+          {originalPrice.toLocaleString('sv-SE')} {currency.toUpperCase()}
         </span>
       </div>
 
-      {/* Campaign Name */}
-      {campaign.campaignName && (
+      {/* Campaign Description */}
+      {priceInfo.campaignInfo.description && (
         <div className="flex items-center gap-2 text-sm text-graphite/70">
           <Tag className="w-4 h-4" />
-          <span>{campaign.campaignName}</span>
+          <span>{priceInfo.campaignInfo.description}</span>
         </div>
       )}
 
       {/* Savings Display */}
       <div className="inline-block px-3 py-1 bg-terracotta/10 text-terracotta text-sm font-medium">
-        Spara {discountAmount.toLocaleString('sv-SE')} {currency}
+        Spara {discountAmount.toLocaleString('sv-SE')} {currency.toUpperCase()}
       </div>
     </div>
   );

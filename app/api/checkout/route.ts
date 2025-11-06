@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
-import { getCampaignPriceForProduct } from '@/lib/campaign-price-service';
+import { getLatestActivePriceForProduct } from '@/lib/stripe-products';
 
 const TENANT_ID = 'tanjaunlimited';
 
 type CartItem = {
   quantity: number;
-  stripePriceId: string; // from Source: variant price or product price
-  productId?: string; // To check for campaign prices
+  stripePriceId: string; // fallback price ID
+  productId?: string; // To query Stripe for latest price
 };
 
 export async function POST(req: NextRequest) {
@@ -25,44 +25,46 @@ export async function POST(req: NextRequest) {
     cancelUrl: string;
   };
 
-  // Check for campaign prices and use them if available (with timeout protection)
+  // Get latest prices from Stripe (campaigns are newer prices on same product)
   const campaignData: Record<string, string> = {};
   
   const line_items = await Promise.all(
     items.map(async (item, index) => {
-      let priceId = item.stripePriceId;
-      let campaignId: string | undefined;
+      let priceId = item.stripePriceId; // fallback to provided price
+      let isCampaign = false;
 
-      // If productId provided, check for campaign price (with timeout)
+      // If productId provided, query Stripe for latest active price
       if (item.productId) {
         try {
-          // Add timeout to prevent blocking checkout
-          const campaignPricePromise = getCampaignPriceForProduct(TENANT_ID, item.productId);
-          const timeoutPromise = new Promise((_, reject) => 
-            setTimeout(() => reject(new Error('Campaign lookup timeout')), 3000)
+          const priceInfo = await getLatestActivePriceForProduct(
+            item.productId,
+            process.env.STRIPE_SECRET_KEY!
           );
           
-          const campaignPrice = await Promise.race([
-            campaignPricePromise,
-            timeoutPromise
-          ]) as Awaited<ReturnType<typeof getCampaignPriceForProduct>>;
-          
-          if (campaignPrice?.hasCampaignPrice && campaignPrice.stripePriceId) {
-            priceId = campaignPrice.stripePriceId;
-            campaignId = campaignPrice.campaignId;
-            campaignData[`product_${index}_campaign`] = campaignId || '';
+          if (priceInfo) {
+            priceId = priceInfo.priceId;
+            isCampaign = priceInfo.isCampaign;
+            
+            if (isCampaign && priceInfo.campaignInfo) {
+              console.log(`🎯 Using campaign price for ${item.productId}:`);
+              console.log(`   ${priceInfo.amount / 100} ${priceInfo.currency.toUpperCase()} (${priceInfo.campaignInfo.discountPercent}% off)`);
+              campaignData[`product_${index}_campaign`] = 'active';
+              campaignData[`product_${index}_discount`] = `${priceInfo.campaignInfo.discountPercent}%`;
+            } else {
+              console.log(`💰 Using standard price for ${item.productId}: ${priceInfo.amount / 100} ${priceInfo.currency.toUpperCase()}`);
+            }
+            
             campaignData[`product_${index}_id`] = item.productId;
-            console.log(`🎯 Using campaign price: ${priceId} for product: ${item.productId}`);
-            console.log(`   Campaign: ${campaignPrice.campaignName} (${campaignId})`);
+            campaignData[`product_${index}_price`] = priceInfo.priceId;
           } else {
-            console.log(`📝 Using default price: ${priceId} for product: ${item.productId}`);
+            console.log(`📝 Using fallback price for ${item.productId}: ${priceId}`);
             if (item.productId) {
               campaignData[`product_${index}_id`] = item.productId;
             }
           }
         } catch (error) {
-          // Campaign lookup failed or timed out - use default price
-          console.warn(`⚠️ Campaign lookup failed for ${item.productId}, using default price:`, error instanceof Error ? error.message : 'Unknown error');
+          // Stripe API failed - use fallback price
+          console.warn(`⚠️ Stripe price lookup failed for ${item.productId}, using fallback:`, error instanceof Error ? error.message : 'Unknown error');
           if (item.productId) {
             campaignData[`product_${index}_id`] = item.productId;
           }
