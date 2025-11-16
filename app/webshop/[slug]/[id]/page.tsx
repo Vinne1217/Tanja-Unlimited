@@ -7,6 +7,7 @@ import Link from 'next/link';
 import { getCategoryBySlug, getProductById, formatPrice } from '@/lib/products';
 import BuyNowButton from '@/components/BuyNowButton';
 import CampaignBadge from '@/components/CampaignBadge';
+import StockStatus from '@/components/StockStatus';
 import { use } from 'react';
 
 // Mark as dynamic to support client-side rendering
@@ -146,9 +147,8 @@ export default function ProductDetailPage({
                 )}
 
                 {/* Stock Status */}
-                <div className="flex items-center gap-2 text-sage mt-6">
-                  <CheckCircle className="w-5 h-5" />
-                  <span className="text-sm font-medium">In Stock</span>
+                <div className="mt-6">
+                  <StockStatus productId={product.id} />
                 </div>
               </div>
 

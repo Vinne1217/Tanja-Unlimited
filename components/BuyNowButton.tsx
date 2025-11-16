@@ -1,19 +1,56 @@
 'use client';
 
-import { useState } from 'react';
-import { ShoppingCart, Loader2 } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { ShoppingCart, Loader2, XCircle } from 'lucide-react';
 import type { Product } from '@/lib/products';
 
 type BuyNowButtonProps = {
   product: Product;
 };
 
+type InventoryData = {
+  stock: number | null;
+  status: 'in_stock' | 'low_stock' | 'out_of_stock';
+  lowStock: boolean;
+  outOfStock: boolean;
+  hasData: boolean;
+};
+
 export default function BuyNowButton({ product }: BuyNowButtonProps) {
   const [loading, setLoading] = useState(false);
+  const [inventory, setInventory] = useState<InventoryData | null>(null);
+  const [checkingStock, setCheckingStock] = useState(true);
+
+  useEffect(() => {
+    async function fetchStockStatus() {
+      try {
+        const res = await fetch(`/api/inventory/status?productId=${encodeURIComponent(product.id)}`, {
+          cache: 'no-store'
+        });
+        
+        if (res.ok) {
+          const data = await res.json();
+          setInventory(data);
+        }
+      } catch (error) {
+        console.warn('Failed to fetch stock status:', error);
+      } finally {
+        setCheckingStock(false);
+      }
+    }
+
+    fetchStockStatus();
+  }, [product.id]);
 
   async function handleCheckout() {
     if (!product.stripePriceId) {
       alert('This product is not available for online purchase. Please contact us.');
+      return;
+    }
+
+    // Check if out of stock
+    if (inventory?.outOfStock) {
+      alert('Detta produkt är tyvärr slutsåld. Vänligen kontakta oss för mer information.');
       return;
     }
 
@@ -51,16 +88,24 @@ export default function BuyNowButton({ product }: BuyNowButtonProps) {
     }
   }
 
+  const isOutOfStock = inventory?.outOfStock ?? false;
+  const isDisabled = loading || checkingStock || isOutOfStock;
+
   return (
     <button
       onClick={handleCheckout}
-      disabled={loading}
+      disabled={isDisabled}
       className="flex items-center justify-center gap-3 w-full px-8 py-4 bg-indigo text-ivory hover:bg-indigoDeep transition-all duration-300 font-medium tracking-wider disabled:opacity-50 disabled:cursor-not-allowed"
     >
       {loading ? (
         <>
           <Loader2 className="w-5 h-5 animate-spin" />
           <span>Processing...</span>
+        </>
+      ) : isOutOfStock ? (
+        <>
+          <XCircle className="w-5 h-5" />
+          <span>Slutsåld</span>
         </>
       ) : (
         <>
