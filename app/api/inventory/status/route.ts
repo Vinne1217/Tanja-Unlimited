@@ -13,10 +13,12 @@ export async function GET(req: NextRequest) {
       );
     }
 
+    console.log(`📊 Inventory status requested for product: ${productId}`);
     const status = getInventoryStatus(productId);
 
     if (!status) {
       // No inventory data = assume in stock (default behavior)
+      console.log(`ℹ️  No inventory data for ${productId}, returning default (in stock)`);
       return NextResponse.json({
         productId,
         stock: null,
@@ -26,6 +28,12 @@ export async function GET(req: NextRequest) {
         hasData: false
       });
     }
+
+    console.log(`✅ Inventory status for ${productId}:`, {
+      stock: status.stock,
+      status: status.status,
+      outOfStock: status.outOfStock
+    });
 
     return NextResponse.json({
       productId,
@@ -39,7 +47,7 @@ export async function GET(req: NextRequest) {
       hasData: true
     });
   } catch (error) {
-    console.error('Error fetching inventory status:', error);
+    console.error('❌ Error fetching inventory status:', error);
     return NextResponse.json(
       { error: 'Failed to fetch inventory status' },
       { status: 500 }

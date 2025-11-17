@@ -48,6 +48,12 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    console.log(`📥 Inventory sync received for product: ${body.item.id}`, {
+      stock: body.item.stock,
+      status: body.item.status,
+      name: body.item.name
+    });
+
     // Update inventory storage
     await updateInventory(body.item.id, {
       stock: body.item.stock,
