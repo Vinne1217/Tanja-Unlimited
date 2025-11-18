@@ -35,3 +35,28 @@ export function mapProductId(portalProductId: string): string {
   return portalProductId;
 }
 
+/**
+ * Reverse mapping: Convert Tanja product ID back to customer portal product ID
+ * Used when querying the Source API (which uses customer portal format)
+ */
+export function reverseMapProductId(tanjaProductId: string): string {
+  // Search for the Tanja product ID in the mapping values
+  for (const [portalId, tanjaId] of Object.entries(PRODUCT_ID_MAPPING)) {
+    if (tanjaId === tanjaProductId) {
+      return portalId;
+    }
+  }
+  
+  // Try case-insensitive match
+  const lowerId = tanjaProductId.toLowerCase();
+  for (const [portalId, tanjaId] of Object.entries(PRODUCT_ID_MAPPING)) {
+    if (tanjaId.toLowerCase() === lowerId) {
+      return portalId;
+    }
+  }
+  
+  // If no reverse mapping found, return original (might be a catalog product)
+  // The API might accept both formats
+  return tanjaProductId;
+}
+

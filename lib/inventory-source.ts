@@ -5,6 +5,7 @@
  */
 
 import { sourceFetch } from './source';
+import { reverseMapProductId } from './inventory-mapping';
 
 export type InventoryData = {
   productId: string;
@@ -23,18 +24,30 @@ const TENANT_ID = 'tanjaunlimited';
  * Get inventory status for a product from Source API
  * Uses the public inventory endpoint: /api/inventory/public/{tenantId}/{productId}
  * No API key required - uses X-Tenant header (same pattern as campaigns)
+ * 
+ * IMPORTANT: The API uses customer portal product IDs (e.g., "LJSf"), not Tanja format (e.g., "ljsf-001")
+ * We reverse-map Tanja product IDs to customer portal format before querying
+ * 
  * Returns null if no inventory data or if Source API is unavailable (fail gracefully)
  */
 export async function getInventoryFromSource(
   productId: string
 ): Promise<InventoryData | null> {
   try {
+    // The Source API uses customer portal product IDs (e.g., "LJSf")
+    // We need to convert Tanja product IDs (e.g., "ljsf-001") to customer portal format
+    const portalProductId = reverseMapProductId(productId);
+    
     // Use the public inventory endpoint (no API key required)
     // Endpoint: GET /api/inventory/public/{tenantId}/{productId}
     // Headers: X-Tenant: {tenantId} (handled by sourceFetch)
-    const endpoint = `/api/inventory/public/${TENANT_ID}/${productId}`;
+    const endpoint = `/api/inventory/public/${TENANT_ID}/${portalProductId}`;
     
-    console.log(`📡 Fetching inventory from Source API for ${productId} (tenant: ${TENANT_ID})`);
+    console.log(`📡 Fetching inventory from Source API:`, {
+      tanjaProductId: productId,
+      portalProductId,
+      tenantId: TENANT_ID
+    });
     
     let res: Response | null = null;
     
