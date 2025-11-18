@@ -60,23 +60,25 @@ export default function StockStatus({ productId, className = '' }: StockStatusPr
     );
   }
 
-  if (inventory.lowStock || inventory.status === 'low_stock') {
+  // Low stock: stock < 5 or lowStock flag
+  const isLowStock = inventory.lowStock || (inventory.stock !== null && inventory.stock < 5);
+  
+  if (isLowStock) {
     return (
       <div className={`flex items-center gap-2 text-ochre ${className}`}>
         <AlertCircle className="w-5 h-5" />
         <span className="text-sm font-medium">
-          Snart slutsåld{inventory.stock !== null ? ` (${inventory.stock} kvar)` : ''}
+          Snart slutsåld{inventory.stock !== null ? ` (${inventory.stock} st)` : ''}
         </span>
       </div>
     );
   }
 
+  // Stock >= 5: Just show "I lager" without count
   return (
     <div className={`flex items-center gap-2 text-sage ${className}`}>
       <CheckCircle className="w-5 h-5" />
-      <span className="text-sm font-medium">
-        I lager{inventory.stock !== null ? ` (${inventory.stock} st)` : ''}
-      </span>
+      <span className="text-sm font-medium">I lager</span>
     </div>
   );
 }
