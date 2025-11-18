@@ -16,7 +16,12 @@ export async function POST(req: NextRequest) {
   const expectedKey = process.env.FRONTEND_API_KEY || process.env.CUSTOMER_API_KEY;
   
   if (auth !== `Bearer ${expectedKey}`) {
-    console.warn('❌ Unauthorized webhook attempt');
+    console.warn('❌ Unauthorized webhook attempt', {
+      hasAuth: !!auth,
+      authPrefix: auth.substring(0, 20),
+      expectedPrefix: expectedKey ? `Bearer ${expectedKey.substring(0, 5)}...` : 'NO_KEY_SET',
+      hasExpectedKey: !!expectedKey
+    });
     return new NextResponse('Unauthorized', { status: 401 });
   }
 
@@ -69,6 +74,111 @@ export async function POST(req: NextRequest) {
       priceId: priceUpdate.stripePriceId,
       productId: priceUpdate.originalProductId
     });
+  }
+
+  // Handle inventory events
+  if (action?.startsWith('inventory.')) {
+    const inventoryAction = action.replace('inventory.', ''); // 'updated', 'created', 'deleted'
+    const inventoryUpdate = body.inventory || body.item;
+    
+    if (!inventoryUpdate) {
+      console.error('❌ Missing inventory data in inventory update');
+      return NextResponse.json({ 
+        success: false, 
+        message: 'Missing inventory data' 
+      }, { status: 400 });
+    }
+
+    // Get product ID (handle both formats)
+    let productId = inventoryUpdate.productId || inventoryUpdate.id;
+    
+    if (!productId) {
+      console.error('❌ Missing productId in inventory update:', inventoryUpdate);
+      return NextResponse.json({ 
+        success: false, 
+        message: 'Missing productId' 
+      }, { status: 400 });
+    }
+
+    // Map customer portal product ID to Tanja product ID
+    const { mapProductId } = await import('@/lib/inventory-mapping');
+    const mappedProductId = mapProductId(productId);
+
+    console.log(`📦 Inventory ${inventoryAction} received:`, {
+      originalProductId: productId,
+      mappedProductId,
+      stock: inventoryUpdate.stock,
+      status: inventoryUpdate.status
+    });
+
+    // Handle different inventory actions
+    if (inventoryAction === 'updated' || inventoryAction === 'created') {
+      // Update local inventory storage (for fast access)
+      const { updateInventory } = await import('@/lib/inventory');
+      
+      // Determine status if not provided
+      let status: 'in_stock' | 'low_stock' | 'out_of_stock' = inventoryUpdate.status;
+      if (!status) {
+        if (inventoryUpdate.stock === 0) {
+          status = 'out_of_stock';
+        } else if (inventoryUpdate.lowStock) {
+          status = 'low_stock';
+        } else {
+          status = 'in_stock';
+        }
+      }
+
+      // Determine outOfStock flag
+      const outOfStock = inventoryUpdate.outOfStock !== undefined 
+        ? inventoryUpdate.outOfStock 
+        : (inventoryUpdate.status === 'out_of_stock' || inventoryUpdate.stock === 0);
+
+      await updateInventory(mappedProductId, {
+        stock: inventoryUpdate.stock ?? 0,
+        status: status,
+        lowStock: inventoryUpdate.lowStock ?? inventoryUpdate.status === 'low_stock',
+        outOfStock: outOfStock,
+        name: inventoryUpdate.name,
+        sku: inventoryUpdate.sku,
+        lastUpdated: new Date().toISOString()
+      });
+
+      console.log(`✅ Inventory ${inventoryAction} processed for ${mappedProductId}`);
+
+      // Revalidate pages to show updated inventory
+      revalidatePath('/webshop');
+      revalidatePath('/collection');
+      revalidatePath('/');
+
+      return NextResponse.json({ 
+        success: true, 
+        message: `Inventory ${inventoryAction} processed`,
+        productId: mappedProductId,
+        originalProductId: productId
+      });
+    } else if (inventoryAction === 'deleted') {
+      // Remove inventory (optional - can just set stock to 0 instead)
+      const { clearInventory } = await import('@/lib/inventory');
+      clearInventory(mappedProductId);
+
+      console.log(`🗑️  Inventory deleted for ${mappedProductId}`);
+
+      revalidatePath('/webshop');
+      revalidatePath('/collection');
+      revalidatePath('/');
+
+      return NextResponse.json({ 
+        success: true, 
+        message: 'Inventory deleted',
+        productId: mappedProductId
+      });
+    } else {
+      console.warn(`⚠️  Unknown inventory action: ${inventoryAction}`);
+      return NextResponse.json({ 
+        success: false, 
+        message: `Unknown inventory action: ${inventoryAction}` 
+      }, { status: 400 });
+    }
   }
 
   if (action === 'price.deleted') {

@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getInventoryFromSource } from '@/lib/inventory-source';
+// Keep in-memory as fallback
 import { getInventoryStatus } from '@/lib/inventory';
 
 export async function GET(req: NextRequest) {
@@ -14,37 +16,64 @@ export async function GET(req: NextRequest) {
     }
 
     console.log(`📊 Inventory status requested for product: ${productId}`);
-    const status = getInventoryStatus(productId);
 
-    if (!status) {
+    // Hybrid approach: Try Source API first (persistent storage), then in-memory (webhook updates)
+    let inventory = await getInventoryFromSource(productId);
+    let source = 'none';
+
+    if (inventory) {
+      source = 'source_api';
+      console.log(`📦 Using inventory from Source API for ${productId}`);
+    } else {
+      // Fallback to in-memory if Source API has no data (updated via webhooks)
+      const memoryStatus = getInventoryStatus(productId);
+      if (memoryStatus) {
+        source = 'in_memory';
+        console.log(`📦 Using inventory from in-memory storage (webhook) for ${productId}`);
+        inventory = {
+          productId,
+          stock: memoryStatus.stock,
+          status: memoryStatus.status,
+          lowStock: memoryStatus.lowStock,
+          outOfStock: memoryStatus.outOfStock,
+          name: memoryStatus.name,
+          sku: memoryStatus.sku,
+          lastUpdated: memoryStatus.lastUpdated
+        };
+      }
+    }
+
+    if (!inventory) {
       // No inventory data = assume in stock (default behavior)
-      console.log(`ℹ️  No inventory data for ${productId}, returning default (in stock)`);
+      console.log(`ℹ️  No inventory data for ${productId} (checked Source API and in-memory), returning default (in stock)`);
       return NextResponse.json({
         productId,
         stock: null,
         status: 'in_stock',
         lowStock: false,
         outOfStock: false,
-        hasData: false
+        hasData: false,
+        source: 'default'
       });
     }
 
-    console.log(`✅ Inventory status for ${productId}:`, {
-      stock: status.stock,
-      status: status.status,
-      outOfStock: status.outOfStock
+    console.log(`✅ Inventory status for ${productId} (source: ${source}):`, {
+      stock: inventory.stock,
+      status: inventory.status,
+      outOfStock: inventory.outOfStock
     });
 
     return NextResponse.json({
       productId,
-      stock: status.stock,
-      status: status.status,
-      lowStock: status.lowStock,
-      outOfStock: status.outOfStock,
-      name: status.name,
-      sku: status.sku,
-      lastUpdated: status.lastUpdated,
-      hasData: true
+      stock: inventory.stock,
+      status: inventory.status,
+      lowStock: inventory.lowStock,
+      outOfStock: inventory.outOfStock,
+      name: inventory.name,
+      sku: inventory.sku,
+      lastUpdated: inventory.lastUpdated,
+      hasData: true,
+      source: source
     });
   } catch (error) {
     console.error('❌ Error fetching inventory status:', error);
