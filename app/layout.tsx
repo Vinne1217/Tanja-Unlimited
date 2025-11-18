@@ -2,6 +2,7 @@ import './globals.css';
 import type { ReactNode } from 'react';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
+import AIAssistant from '@/components/AIAssistant';
 
 export const metadata = {
   title: 'Tanja Unlimited – Art-Forward Textiles & Calligraphy',
@@ -20,6 +21,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           {children}
         </main>
         <Footer />
+        <AIAssistant />
       </body>
     </html>
   );
