@@ -38,13 +38,25 @@ export async function getInventoryFromSource(
       return null;
     }
 
+    // Log API key info for debugging (safely - only show first 5 chars and length)
+    const keySource = process.env.FRONTEND_API_KEY ? 'FRONTEND_API_KEY' : 'CUSTOMER_API_KEY';
+    console.log(`🔑 Inventory API authentication:`, {
+      keySource,
+      keyPrefix: apiKey.substring(0, 5),
+      keyLength: apiKey.length,
+      tenantId: TENANT_ID,
+      productId
+    });
+
     const endpoint = `/api/inventory/public/${TENANT_ID}/${productId}`;
     const url = `${SOURCE_BASE}${endpoint}`;
     
     let res: Response | null = null;
+    let authMethod = 'Bearer';
     
     try {
       // Try with Authorization: Bearer header first
+      console.log(`📡 Attempting inventory API request with Authorization: Bearer header`);
       res = await fetch(url, {
         method: 'GET',
         headers: {
@@ -54,10 +66,16 @@ export async function getInventoryFromSource(
         signal: AbortSignal.timeout(2000),
         cache: 'no-store'
       });
+      
+      if (res && res.status === 401) {
+        console.warn(`⚠️  Authorization: Bearer failed with 401, trying X-API-Key header`);
+      }
     } catch (error) {
-      console.warn(`Inventory API request failed for ${productId}:`, error instanceof Error ? error.message : 'Unknown error');
+      console.warn(`❌ Inventory API request failed for ${productId}:`, error instanceof Error ? error.message : 'Unknown error');
       // Try with X-API-Key header as fallback
       try {
+        authMethod = 'X-API-Key';
+        console.log(`📡 Attempting inventory API request with X-API-Key header`);
         res = await fetch(url, {
           method: 'GET',
           headers: {
@@ -68,7 +86,7 @@ export async function getInventoryFromSource(
           cache: 'no-store'
         });
       } catch (fallbackError) {
-        console.warn(`Inventory API fallback request failed for ${productId}:`, fallbackError instanceof Error ? fallbackError.message : 'Unknown error');
+        console.warn(`❌ Inventory API fallback request failed for ${productId}:`, fallbackError instanceof Error ? fallbackError.message : 'Unknown error');
         res = null;
       }
     }
@@ -83,19 +101,38 @@ export async function getInventoryFromSource(
           // Log more details for debugging
           try {
             const errorText = await res.clone().text().catch(() => 'Unable to read error');
-            console.warn(`Inventory API returned ${res.status} for product: ${productId}`, {
+            const errorData = errorText ? JSON.parse(errorText) : null;
+            
+            console.warn(`❌ Inventory API returned ${res.status} for product: ${productId}`, {
               status: res.status,
               statusText: res.statusText,
-              errorPreview: errorText.substring(0, 200)
+              authMethod,
+              endpoint,
+              errorCode: errorData?.code,
+              errorMessage: errorData?.message || errorText.substring(0, 200),
+              keySource: process.env.FRONTEND_API_KEY ? 'FRONTEND_API_KEY' : 'CUSTOMER_API_KEY',
+              keyLength: apiKey.length
             });
+            
+            // Special handling for 401 errors
+            if (res.status === 401) {
+              console.error(`🔐 Authentication failed! Please verify:`, {
+                issue: 'API key mismatch',
+                action: 'Check that inventorySync.apiKey in TenantConfig matches FRONTEND_API_KEY in Render',
+                tenantId: TENANT_ID,
+                endpoint: endpoint
+              });
+            }
           } catch (textError) {
-            console.warn(`Inventory API returned ${res.status} for product: ${productId}`, {
+            console.warn(`❌ Inventory API returned ${res.status} for product: ${productId}`, {
               status: res.status,
-              statusText: res.statusText
+              statusText: res.statusText,
+              authMethod,
+              endpoint
             });
           }
         } else {
-          console.warn(`Inventory API unavailable for product: ${productId}`);
+          console.warn(`❌ Inventory API unavailable for product: ${productId} (no response)`);
         }
         return null; // Fail gracefully
       }
@@ -128,10 +165,11 @@ export async function getInventoryFromSource(
       lastUpdated: inventory.lastUpdated || inventory.updatedAt
     };
 
-    console.log(`✅ Found inventory for ${productId}:`, {
+    console.log(`✅ Found inventory for ${productId} (auth: ${authMethod}):`, {
       stock: inventoryData.stock,
       status: inventoryData.status,
-      outOfStock: inventoryData.outOfStock
+      outOfStock: inventoryData.outOfStock,
+      source: 'source_api'
     });
 
     return inventoryData;
