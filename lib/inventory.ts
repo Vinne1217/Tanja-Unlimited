@@ -90,3 +90,22 @@ export function clearInventory(productId: string): void {
   inventoryStore.delete(productId);
 }
 
+/**
+ * Get inventory status by stripePriceId (for campaign prices)
+ * Guide: "Match products by stripePriceId to update campaign price inventory"
+ */
+export function getInventoryByStripePriceId(stripePriceId: string): InventoryStatus | null {
+  const priceInventoryId = `price_${stripePriceId}`;
+  return inventoryStore.get(priceInventoryId) || null;
+}
+
+/**
+ * Check if a stripePriceId is out of stock
+ * Used for campaign price inventory checks
+ */
+export function isStripePriceOutOfStock(stripePriceId: string): boolean {
+  const status = getInventoryByStripePriceId(stripePriceId);
+  if (!status) return false; // If no inventory data, assume in stock
+  return status.outOfStock || status.stock <= 0;
+}
+

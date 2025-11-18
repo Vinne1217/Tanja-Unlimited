@@ -28,6 +28,33 @@ export async function POST(req: NextRequest) {
   // Get latest prices from Stripe (campaigns are newer prices on same product)
   const campaignData: Record<string, string> = {};
   
+  // Guide: Check inventory before allowing checkout
+  // "Products are not available for purchase when outOfStock: true"
+  const { getInventoryStatus, isStripePriceOutOfStock } = await import('@/lib/inventory');
+  
+  // Check inventory for all items before processing
+  for (const item of items) {
+    // Check by productId first
+    if (item.productId) {
+      const inventory = getInventoryStatus(item.productId);
+      if (inventory?.outOfStock) {
+        return NextResponse.json(
+          { error: `Product ${item.productId} is out of stock` },
+          { status: 400 }
+        );
+      }
+    }
+    
+    // Also check by stripePriceId if provided (for campaign prices)
+    // Guide: "Match products by stripePriceId to update campaign price inventory"
+    if (item.stripePriceId && isStripePriceOutOfStock(item.stripePriceId)) {
+      return NextResponse.json(
+        { error: `Price ${item.stripePriceId} is out of stock` },
+        { status: 400 }
+      );
+    }
+  }
+
   const line_items = await Promise.all(
     items.map(async (item, index) => {
       let priceId = item.stripePriceId; // fallback to provided price

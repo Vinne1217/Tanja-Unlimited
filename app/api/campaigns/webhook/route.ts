@@ -116,10 +116,10 @@ export async function POST(req: NextRequest) {
       // Update local inventory storage (for fast access)
       const { updateInventory } = await import('@/lib/inventory');
       
-      // Determine status if not provided
+      // Determine status if not provided (following guide: in_stock, low_stock, out_of_stock)
       let status: 'in_stock' | 'low_stock' | 'out_of_stock' = inventoryUpdate.status;
       if (!status) {
-        if (inventoryUpdate.stock === 0) {
+        if (inventoryUpdate.stock === 0 || inventoryUpdate.stock <= 0) {
           status = 'out_of_stock';
         } else if (inventoryUpdate.lowStock) {
           status = 'low_stock';
@@ -128,11 +128,12 @@ export async function POST(req: NextRequest) {
         }
       }
 
-      // Determine outOfStock flag
+      // Determine outOfStock flag (guide: always check outOfStock flag, not just stock === 0)
       const outOfStock = inventoryUpdate.outOfStock !== undefined 
         ? inventoryUpdate.outOfStock 
-        : (inventoryUpdate.status === 'out_of_stock' || inventoryUpdate.stock === 0);
+        : (inventoryUpdate.status === 'out_of_stock' || inventoryUpdate.stock === 0 || inventoryUpdate.stock <= 0);
 
+      // Update inventory by productId (main product)
       await updateInventory(mappedProductId, {
         stock: inventoryUpdate.stock ?? 0,
         status: status,
@@ -143,7 +144,54 @@ export async function POST(req: NextRequest) {
         lastUpdated: new Date().toISOString()
       });
 
-      console.log(`✅ Inventory ${inventoryAction} processed for ${mappedProductId}`);
+      // If stripePriceId is provided, also update inventory for that specific price (for campaign prices)
+      // Guide: "Match products by stripePriceId to update campaign price inventory"
+      if (inventoryUpdate.stripePriceId) {
+        const priceInventoryId = `price_${inventoryUpdate.stripePriceId}`;
+        await updateInventory(priceInventoryId, {
+          stock: inventoryUpdate.stock ?? 0,
+          status: status,
+          lowStock: inventoryUpdate.lowStock ?? inventoryUpdate.status === 'low_stock',
+          outOfStock: outOfStock,
+          name: inventoryUpdate.name,
+          sku: inventoryUpdate.sku,
+          lastUpdated: new Date().toISOString()
+        });
+        console.log(`📦 Inventory also updated for stripePriceId: ${inventoryUpdate.stripePriceId}`);
+      }
+
+      // Handle variants if provided (guide: "Handle variant-level stock updates separately")
+      if (inventoryUpdate.variants && Array.isArray(inventoryUpdate.variants)) {
+        for (const variant of inventoryUpdate.variants) {
+          if (variant.stripePriceId) {
+            const variantInventoryId = `price_${variant.stripePriceId}`;
+            const variantOutOfStock = variant.outOfStock ?? (variant.stock === 0 || variant.stock <= 0);
+            const variantStatus = variant.status || (variantOutOfStock ? 'out_of_stock' : variant.lowStock ? 'low_stock' : 'in_stock');
+            
+            await updateInventory(variantInventoryId, {
+              stock: variant.stock ?? 0,
+              status: variantStatus,
+              lowStock: variant.lowStock ?? variant.status === 'low_stock',
+              outOfStock: variantOutOfStock,
+              name: variant.name || inventoryUpdate.name,
+              sku: variant.sku || variant.key,
+              lastUpdated: new Date().toISOString()
+            });
+            console.log(`📦 Variant inventory updated for stripePriceId: ${variant.stripePriceId} (${variant.key || variant.sku})`);
+          }
+        }
+      }
+
+      // Guide: "If a product is out of stock, all campaign prices for that product should also be unavailable"
+      // This is handled by checking outOfStock flag in BuyNowButton, which applies to all prices for the product
+
+      console.log(`✅ Inventory ${inventoryAction} processed for ${mappedProductId}`, {
+        stock: inventoryUpdate.stock,
+        status,
+        outOfStock,
+        hasStripePriceId: !!inventoryUpdate.stripePriceId,
+        variantCount: inventoryUpdate.variants?.length || 0
+      });
 
       // Revalidate pages to show updated inventory
       revalidatePath('/webshop');
