@@ -110,7 +110,7 @@ export async function getInventoryFromSource(
       stock: inventory.stock ?? 0,
       status: inventory.status || (inventory.stock === 0 ? 'out_of_stock' : 'in_stock'),
       lowStock: inventory.lowStock ?? inventory.status === 'low_stock',
-      outOfStock: inventory.outOfStock ?? inventory.status === 'out_of_stock' ?? inventory.stock === 0,
+      outOfStock: inventory.outOfStock ?? (inventory.status === 'out_of_stock' || inventory.stock === 0),
       name: inventory.name || inventory.productName,
       sku: inventory.sku,
       lastUpdated: inventory.lastUpdated || inventory.updatedAt
