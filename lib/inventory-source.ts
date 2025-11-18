@@ -1,10 +1,10 @@
 /**
  * Inventory Service - Source API Integration
  * Fetches inventory data directly from Source database (same pattern as campaigns)
- * No webhook needed - frontend queries Source API when needed
+ * Uses X-Tenant header authentication (no API key required)
  */
 
-import { SOURCE_BASE } from './source';
+import { sourceFetch } from './source';
 
 export type InventoryData = {
   productId: string;
@@ -22,73 +22,35 @@ const TENANT_ID = 'tanjaunlimited';
 /**
  * Get inventory status for a product from Source API
  * Uses the public inventory endpoint: /api/inventory/public/{tenantId}/{productId}
+ * No API key required - uses X-Tenant header (same pattern as campaigns)
  * Returns null if no inventory data or if Source API is unavailable (fail gracefully)
  */
 export async function getInventoryFromSource(
   productId: string
 ): Promise<InventoryData | null> {
   try {
-    // Use the new public inventory endpoint
+    // Use the public inventory endpoint (no API key required)
     // Endpoint: GET /api/inventory/public/{tenantId}/{productId}
-    // Headers: Authorization: Bearer {apiKey} OR X-API-Key: {apiKey}
-    const apiKey = process.env.FRONTEND_API_KEY || process.env.CUSTOMER_API_KEY;
-    
-    if (!apiKey) {
-      console.warn(`⚠️  No API key configured for inventory lookup (FRONTEND_API_KEY or CUSTOMER_API_KEY)`);
-      return null;
-    }
-
-    // Log API key info for debugging (safely - only show first 5 chars and length)
-    const keySource = process.env.FRONTEND_API_KEY ? 'FRONTEND_API_KEY' : 'CUSTOMER_API_KEY';
-    console.log(`🔑 Inventory API authentication:`, {
-      keySource,
-      keyPrefix: apiKey.substring(0, 5),
-      keyLength: apiKey.length,
-      tenantId: TENANT_ID,
-      productId
-    });
-
+    // Headers: X-Tenant: {tenantId} (handled by sourceFetch)
     const endpoint = `/api/inventory/public/${TENANT_ID}/${productId}`;
-    const url = `${SOURCE_BASE}${endpoint}`;
+    
+    console.log(`📡 Fetching inventory from Source API for ${productId} (tenant: ${TENANT_ID})`);
     
     let res: Response | null = null;
-    let authMethod = 'Bearer';
     
     try {
-      // Try with Authorization: Bearer header first
-      console.log(`📡 Attempting inventory API request with Authorization: Bearer header`);
-      res = await fetch(url, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${apiKey}`
-        },
+      // Use sourceFetch which automatically sets X-Tenant header
+      // Same pattern as campaign prices - no API key needed
+      // Override X-Tenant to use tanjaunlimited (not the default 'tanja')
+      res = await sourceFetch(endpoint, {
         signal: AbortSignal.timeout(2000),
-        cache: 'no-store'
+        headers: {
+          'X-Tenant': TENANT_ID  // Override to use tanjaunlimited
+        }
       });
-      
-      if (res && res.status === 401) {
-        console.warn(`⚠️  Authorization: Bearer failed with 401, trying X-API-Key header`);
-      }
     } catch (error) {
       console.warn(`❌ Inventory API request failed for ${productId}:`, error instanceof Error ? error.message : 'Unknown error');
-      // Try with X-API-Key header as fallback
-      try {
-        authMethod = 'X-API-Key';
-        console.log(`📡 Attempting inventory API request with X-API-Key header`);
-        res = await fetch(url, {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-API-Key': apiKey
-          },
-          signal: AbortSignal.timeout(2000),
-          cache: 'no-store'
-        });
-      } catch (fallbackError) {
-        console.warn(`❌ Inventory API fallback request failed for ${productId}:`, fallbackError instanceof Error ? fallbackError.message : 'Unknown error');
-        res = null;
-      }
+      res = null;
     }
 
     if (!res || !res.ok) {
@@ -106,29 +68,17 @@ export async function getInventoryFromSource(
             console.warn(`❌ Inventory API returned ${res.status} for product: ${productId}`, {
               status: res.status,
               statusText: res.statusText,
-              authMethod,
               endpoint,
               errorCode: errorData?.code,
               errorMessage: errorData?.message || errorText.substring(0, 200),
-              keySource: process.env.FRONTEND_API_KEY ? 'FRONTEND_API_KEY' : 'CUSTOMER_API_KEY',
-              keyLength: apiKey.length
+              tenantId: TENANT_ID
             });
-            
-            // Special handling for 401 errors
-            if (res.status === 401) {
-              console.error(`🔐 Authentication failed! Please verify:`, {
-                issue: 'API key mismatch',
-                action: 'Check that inventorySync.apiKey in TenantConfig matches FRONTEND_API_KEY in Render',
-                tenantId: TENANT_ID,
-                endpoint: endpoint
-              });
-            }
           } catch (textError) {
             console.warn(`❌ Inventory API returned ${res.status} for product: ${productId}`, {
               status: res.status,
               statusText: res.statusText,
-              authMethod,
-              endpoint
+              endpoint,
+              tenantId: TENANT_ID
             });
           }
         } else {
@@ -165,7 +115,7 @@ export async function getInventoryFromSource(
       lastUpdated: inventory.lastUpdated || inventory.updatedAt
     };
 
-    console.log(`✅ Found inventory for ${productId} (auth: ${authMethod}):`, {
+    console.log(`✅ Found inventory for ${productId}:`, {
       stock: inventoryData.stock,
       status: inventoryData.status,
       outOfStock: inventoryData.outOfStock,
