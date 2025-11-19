@@ -54,12 +54,24 @@ async function sendFeedbackWithRetry(
   retryCount = 0
 ): Promise<{ success: boolean; status: number; responseText: string }> {
   try {
+    // Build headers object to ensure X-Tenant is included
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      'X-Tenant': TENANT_ID,
+    };
+    
+    // Log headers being sent (first attempt only)
+    if (retryCount === 0) {
+      console.log('📋 Request headers being sent:', {
+        'Content-Type': headers['Content-Type'],
+        'X-Tenant': headers['X-Tenant'],
+        'X-Tenant-Length': headers['X-Tenant']?.length || 0,
+      });
+    }
+    
     const res = await fetch(CUSTOMER_PORTAL_URL, {
       method: 'POST',
-      headers: { 
-        'Content-Type': 'application/json',
-        'X-Tenant': TENANT_ID,
-      },
+      headers: headers,
       body: JSON.stringify(feedbackData)
     });
 
@@ -72,9 +84,10 @@ async function sendFeedbackWithRetry(
         statusText: res.statusText,
         responsePreview: responseText.substring(0, 200),
         headers: {
-          'X-Tenant-Received': res.headers.get('X-Tenant') || 'not-set',
           'Retry-After': res.headers.get('Retry-After') || 'not-set',
+          'Content-Type': res.headers.get('Content-Type') || 'not-set',
         },
+        note: 'X-Tenant is a request header we send, not a response header (so "not-set" is expected here)',
       });
     }
     
@@ -129,7 +142,7 @@ async function sendFeedbackWithRetry(
 
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json();
+  const body = await req.json();
     
     // Validate required fields
     if (!body.messageId || !body.rating || !body.message) {
