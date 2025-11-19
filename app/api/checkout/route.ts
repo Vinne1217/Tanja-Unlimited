@@ -121,7 +121,15 @@ export async function POST(req: NextRequest) {
     line_items,
     success_url: successUrl,
     cancel_url: cancelUrl,
-    metadata: sessionMetadata
+    metadata: sessionMetadata,
+    // Enable shipping address collection
+    shipping_address_collection: {
+      allowed_countries: ['SE', 'NO', 'DK', 'FI', 'DE', 'GB', 'US', 'CA', 'FR', 'ES', 'IT', 'NL', 'BE', 'AT', 'CH', 'PL', 'CZ'],
+    },
+    // Enable phone number collection
+    phone_number_collection: {
+      enabled: true,
+    },
   });
 
   console.log(`✅ Checkout session created: ${session.id}`);

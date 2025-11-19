@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import AIAssistant from '@/components/AIAssistant';
+import { CartProvider } from '@/lib/cart-context';
 
 export const metadata = {
   title: 'Tanja Unlimited – Art-Forward Textiles & Calligraphy',
@@ -16,12 +17,14 @@ export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en">
       <body className="min-h-screen">
-        <Header />
-        <main className="min-h-screen">
-          {children}
-        </main>
-        <Footer />
-        <AIAssistant />
+        <CartProvider>
+          <Header />
+          <main className="min-h-screen">
+            {children}
+          </main>
+          <Footer />
+          <AIAssistant />
+        </CartProvider>
       </body>
     </html>
   );

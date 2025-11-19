@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import type { Product } from '@/lib/catalog';
 import StockStatus from '@/components/StockStatus';
+import { useCart, type CartProduct } from '@/lib/cart-context';
 
 type InventoryData = {
   stock: number | null;
@@ -13,8 +14,9 @@ type InventoryData = {
 
 export default function ProductPurchase({ product }: { product: Product }) {
   const [variantKey, setVariantKey] = useState(product.variants?.[0]?.key);
-  const [loading, setLoading] = useState(false);
   const [inventory, setInventory] = useState<InventoryData | null>(null);
+  const [added, setAdded] = useState(false);
+  const { addItem } = useCart();
 
   useEffect(() => {
     async function fetchStockStatus() {
@@ -38,7 +40,7 @@ export default function ProductPurchase({ product }: { product: Product }) {
   const selectedPriceId = product.variants?.find(v => v.key === variantKey)?.stripePriceId || undefined;
   const fallbackPriceId = (product as any).stripePriceId as string | undefined;
 
-  async function buyNow() {
+  function addToCart() {
     const priceId = selectedPriceId ?? fallbackPriceId;
     if (!priceId) {
       alert('Product is not purchasable yet.');
@@ -51,24 +53,28 @@ export default function ProductPurchase({ product }: { product: Product }) {
       return;
     }
 
-    setLoading(true);
-    const res = await fetch('/api/checkout', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        items: [{ stripePriceId: priceId, quantity: 1, productId: product.id }],
-        successUrl: `${location.origin}/?status=success`,
-        cancelUrl: `${location.href}`
-      })
-    });
-    setLoading(false);
-    if (!res.ok) return alert('Could not start checkout');
-    const data = await res.json();
-    location.href = data.url;
+    // Convert catalog product to cart product format
+    const cartProduct: CartProduct = {
+      id: product.id,
+      name: product.name,
+      price: product.price ? product.price / 100 : 0, // Convert from cents to SEK
+      currency: product.currency || 'SEK',
+      category: product.categoryId,
+      description: product.description,
+      images: product.images,
+      inStock: !inventory?.outOfStock,
+      stripePriceId: fallbackPriceId,
+      variantKey: variantKey,
+      variantPriceId: selectedPriceId,
+    };
+
+    addItem(cartProduct, 1);
+    setAdded(true);
+    setTimeout(() => setAdded(false), 2000);
   }
 
   const isOutOfStock = inventory?.outOfStock ?? false;
-  const isDisabled = loading || isOutOfStock;
+  const isDisabled = isOutOfStock;
 
   return (
     <div className="space-y-3">
@@ -87,10 +93,10 @@ export default function ProductPurchase({ product }: { product: Product }) {
       )}
       <button 
         className="bg-ochreRed text-white px-4 py-2 disabled:opacity-50 disabled:cursor-not-allowed" 
-        onClick={buyNow} 
+        onClick={addToCart} 
         disabled={isDisabled}
       >
-        {loading ? 'Redirecting…' : isOutOfStock ? 'Slutsåld' : 'Buy now'}
+        {added ? 'Added to Cart!' : isOutOfStock ? 'Slutsåld' : 'Add to Cart'}
       </button>
     </div>
   );

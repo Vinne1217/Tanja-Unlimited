@@ -3,6 +3,7 @@
 import { Suspense } from 'react';
 import { Phone } from 'lucide-react';
 import LanguageSwitcher from './LanguageSwitcher';
+import CartIcon from './CartIcon';
 import { useTranslation } from '@/lib/useTranslation';
 
 function HeaderContent() {
@@ -56,6 +57,7 @@ function HeaderContent() {
           >
             {t.nav.webshop}
           </a>
+          <CartIcon />
         </nav>
       </div>
     </>
