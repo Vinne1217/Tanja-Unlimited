@@ -116,7 +116,18 @@ export async function POST(req: NextRequest) {
         hasMessage: !!body.message,
       });
       return NextResponse.json(
-        { success: false, message: 'Missing required fields' },
+        { success: false, message: 'Missing required fields: messageId, rating, or message' },
+        { status: 400 }
+      );
+    }
+
+    // Validate message is not empty (customer portal requirement)
+    if (!body.message.trim()) {
+      console.error('❌ Message field is empty:', {
+        messageId: body.messageId,
+      });
+      return NextResponse.json(
+        { success: false, message: 'Message field cannot be empty' },
         { status: 400 }
       );
     }
@@ -133,10 +144,26 @@ export async function POST(req: NextRequest) {
       });
     }
 
+    // Ensure rating is lowercase (customer portal requires exact "positive" or "negative")
+    const rating = body.rating?.toLowerCase()?.trim();
+    
+    // Validate rating is exactly "positive" or "negative" (case-sensitive requirement)
+    if (rating !== 'positive' && rating !== 'negative') {
+      console.error('❌ Invalid rating value:', {
+        received: body.rating,
+        normalized: rating,
+        messageId: body.messageId,
+      });
+      return NextResponse.json(
+        { success: false, message: 'Rating must be exactly "positive" or "negative" (lowercase)' },
+        { status: 400 }
+      );
+    }
+
     // Format feedback for customer portal
     const feedbackData = {
       messageId: body.messageId,
-      rating: body.rating, // 'positive' or 'negative'
+      rating: rating, // Guaranteed to be "positive" or "negative" (lowercase)
       message: body.message, // The AI assistant's response
       userMessage: body.userMessage || '', // The user's question (optional)
       timestamp: body.timestamp || new Date().toISOString(),
