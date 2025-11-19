@@ -146,6 +146,10 @@ export async function POST(req: NextRequest) {
       rating: feedbackData.rating,
       tenantId: feedbackData.tenantId,
       timestamp: feedbackData.timestamp,
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Tenant': TENANT_ID, // ✅ X-Tenant header included for proper rate limiting
+      },
     });
 
     // Send with retry logic
