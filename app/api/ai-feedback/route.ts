@@ -6,12 +6,12 @@ const TENANT_ID = process.env.SOURCE_TENANT_ID ?? 'tanjaunlimited';
 // Rate limiting: Simple in-memory tracking (resets on server restart)
 // Track requests per minute to prevent overwhelming the portal
 const rateLimitMap = new Map<string, number[]>();
-const MAX_REQUESTS_PER_MINUTE = 10; // Limit to 10 requests per minute
+const MAX_REQUESTS_PER_MINUTE = 5; // Reduced to 5 requests per minute (very conservative)
 const RATE_LIMIT_WINDOW_MS = 60 * 1000; // 1 minute
 
 // Retry configuration
 const MAX_RETRIES = 3;
-const INITIAL_RETRY_DELAY_MS = 1000; // Start with 1 second
+const INITIAL_RETRY_DELAY_MS = 5000; // Increased to 5 seconds (more time for portal to reset)
 
 /**
  * Check if we're rate limited (too many requests in the last minute)
@@ -69,14 +69,18 @@ async function sendFeedbackWithRetry(
     if (res.status === 429 && retryCount < MAX_RETRIES) {
       // Check for Retry-After header
       const retryAfter = res.headers.get('Retry-After');
-      let delayMs = INITIAL_RETRY_DELAY_MS * Math.pow(2, retryCount); // Exponential backoff
+      let delayMs = INITIAL_RETRY_DELAY_MS * Math.pow(2, retryCount); // Exponential backoff: 5s, 10s, 20s
       
       if (retryAfter) {
         // Respect Retry-After header if provided (in seconds)
         delayMs = parseInt(retryAfter, 10) * 1000;
       }
       
-      console.log(`⏳ Rate limited (429), retrying in ${delayMs}ms (attempt ${retryCount + 1}/${MAX_RETRIES})`);
+      // Minimum delay of 5 seconds for rate limit retries
+      delayMs = Math.max(delayMs, 5000);
+      
+      console.log(`⏳ Rate limited (429), retrying in ${Math.round(delayMs / 1000)}s (attempt ${retryCount + 1}/${MAX_RETRIES})`);
+      console.log(`   X-Tenant header: ${TENANT_ID} (verify portal is using per-tenant rate limiting)`);
       
       await sleep(delayMs);
       return sendFeedbackWithRetry(feedbackData, retryCount + 1);
@@ -161,6 +165,7 @@ export async function POST(req: NextRequest) {
         console.error('❌ Rate limited by customer portal (429) - max retries reached:', {
           messageId: feedbackData.messageId,
           tenantId: feedbackData.tenantId,
+          note: 'X-Tenant header is being sent. Portal may need to verify per-tenant rate limiting is working.',
         });
       } else {
         console.error('❌ Failed to send feedback to customer portal:', {
