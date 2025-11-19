@@ -65,6 +65,29 @@ async function sendFeedbackWithRetry(
 
     const responseText = await res.text();
     
+    // Log response for debugging (first attempt only to avoid spam)
+    if (retryCount === 0) {
+      console.log('📥 Customer portal response:', {
+        status: res.status,
+        statusText: res.statusText,
+        responsePreview: responseText.substring(0, 200),
+        headers: {
+          'X-Tenant-Received': res.headers.get('X-Tenant') || 'not-set',
+          'Retry-After': res.headers.get('Retry-After') || 'not-set',
+        },
+      });
+    }
+    
+    // Handle server errors (500/503) with retry - these are often transient database issues
+    if ((res.status === 500 || res.status === 503) && retryCount < MAX_RETRIES) {
+      const delayMs = INITIAL_RETRY_DELAY_MS * Math.pow(2, retryCount); // Exponential backoff: 5s, 10s, 20s
+      console.log(`⏳ Server error (${res.status}), retrying in ${Math.round(delayMs / 1000)}s (attempt ${retryCount + 1}/${MAX_RETRIES})`);
+      console.log(`   Error: ${responseText.substring(0, 100)}`);
+      
+      await sleep(delayMs);
+      return sendFeedbackWithRetry(feedbackData, retryCount + 1);
+    }
+    
     // Handle rate limiting (429) with retry
     if (res.status === 429 && retryCount < MAX_RETRIES) {
       // Check for Retry-After header
@@ -177,9 +200,17 @@ export async function POST(req: NextRequest) {
       rating: feedbackData.rating,
       tenantId: feedbackData.tenantId,
       timestamp: feedbackData.timestamp,
+      messageLength: feedbackData.message?.length || 0,
+      userMessageLength: feedbackData.userMessage?.length || 0,
       headers: {
         'Content-Type': 'application/json',
         'X-Tenant': TENANT_ID, // ✅ X-Tenant header included for proper rate limiting
+      },
+      payloadPreview: {
+        messageId: feedbackData.messageId,
+        rating: feedbackData.rating,
+        message: feedbackData.message?.substring(0, 50) + '...',
+        hasUserMessage: !!feedbackData.userMessage,
       },
     });
 
@@ -194,12 +225,37 @@ export async function POST(req: NextRequest) {
           tenantId: feedbackData.tenantId,
           note: 'X-Tenant header is being sent. Portal may need to verify per-tenant rate limiting is working.',
         });
+      } else if (result.status === 500 || result.status === 503) {
+        // 500/503 errors usually indicate server/database issues on portal side
+        console.error(`❌ Customer portal returned ${result.status} error (server/database issue):`, {
+          status: result.status,
+          response: result.responseText,
+          messageId: feedbackData.messageId,
+          tenantId: feedbackData.tenantId,
+          payloadSent: {
+            messageId: feedbackData.messageId,
+            rating: feedbackData.rating,
+            messageLength: feedbackData.message?.length || 0,
+            messagePreview: feedbackData.message?.substring(0, 100),
+            hasUserMessage: !!feedbackData.userMessage,
+            timestamp: feedbackData.timestamp,
+            source: feedbackData.source,
+            type: feedbackData.type,
+          },
+          note: 'This is likely a database or server issue on the customer portal side. We retried 3 times. Request format appears correct.',
+          action: 'Contact customer portal team to check database connection and server logs.',
+        });
       } else {
         console.error('❌ Failed to send feedback to customer portal:', {
           status: result.status,
           response: result.responseText.substring(0, 200),
           messageId: feedbackData.messageId,
           tenantId: feedbackData.tenantId,
+          payloadSent: {
+            messageId: feedbackData.messageId,
+            rating: feedbackData.rating,
+            messageLength: feedbackData.message?.length || 0,
+          },
         });
       }
       
