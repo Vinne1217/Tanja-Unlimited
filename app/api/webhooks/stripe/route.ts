@@ -67,10 +67,13 @@ export async function POST(req: NextRequest) {
 
   // Log all webhook events for debugging
   if (event) {
+    const objectId = event.data?.object && 'id' in event.data.object 
+      ? event.data.object.id 
+      : 'unknown';
     console.log(`📨 Webhook event received: ${event.type}`, {
       eventId: event.id,
       livemode: event.livemode,
-      objectId: event.data?.object?.id || 'unknown'
+      objectId
     });
   }
 
