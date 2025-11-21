@@ -4,6 +4,22 @@ import { sendPaymentToSourceDirect } from '@/lib/payments';
 
 export const runtime = 'nodejs';
 
+/**
+ * Stripe Webhook Handler
+ * 
+ * This endpoint receives webhook events from Stripe and:
+ * 1. Verifies the webhook signature (security)
+ * 2. Processes payment failure events and sends them to customer portal
+ * 3. Forwards all webhooks to Source database for general processing
+ * 
+ * Note: The 402 error you see in the browser console is EXPECTED when a payment fails.
+ * Stripe will still send a webhook event (payment_intent.payment_failed) which we catch here.
+ * 
+ * To verify webhooks are working:
+ * - Check server logs for "📨 Webhook event received" messages
+ * - Check Stripe Dashboard → Webhooks → Recent events
+ * - Look for "💳 Processing payment failure event" in logs
+ */
 export async function POST(req: NextRequest) {
   const body = await req.text();
   const signature = req.headers.get('stripe-signature');
@@ -29,7 +45,10 @@ export async function POST(req: NextRequest) {
         process.env.STRIPE_WEBHOOK_SECRET
       );
 
-      console.log('Stripe webhook verified:', event.type);
+      console.log('✅ Stripe webhook verified:', event.type, {
+        eventId: event.id,
+        created: new Date(event.created * 1000).toISOString()
+      });
     } catch (err) {
       console.error('Webhook signature verification failed:', err);
       return new NextResponse('Webhook signature verification failed', { 
@@ -46,16 +65,27 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  // Log all webhook events for debugging
+  if (event) {
+    console.log(`📨 Webhook event received: ${event.type}`, {
+      eventId: event.id,
+      livemode: event.livemode,
+      objectId: event.data?.object?.id || 'unknown'
+    });
+  }
+
   // Handle payment failures - send to customer portal
   if (event && (
     event.type === 'payment_intent.payment_failed' || 
     event.type === 'checkout.session.async_payment_failed' ||
     (event.type === 'checkout.session.completed' && (event.data.object as Stripe.Checkout.Session).payment_status === 'unpaid')
   )) {
+    console.log('🔴 Payment failure detected - processing...');
     try {
       await handlePaymentFailure(event);
+      console.log('✅ Payment failure processing completed');
     } catch (error) {
-      console.error('Error handling payment failure:', error);
+      console.error('❌ Error handling payment failure:', error);
       // Continue to forward webhook even if failure handling fails
     }
   }
@@ -77,9 +107,12 @@ export async function POST(req: NextRequest) {
     const responseText = await res.text();
     
     if (!res.ok) {
-      console.error('Source webhook failed:', res.status, responseText);
+      console.error(`❌ Source webhook failed: ${res.status}`, {
+        statusText: res.statusText,
+        responsePreview: responseText.substring(0, 200)
+      });
     } else {
-      console.log('Successfully forwarded webhook to Source');
+      console.log(`✅ Successfully forwarded webhook to Source: ${event?.type || 'unknown'}`);
     }
 
     return new NextResponse(responseText, { status: res.status });
@@ -90,7 +123,10 @@ export async function POST(req: NextRequest) {
 }
 
 async function handlePaymentFailure(event: Stripe.Event) {
-  console.log('💳 Processing payment failure event:', event.type);
+  console.log('💳 Processing payment failure event:', event.type, {
+    eventId: event.id,
+    timestamp: new Date().toISOString()
+  });
 
   let paymentIntent: Stripe.PaymentIntent | null = null;
   let checkoutSession: Stripe.Checkout.Session | null = null;
