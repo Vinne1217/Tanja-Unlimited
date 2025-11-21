@@ -47,7 +47,11 @@ export async function POST(req: NextRequest) {
   }
 
   // Handle payment failures - send to customer portal
-  if (event && (event.type === 'payment_intent.payment_failed' || event.type === 'checkout.session.async_payment_failed')) {
+  if (event && (
+    event.type === 'payment_intent.payment_failed' || 
+    event.type === 'checkout.session.async_payment_failed' ||
+    (event.type === 'checkout.session.completed' && (event.data.object as Stripe.Checkout.Session).payment_status === 'unpaid')
+  )) {
     try {
       await handlePaymentFailure(event);
     } catch (error) {
@@ -112,14 +116,45 @@ async function handlePaymentFailure(event: Stripe.Event) {
     // Try to get checkout session from metadata or retrieve it
     if (paymentIntent.metadata?.checkout_session_id) {
       sessionId = paymentIntent.metadata.checkout_session_id;
-    } else if (paymentIntent.invoice) {
-      // If there's an invoice, try to get session from there
-      const invoice = typeof paymentIntent.invoice === 'string' 
-        ? await getStripeClient().invoices.retrieve(paymentIntent.invoice)
-        : paymentIntent.invoice;
-      if (invoice?.subscription) {
-        // This is a subscription, not a one-time payment
-        return;
+    } else {
+      // Try to find checkout session by searching for one with this payment intent
+      // Note: This is a fallback - ideally checkout_session_id would be in metadata
+      try {
+        const stripe = getStripeClient();
+        // List recent checkout sessions and find one with this payment intent
+        // We'll check the payment intent's metadata first, then try to find it
+        const sessions = await stripe.checkout.sessions.list({ limit: 100 });
+        const matchingSession = sessions.data.find(
+          session => (typeof session.payment_intent === 'string' 
+            ? session.payment_intent 
+            : session.payment_intent?.id) === paymentIntentId
+        );
+        if (matchingSession) {
+          sessionId = matchingSession.id;
+          checkoutSession = matchingSession;
+          if (!customerEmail && matchingSession.customer_email) {
+            customerEmail = matchingSession.customer_email;
+          }
+          if (!customerName && matchingSession.customer_details?.name) {
+            customerName = matchingSession.customer_details.name;
+          }
+          if (matchingSession.metadata) {
+            metadata = { ...metadata, ...matchingSession.metadata };
+          }
+        }
+      } catch (err) {
+        console.warn('Could not search for checkout session:', err);
+      }
+      
+      // If still no session and there's an invoice, check if it's a subscription
+      if (!sessionId && paymentIntent.invoice) {
+        const invoice = typeof paymentIntent.invoice === 'string' 
+          ? await getStripeClient().invoices.retrieve(paymentIntent.invoice)
+          : paymentIntent.invoice;
+        if (invoice?.subscription) {
+          // This is a subscription, not a one-time payment
+          return;
+        }
       }
     }
 
@@ -147,8 +182,9 @@ async function handlePaymentFailure(event: Stripe.Event) {
     }
   }
 
-  // Handle checkout.session.async_payment_failed
-  if (event.type === 'checkout.session.async_payment_failed') {
+  // Handle checkout.session.async_payment_failed and checkout.session.completed with unpaid status
+  if (event.type === 'checkout.session.async_payment_failed' || 
+      (event.type === 'checkout.session.completed' && (event.data.object as Stripe.Checkout.Session).payment_status === 'unpaid')) {
     checkoutSession = event.data.object as Stripe.Checkout.Session;
     sessionId = checkoutSession.id;
     customerEmail = checkoutSession.customer_email || '';
@@ -167,6 +203,7 @@ async function handlePaymentFailure(event: Stripe.Event) {
     if (paymentIntentId) {
       try {
         const pi = await getStripeClient().paymentIntents.retrieve(paymentIntentId);
+        paymentIntent = pi; // Store for later use in failure reason extraction
         if (pi.payment_method && typeof pi.payment_method === 'string') {
           const pm = await getStripeClient().paymentMethods.retrieve(pi.payment_method);
           paymentMethod = pm.type;
