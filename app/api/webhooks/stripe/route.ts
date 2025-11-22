@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
-import { sendPaymentToSourceDirect } from '@/lib/payments';
 
 export const runtime = 'nodejs';
 
@@ -9,16 +8,21 @@ export const runtime = 'nodejs';
  * 
  * This endpoint receives webhook events from Stripe and:
  * 1. Verifies the webhook signature (security)
- * 2. Processes payment failure events and sends them to customer portal
- * 3. Forwards all webhooks to Source database for general processing
+ * 2. Forwards ALL webhooks to Source database for processing
+ *    - Successful payments: forwarded to /webhooks/stripe-payments
+ *    - Failed payments: forwarded to /webhooks/stripe-payments (same endpoint)
+ * 
+ * Source Database handles all payment events (success, failure, etc.) and routes them
+ * appropriately based on the tenant metadata in the checkout session.
  * 
  * Note: The 402 error you see in the browser console is EXPECTED when a payment fails.
- * Stripe will still send a webhook event (payment_intent.payment_failed) which we catch here.
+ * Stripe will still send a webhook event (payment_intent.payment_failed) which gets
+ * forwarded to Source Database for processing.
  * 
  * To verify webhooks are working:
  * - Check server logs for "📨 Webhook event received" messages
+ * - Check "✅ Successfully forwarded webhook to Source" messages
  * - Check Stripe Dashboard → Webhooks → Recent events
- * - Look for "💳 Processing payment failure event" in logs
  */
 export async function POST(req: NextRequest) {
   const body = await req.text();
@@ -77,23 +81,8 @@ export async function POST(req: NextRequest) {
     });
   }
 
-  // Handle payment failures - send to customer portal
-  if (event && (
-    event.type === 'payment_intent.payment_failed' || 
-    event.type === 'checkout.session.async_payment_failed' ||
-    (event.type === 'checkout.session.completed' && (event.data.object as Stripe.Checkout.Session).payment_status === 'unpaid')
-  )) {
-    console.log('🔴 Payment failure detected - processing...');
-    try {
-      await handlePaymentFailure(event);
-      console.log('✅ Payment failure processing completed');
-    } catch (error) {
-      console.error('❌ Error handling payment failure:', error);
-      // Continue to forward webhook even if failure handling fails
-    }
-  }
-
-  // Forward to Source Database customer portal
+  // Forward ALL webhooks (success, failure, etc.) to Source Database customer portal
+  // Source Database will handle payment failures through the same endpoint as successful payments
   const sourceUrl = process.env.SOURCE_DATABASE_URL || 'https://source-database.onrender.com';
   const tenantId = process.env.SOURCE_TENANT_ID || 'tanjaunlimited';
 
@@ -123,216 +112,6 @@ export async function POST(req: NextRequest) {
     console.error('Error forwarding webhook to Source:', error);
     return new NextResponse('Failed to forward webhook', { status: 500 });
   }
-}
-
-async function handlePaymentFailure(event: Stripe.Event) {
-  console.log('💳 Processing payment failure event:', event.type, {
-    eventId: event.id,
-    timestamp: new Date().toISOString()
-  });
-
-  let paymentIntent: Stripe.PaymentIntent | null = null;
-  let checkoutSession: Stripe.Checkout.Session | null = null;
-  let customerEmail = '';
-  let customerName = '';
-  let amount = 0;
-  let currency = 'SEK';
-  let sessionId = '';
-  let paymentIntentId = '';
-  let customerId = '';
-  let paymentMethod = '';
-  let metadata: Record<string, unknown> = {};
-
-  // Handle payment_intent.payment_failed
-  if (event.type === 'payment_intent.payment_failed') {
-    paymentIntent = event.data.object as Stripe.PaymentIntent;
-    paymentIntentId = paymentIntent.id;
-    amount = paymentIntent.amount;
-    currency = paymentIntent.currency.toUpperCase();
-    customerId = typeof paymentIntent.customer === 'string' ? paymentIntent.customer : paymentIntent.customer?.id || '';
-    metadata = paymentIntent.metadata || {};
-
-    // Try to get checkout session from metadata or retrieve it
-    if (paymentIntent.metadata?.checkout_session_id) {
-      sessionId = paymentIntent.metadata.checkout_session_id;
-    } else {
-      // Try to find checkout session by searching for one with this payment intent
-      // Note: This is a fallback - ideally checkout_session_id would be in metadata
-      try {
-        const stripe = getStripeClient();
-        // List recent checkout sessions and find one with this payment intent
-        // We'll check the payment intent's metadata first, then try to find it
-        const sessions = await stripe.checkout.sessions.list({ limit: 100 });
-        const matchingSession = sessions.data.find(
-          session => (typeof session.payment_intent === 'string' 
-            ? session.payment_intent 
-            : session.payment_intent?.id) === paymentIntentId
-        );
-        if (matchingSession) {
-          sessionId = matchingSession.id;
-          checkoutSession = matchingSession;
-          if (!customerEmail && matchingSession.customer_email) {
-            customerEmail = matchingSession.customer_email;
-          }
-          if (!customerName && matchingSession.customer_details?.name) {
-            customerName = matchingSession.customer_details.name;
-          }
-          if (matchingSession.metadata) {
-            metadata = { ...metadata, ...matchingSession.metadata };
-          }
-        }
-      } catch (err) {
-        console.warn('Could not search for checkout session:', err);
-      }
-      
-      // If still no session and there's an invoice, check if it's a subscription
-      if (!sessionId && paymentIntent.invoice) {
-        const invoice = typeof paymentIntent.invoice === 'string' 
-          ? await getStripeClient().invoices.retrieve(paymentIntent.invoice)
-          : paymentIntent.invoice;
-        if (invoice?.subscription) {
-          // This is a subscription, not a one-time payment
-          return;
-        }
-      }
-    }
-
-    // Get customer email if available
-    if (customerId) {
-      try {
-        const customer = await getStripeClient().customers.retrieve(customerId);
-        if (!customer.deleted && 'email' in customer) {
-          customerEmail = customer.email || '';
-          customerName = customer.name || '';
-        }
-      } catch (err) {
-        console.warn('Could not retrieve customer:', err);
-      }
-    }
-
-    // Get payment method details
-    if (paymentIntent.payment_method && typeof paymentIntent.payment_method === 'string') {
-      try {
-        const pm = await getStripeClient().paymentMethods.retrieve(paymentIntent.payment_method);
-        paymentMethod = pm.type;
-      } catch (err) {
-        console.warn('Could not retrieve payment method:', err);
-      }
-    }
-  }
-
-  // Handle checkout.session.async_payment_failed and checkout.session.completed with unpaid status
-  if (event.type === 'checkout.session.async_payment_failed' || 
-      (event.type === 'checkout.session.completed' && (event.data.object as Stripe.Checkout.Session).payment_status === 'unpaid')) {
-    checkoutSession = event.data.object as Stripe.Checkout.Session;
-    sessionId = checkoutSession.id;
-    customerEmail = checkoutSession.customer_email || '';
-    customerName = checkoutSession.customer_details?.name || '';
-    amount = checkoutSession.amount_total || 0;
-    currency = (checkoutSession.currency || 'sek').toUpperCase();
-    customerId = typeof checkoutSession.customer === 'string' 
-      ? checkoutSession.customer 
-      : checkoutSession.customer?.id || '';
-    paymentIntentId = typeof checkoutSession.payment_intent === 'string'
-      ? checkoutSession.payment_intent
-      : checkoutSession.payment_intent?.id || '';
-    metadata = checkoutSession.metadata || {};
-
-    // Get payment method from payment intent if available
-    if (paymentIntentId) {
-      try {
-        const pi = await getStripeClient().paymentIntents.retrieve(paymentIntentId);
-        paymentIntent = pi; // Store for later use in failure reason extraction
-        if (pi.payment_method && typeof pi.payment_method === 'string') {
-          const pm = await getStripeClient().paymentMethods.retrieve(pi.payment_method);
-          paymentMethod = pm.type;
-        }
-      } catch (err) {
-        console.warn('Could not retrieve payment intent:', err);
-      }
-    }
-  }
-
-  // If we have a session ID but no checkout session object, try to retrieve it
-  if (sessionId && !checkoutSession) {
-    try {
-      checkoutSession = await getStripeClient().checkout.sessions.retrieve(sessionId);
-      if (!customerEmail && checkoutSession.customer_email) {
-        customerEmail = checkoutSession.customer_email;
-      }
-      if (!customerName && checkoutSession.customer_details?.name) {
-        customerName = checkoutSession.customer_details.name;
-      }
-      if (!amount && checkoutSession.amount_total) {
-        amount = checkoutSession.amount_total;
-      }
-      if (checkoutSession.metadata) {
-        metadata = { ...metadata, ...checkoutSession.metadata };
-      }
-    } catch (err) {
-      console.warn('Could not retrieve checkout session:', err);
-    }
-  }
-
-  // Extract product information from metadata
-  const productIds: string[] = [];
-  const productNames: string[] = [];
-  for (const [key, value] of Object.entries(metadata)) {
-    if (key.startsWith('product_') && key.endsWith('_id') && typeof value === 'string') {
-      productIds.push(value);
-    }
-  }
-
-  // Send failed payment to customer portal
-  if (sessionId && customerEmail) {
-    console.log('📤 Sending failed payment to customer portal:', {
-      sessionId,
-      customerEmail,
-      amount: amount / 100,
-      currency,
-      status: 'failed'
-    });
-
-    try {
-      await sendPaymentToSourceDirect({
-        sessionId,
-        customerEmail,
-        customerName: customerName || 'Unknown',
-        amountSek: amount / 100,
-        currency,
-        status: 'failed',
-        paymentMethod,
-        paymentIntentId,
-        customerId,
-        productId: productIds[0], // Use first product if multiple
-        metadata: {
-          ...metadata,
-          failure_reason: paymentIntent?.last_payment_error?.message || 'Payment failed',
-          failure_code: paymentIntent?.last_payment_error?.code || 'unknown',
-          event_type: event.type
-        }
-      });
-
-      console.log('✅ Failed payment sent to customer portal');
-    } catch (error) {
-      console.error('❌ Failed to send payment failure to customer portal:', error);
-      throw error;
-    }
-  } else {
-    console.warn('⚠️ Cannot send payment failure - missing required data:', {
-      hasSessionId: !!sessionId,
-      hasCustomerEmail: !!customerEmail
-    });
-  }
-}
-
-function getStripeClient(): Stripe {
-  if (!process.env.STRIPE_SECRET_KEY) {
-    throw new Error('STRIPE_SECRET_KEY not configured');
-  }
-  return new Stripe(process.env.STRIPE_SECRET_KEY, { 
-    apiVersion: '2025-02-24.acacia' 
-  });
 }
 
 
