@@ -1,10 +1,11 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { CheckCircle, ArrowRight } from 'lucide-react';
 import Link from 'next/link';
+import { trackEvent } from '@/components/AnalyticsProvider';
 
 // Mark as dynamic to support useSearchParams
 export const dynamic = 'force-dynamic';
@@ -12,23 +13,20 @@ export const dynamic = 'force-dynamic';
 export default function CheckoutSuccessPage() {
   const searchParams = useSearchParams();
   const sessionId = searchParams.get('session_id');
+  const [purchaseTracked, setPurchaseTracked] = useState(false);
 
   useEffect(() => {
-    // Send confirmation to analytics if needed
-    if (sessionId) {
-      fetch('/api/analytics', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          events: [{
-            type: 'purchase_complete',
-            sessionId,
-            timestamp: new Date().toISOString()
-          }]
-        })
-      }).catch(console.error);
+    // Track purchase event when page loads
+    if (sessionId && !purchaseTracked) {
+      // Track purchase event - customer portal will match with payment data from Stripe webhooks
+      trackEvent('purchase', {
+        order_id: sessionId,
+        // Amount and items will be matched from Stripe webhook data in customer portal
+        // We track the purchase event here so it appears in analytics
+      });
+      setPurchaseTracked(true);
     }
-  }, [sessionId]);
+  }, [sessionId, purchaseTracked]);
 
   return (
     <div className="min-h-screen bg-ivory flex items-center justify-center">

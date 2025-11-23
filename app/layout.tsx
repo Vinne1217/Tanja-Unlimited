@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import AIAssistant from '@/components/AIAssistant';
+import AnalyticsProvider from '@/components/AnalyticsProvider';
 import { CartProvider } from '@/lib/cart-context';
 
 export const metadata = {
@@ -17,14 +18,16 @@ export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en">
       <body className="min-h-screen">
-        <CartProvider>
-          <Header />
-          <main className="min-h-screen">
-            {children}
-          </main>
-          <Footer />
-          <AIAssistant />
-        </CartProvider>
+        <AnalyticsProvider>
+          <CartProvider>
+            <Header />
+            <main className="min-h-screen">
+              {children}
+            </main>
+            <Footer />
+            <AIAssistant />
+          </CartProvider>
+        </AnalyticsProvider>
       </body>
     </html>
   );
