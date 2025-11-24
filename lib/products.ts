@@ -162,7 +162,10 @@ export const products: Product[] = [
     currency: 'SEK',
     category: 'tanja-jacket',
     description: 'Knee-length cotton jacket in imperial line, gold',
-    inStock: true
+    image: '/Images/Long Jacket Cotton knee imperial line Gold (LJCkilG).png',
+    inStock: true,
+    stripeProductId: 'prod_TTuI3y4djIk4dl',
+    stripePriceId: 'price_1SWwThP6vvUUervCCOY2vCd9'
   },
   {
     id: 'ljcfilg-001',
@@ -171,7 +174,10 @@ export const products: Product[] = [
     currency: 'SEK',
     category: 'tanja-jacket',
     description: 'Fitted long cotton jacket in imperial line, gold',
-    inStock: true
+    image: '/Images/Long Jacket Cotton fitted imperial line Gold (LJCfilG).webp',
+    inStock: true,
+    stripeProductId: 'prod_TTuM1DVrUtgru5',
+    stripePriceId: 'price_1SWwXgP6vvUUervCzB5dEMCk'
   },
   {
     id: 'ljckilp-001',
@@ -180,7 +186,10 @@ export const products: Product[] = [
     currency: 'SEK',
     category: 'tanja-jacket',
     description: 'Knee-length cotton jacket in imperial line, platinum',
-    inStock: true
+    image: '/Images/Long Jacket Cotton knee imperial line Platinum (LJCkilP).png',
+    inStock: true,
+    stripeProductId: 'prod_TTuQwJfAiYh99j',
+    stripePriceId: 'price_1SWwbXP6vvUUervCdG842AYy'
   },
   {
     id: 'ljcfilp-001',
@@ -198,7 +207,10 @@ export const products: Product[] = [
     currency: 'SEK',
     category: 'tanja-jacket',
     description: 'Fitted long cotton jacket in imperial line, diamond collection',
-    inStock: true
+    image: '/Images/Long Jacket Cotton fitted imperial line Diamond (LJCfilD).webp',
+    inStock: true,
+    stripeProductId: 'prod_TTuSJQSVbUdio6',
+    stripePriceId: 'price_1SWwdnP6vvUUervC1ArGrj5u'
   },
 
   // Tanja Lettering Blouse
