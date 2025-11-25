@@ -8,6 +8,7 @@ type CampaignBadgeProps = {
   defaultPrice: number; // Original price in SEK
   currency?: string;
   onCampaignFound?: (campaignPrice: number) => void;
+  hasVariants?: boolean; // If true, skip campaign check (variants don't support campaigns)
 };
 
 type PriceInfo = {
@@ -27,12 +28,19 @@ export default function CampaignBadge({
   productId,
   defaultPrice,
   currency = 'SEK',
-  onCampaignFound
+  onCampaignFound,
+  hasVariants = false
 }: CampaignBadgeProps) {
   const [priceInfo, setPriceInfo] = useState<PriceInfo | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // Skip campaign check for products with variants (variants have fixed prices)
+    if (hasVariants) {
+      setLoading(false);
+      return;
+    }
+
     async function fetchPrice() {
       try {
         // Query Stripe directly for latest price (Kraftverk approach)
@@ -52,7 +60,8 @@ export default function CampaignBadge({
 
         const data: PriceInfo = await res.json();
 
-        if (data.found && data.isCampaign && data.amount) {
+        // Only show campaign if there's an actual discount (discountPercent > 0)
+        if (data.found && data.isCampaign && data.amount && data.campaignInfo && data.campaignInfo.discountPercent && data.campaignInfo.discountPercent > 0) {
           setPriceInfo(data);
           const campaignPrice = data.amount / 100; // Convert cents to SEK
           
@@ -70,7 +79,7 @@ export default function CampaignBadge({
     }
 
     fetchPrice();
-  }, [productId, onCampaignFound]);
+  }, [productId, onCampaignFound, hasVariants]);
 
   if (loading || !priceInfo?.isCampaign || !priceInfo.campaignInfo) {
     return null;
