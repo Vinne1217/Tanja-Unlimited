@@ -18,6 +18,9 @@ type InventoryData = {
 };
 
 export default function BuyNowButton({ product }: BuyNowButtonProps) {
+  const [selectedVariant, setSelectedVariant] = useState<string | null>(
+    product.variants?.[0]?.key || null
+  );
   const [inventory, setInventory] = useState<InventoryData | null>(null);
   const [checkingStock, setCheckingStock] = useState(true);
   const [added, setAdded] = useState(false);
@@ -44,14 +47,23 @@ export default function BuyNowButton({ product }: BuyNowButtonProps) {
     fetchStockStatus();
   }, [product.id]);
 
+  const selectedVariantData = product.variants?.find(v => v.key === selectedVariant);
+  const priceId = selectedVariantData?.stripePriceId || product.stripePriceId;
+  const variantOutOfStock = selectedVariantData && selectedVariantData.stock <= 0;
+
   function handleAddToCart() {
-    if (!product.stripePriceId) {
+    if (!priceId) {
       alert('This product is not available for online purchase. Please contact us.');
       return;
     }
 
+    if (product.variants && !selectedVariant) {
+      alert('Vänligen välj en storlek.');
+      return;
+    }
+
     // Check if out of stock
-    if (inventory?.outOfStock) {
+    if (inventory?.outOfStock || variantOutOfStock) {
       alert('Detta produkt är tyvärr slutsåld. Vänligen kontakta oss för mer information.');
       return;
     }
@@ -65,8 +77,10 @@ export default function BuyNowButton({ product }: BuyNowButtonProps) {
       category: product.category,
       description: product.description,
       image: product.image,
-      inStock: !inventory?.outOfStock,
-      stripePriceId: product.stripePriceId,
+      inStock: !inventory?.outOfStock && !variantOutOfStock,
+      stripePriceId: product.stripePriceId, // Fallback
+      variantKey: selectedVariant || undefined,
+      variantPriceId: selectedVariantData?.stripePriceId,
     };
 
     addItem(cartProduct, 1);
@@ -75,31 +89,54 @@ export default function BuyNowButton({ product }: BuyNowButtonProps) {
   }
 
   const isOutOfStock = inventory?.outOfStock ?? false;
-  const isDisabled = checkingStock || isOutOfStock;
+  const isDisabled = checkingStock || isOutOfStock || variantOutOfStock || (product.variants && !selectedVariant);
 
   return (
-    <button
-      onClick={handleAddToCart}
-      disabled={isDisabled}
-      className="flex items-center justify-center gap-3 w-full px-8 py-4 bg-indigo text-ivory hover:bg-indigoDeep transition-all duration-300 font-medium tracking-wider disabled:opacity-50 disabled:cursor-not-allowed"
-    >
-      {added ? (
-        <>
-          <Check className="w-5 h-5" />
-          <span>Added to Cart!</span>
-        </>
-      ) : isOutOfStock ? (
-        <>
-          <XCircle className="w-5 h-5" />
-          <span>Slutsåld</span>
-        </>
-      ) : (
-        <>
-          <ShoppingCart className="w-5 h-5" />
-          <span>Add to Cart</span>
-        </>
+    <div className="space-y-4">
+      {/* Size Selector */}
+      {product.variants && product.variants.length > 0 && (
+        <div>
+          <label className="block text-sm font-medium text-deepIndigo mb-2">
+            Storlek
+          </label>
+          <select
+            value={selectedVariant || ''}
+            onChange={(e) => setSelectedVariant(e.target.value)}
+            className="w-full px-4 py-3 border border-warmOchre/20 bg-ivory text-deepIndigo focus:border-warmOchre focus:outline-none transition-colors"
+          >
+            <option value="">Välj storlek</option>
+            {product.variants.map((variant) => (
+              <option key={variant.key} value={variant.key} disabled={variant.stock <= 0}>
+                {variant.key} {variant.stock <= 0 ? '— Slutsåld' : ''}
+              </option>
+            ))}
+          </select>
+        </div>
       )}
-    </button>
+
+      <button
+        onClick={handleAddToCart}
+        disabled={isDisabled}
+        className="flex items-center justify-center gap-3 w-full px-8 py-4 bg-indigo text-ivory hover:bg-indigoDeep transition-all duration-300 font-medium tracking-wider disabled:opacity-50 disabled:cursor-not-allowed"
+      >
+        {added ? (
+          <>
+            <Check className="w-5 h-5" />
+            <span>Lagt i varukorg!</span>
+          </>
+        ) : isOutOfStock || variantOutOfStock ? (
+          <>
+            <XCircle className="w-5 h-5" />
+            <span>Slutsåld</span>
+          </>
+        ) : (
+          <>
+            <ShoppingCart className="w-5 h-5" />
+            <span>Lägg i varukorg</span>
+          </>
+        )}
+      </button>
+    </div>
   );
 }
 

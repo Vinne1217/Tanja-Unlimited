@@ -42,6 +42,7 @@ export default function CartPage() {
             quantity: item.quantity,
             stripePriceId: item.product.variantPriceId || item.product.stripePriceId,
             productId: item.product.id,
+            variantKey: item.product.variantKey, // Include variant key if present
           })),
           successUrl: `${window.location.origin}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
           cancelUrl: window.location.href,

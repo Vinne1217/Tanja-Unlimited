@@ -11,7 +11,13 @@ export type Product = {
   image?: string;
   inStock: boolean;
   stripeProductId?: string;
-  stripePriceId?: string;
+  stripePriceId?: string; // Fallback price if no variants
+  variants?: Array<{
+    key: string; // Size: "XS", "S", "M", "L", "XL"
+    sku: string; // Article number: "LJCfilG-XS"
+    stock: number; // Initial stock (will be synced from customer portal)
+    stripePriceId: string; // Stripe price ID for this size
+  }>;
 };
 
 export type Category = {
@@ -177,7 +183,14 @@ export const products: Product[] = [
     image: '/Images/Long Jacket Cotton fitted imperial line Gold (LJCfilG).webp',
     inStock: true,
     stripeProductId: 'prod_TTuM1DVrUtgru5',
-    stripePriceId: 'price_1SWwXgP6vvUUervCzB5dEMCk'
+    stripePriceId: 'price_1SWwXgP6vvUUervCzB5dEMCk', // Fallback price
+    variants: [
+      { key: 'XS', sku: 'LJCfilG-XS', stock: 0, stripePriceId: 'price_1SX5xtP6vvUUervC7sVlRnoi' },
+      { key: 'S', sku: 'LJCfilG-S', stock: 0, stripePriceId: 'price_1SX5yeP6vvUUervC41kmP3Oo' },
+      { key: 'M', sku: 'LJCfilG-M', stock: 0, stripePriceId: 'price_1SX5z2P6vvUUervCn7DBjW4V' },
+      { key: 'L', sku: 'LJCfilG-L', stock: 0, stripePriceId: 'price_1SX5zJP6vvUUervCvIIk1R0u' },
+      { key: 'XL', sku: 'LJCfilG-XL', stock: 0, stripePriceId: 'price_1SX5zUP6vvUUervCyLcMME9z' },
+    ]
   },
   {
     id: 'ljckilp-001',

@@ -6,8 +6,9 @@ const TENANT_ID = 'tanjaunlimited';
 
 type CartItem = {
   quantity: number;
-  stripePriceId: string; // fallback price ID
+  stripePriceId: string; // fallback price ID or variant price ID
   productId?: string; // To query Stripe for latest price
+  variantKey?: string; // If present, this is a variant-specific price
 };
 
 export async function POST(req: NextRequest) {
@@ -60,8 +61,17 @@ export async function POST(req: NextRequest) {
       let priceId = item.stripePriceId; // fallback to provided price
       let isCampaign = false;
 
-      // If productId provided, query Stripe for latest active price
-      if (item.productId) {
+      // If this is a variant-specific price, use it directly without querying Stripe
+      // Variants have fixed prices per size, so we don't want to override with campaign prices
+      if (item.variantKey) {
+        console.log(`👕 Using variant price for ${item.productId} (${item.variantKey}): ${priceId}`);
+        if (item.productId) {
+          campaignData[`product_${index}_id`] = item.productId;
+          campaignData[`product_${index}_price`] = priceId;
+          campaignData[`product_${index}_variant`] = item.variantKey;
+        }
+      } else if (item.productId) {
+        // For non-variant products, query Stripe for latest active price (campaigns)
         try {
           const priceInfo = await getLatestActivePriceForProduct(
             item.productId,
