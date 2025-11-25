@@ -11,9 +11,22 @@ export async function GET(req: NextRequest) {
 
     // Support querying by stripePriceId (for variants)
     if (stripePriceId) {
+      console.log(`📊 Variant inventory requested:`, {
+        productId,
+        stripePriceId,
+        inventoryId: `price_${stripePriceId}`
+      });
+      
       const variantInventory = getInventoryByStripePriceId(stripePriceId);
       
       if (variantInventory) {
+        console.log(`✅ Found variant inventory for ${stripePriceId}:`, {
+          stock: variantInventory.stock,
+          status: variantInventory.status,
+          outOfStock: variantInventory.outOfStock,
+          sku: variantInventory.sku,
+          source: 'in_memory'
+        });
         return NextResponse.json({
           productId: productId || undefined,
           stripePriceId,
@@ -28,6 +41,7 @@ export async function GET(req: NextRequest) {
           source: 'in_memory'
         });
       } else {
+        console.log(`ℹ️  No variant inventory found for ${stripePriceId}, assuming in stock`);
         // No variant inventory data = assume in stock
         return NextResponse.json({
           productId: productId || undefined,

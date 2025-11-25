@@ -42,19 +42,28 @@ export default function BuyNowButton({ product }: BuyNowButtonProps) {
 
         // If product has variants, fetch inventory for each variant
         if (product.variants && product.variants.length > 0) {
+          console.log(`📦 Fetching inventory for ${product.variants.length} variants for product ${product.id}`);
           const variantInventoryMap = new Map<string, InventoryData>();
           
           await Promise.all(
             product.variants.map(async (variant) => {
               try {
-                const variantRes = await fetch(
-                  `/api/inventory/status?productId=${encodeURIComponent(product.id)}&stripePriceId=${encodeURIComponent(variant.stripePriceId)}`,
-                  { cache: 'no-store' }
-                );
+                const url = `/api/inventory/status?productId=${encodeURIComponent(product.id)}&stripePriceId=${encodeURIComponent(variant.stripePriceId)}`;
+                console.log(`📡 Fetching variant inventory: ${variant.key} (${variant.stripePriceId})`);
+                
+                const variantRes = await fetch(url, { cache: 'no-store' });
                 
                 if (variantRes.ok) {
                   const variantData = await variantRes.json();
+                  console.log(`✅ Variant inventory received for ${variant.key}:`, {
+                    stock: variantData.stock,
+                    outOfStock: variantData.outOfStock,
+                    hasData: variantData.hasData,
+                    source: variantData.source
+                  });
                   variantInventoryMap.set(variant.key, variantData);
+                } else {
+                  console.warn(`⚠️ Failed to fetch inventory for variant ${variant.key}:`, variantRes.status);
                 }
               } catch (error) {
                 console.warn(`Failed to fetch inventory for variant ${variant.key}:`, error);
@@ -62,6 +71,7 @@ export default function BuyNowButton({ product }: BuyNowButtonProps) {
             })
           );
           
+          console.log(`📦 Variant inventory fetch complete. Found data for ${variantInventoryMap.size} variants`);
           setVariantInventories(variantInventoryMap);
         }
       } catch (error) {
