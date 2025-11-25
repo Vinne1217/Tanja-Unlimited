@@ -162,23 +162,44 @@ export async function POST(req: NextRequest) {
 
       // Handle variants if provided (guide: "Handle variant-level stock updates separately")
       if (inventoryUpdate.variants && Array.isArray(inventoryUpdate.variants)) {
+        console.log(`📦 Processing ${inventoryUpdate.variants.length} variants for product ${mappedProductId}`);
+        
         for (const variant of inventoryUpdate.variants) {
-          if (variant.stripePriceId) {
-            const variantInventoryId = `price_${variant.stripePriceId}`;
-            const variantOutOfStock = variant.outOfStock ?? (variant.stock === 0 || variant.stock <= 0);
-            const variantStatus = variant.status || (variantOutOfStock ? 'out_of_stock' : variant.lowStock ? 'low_stock' : 'in_stock');
-            
-            await updateInventory(variantInventoryId, {
-              stock: variant.stock ?? 0,
-              status: variantStatus,
-              lowStock: variant.lowStock ?? variant.status === 'low_stock',
-              outOfStock: variantOutOfStock,
-              name: variant.name || inventoryUpdate.name,
-              sku: variant.sku || variant.key,
-              lastUpdated: new Date().toISOString()
+          // Support both stripePriceId and priceId (customer portal may send either)
+          const stripePriceId = variant.stripePriceId || variant.priceId;
+          
+          if (!stripePriceId) {
+            console.warn(`⚠️ Variant missing stripePriceId/priceId:`, {
+              key: variant.key,
+              sku: variant.sku,
+              articleNumber: variant.articleNumber,
+              size: variant.size
             });
-            console.log(`📦 Variant inventory updated for stripePriceId: ${variant.stripePriceId} (${variant.key || variant.sku})`);
+            continue;
           }
+          
+          const variantInventoryId = `price_${stripePriceId}`;
+          const variantOutOfStock = variant.outOfStock ?? (variant.stock === 0 || variant.stock <= 0);
+          const variantStatus = variant.status || (variantOutOfStock ? 'out_of_stock' : variant.lowStock ? 'low_stock' : 'in_stock');
+          
+          await updateInventory(variantInventoryId, {
+            stock: variant.stock ?? 0,
+            status: variantStatus,
+            lowStock: variant.lowStock ?? variant.status === 'low_stock',
+            outOfStock: variantOutOfStock,
+            name: variant.name || inventoryUpdate.name,
+            sku: variant.sku || variant.articleNumber || variant.key,
+            lastUpdated: new Date().toISOString()
+          });
+          
+          console.log(`📦 Variant inventory updated:`, {
+            key: variant.key || variant.size,
+            stripePriceId,
+            stock: variant.stock,
+            status: variantStatus,
+            outOfStock: variantOutOfStock,
+            inventoryId: variantInventoryId
+          });
         }
       }
 

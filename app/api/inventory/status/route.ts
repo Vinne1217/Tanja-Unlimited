@@ -1,16 +1,50 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getInventoryFromSource } from '@/lib/inventory-source';
 // Keep in-memory as fallback
-import { getInventoryStatus } from '@/lib/inventory';
+import { getInventoryStatus, getInventoryByStripePriceId } from '@/lib/inventory';
 
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
     const productId = searchParams.get('productId');
+    const stripePriceId = searchParams.get('stripePriceId'); // For variant inventory
+
+    // Support querying by stripePriceId (for variants)
+    if (stripePriceId) {
+      const variantInventory = getInventoryByStripePriceId(stripePriceId);
+      
+      if (variantInventory) {
+        return NextResponse.json({
+          productId: productId || undefined,
+          stripePriceId,
+          stock: variantInventory.stock,
+          status: variantInventory.status,
+          lowStock: variantInventory.lowStock,
+          outOfStock: variantInventory.outOfStock,
+          name: variantInventory.name,
+          sku: variantInventory.sku,
+          lastUpdated: variantInventory.lastUpdated,
+          hasData: true,
+          source: 'in_memory'
+        });
+      } else {
+        // No variant inventory data = assume in stock
+        return NextResponse.json({
+          productId: productId || undefined,
+          stripePriceId,
+          stock: null,
+          status: 'in_stock',
+          lowStock: false,
+          outOfStock: false,
+          hasData: false,
+          source: 'default'
+        });
+      }
+    }
 
     if (!productId) {
       return NextResponse.json(
-        { error: 'productId is required' },
+        { error: 'productId or stripePriceId is required' },
         { status: 400 }
       );
     }

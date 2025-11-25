@@ -11,6 +11,10 @@ export const PRODUCT_ID_MAPPING: Record<string, string> = {
   'NJCilW': 'njcilw-001',       // Nehru Jacket Cotton imperial line White
   'LJCkilS': 'ljckils-001',     // Long Jacket Cotton knee imperial line Silver
   'LJCfilS': 'ljcfils-001',     // Long Jacket Cotton fitted imperial line Silver
+  'LJCfilG': 'ljcfilg-001',     // Long Jacket Cotton fitted imperial line Gold
+  'LJCkilG': 'ljckilg-001',     // Long Jacket Cotton knee imperial line Gold
+  'LJCkilP': 'ljckilp-001',     // Long Jacket Cotton knee imperial line Platinum
+  'LJCfilD': 'ljcfild-001',     // Long Jacket Cotton fitted imperial line Diamond
 };
 
 /**

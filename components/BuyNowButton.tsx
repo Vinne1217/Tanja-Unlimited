@@ -22,6 +22,7 @@ export default function BuyNowButton({ product }: BuyNowButtonProps) {
     product.variants?.[0]?.key || null
   );
   const [inventory, setInventory] = useState<InventoryData | null>(null);
+  const [variantInventories, setVariantInventories] = useState<Map<string, InventoryData>>(new Map());
   const [checkingStock, setCheckingStock] = useState(true);
   const [added, setAdded] = useState(false);
   const { addItem } = useCart();
@@ -29,6 +30,7 @@ export default function BuyNowButton({ product }: BuyNowButtonProps) {
   useEffect(() => {
     async function fetchStockStatus() {
       try {
+        // Fetch product-level inventory
         const res = await fetch(`/api/inventory/status?productId=${encodeURIComponent(product.id)}`, {
           cache: 'no-store'
         });
@@ -36,6 +38,31 @@ export default function BuyNowButton({ product }: BuyNowButtonProps) {
         if (res.ok) {
           const data = await res.json();
           setInventory(data);
+        }
+
+        // If product has variants, fetch inventory for each variant
+        if (product.variants && product.variants.length > 0) {
+          const variantInventoryMap = new Map<string, InventoryData>();
+          
+          await Promise.all(
+            product.variants.map(async (variant) => {
+              try {
+                const variantRes = await fetch(
+                  `/api/inventory/status?productId=${encodeURIComponent(product.id)}&stripePriceId=${encodeURIComponent(variant.stripePriceId)}`,
+                  { cache: 'no-store' }
+                );
+                
+                if (variantRes.ok) {
+                  const variantData = await variantRes.json();
+                  variantInventoryMap.set(variant.key, variantData);
+                }
+              } catch (error) {
+                console.warn(`Failed to fetch inventory for variant ${variant.key}:`, error);
+              }
+            })
+          );
+          
+          setVariantInventories(variantInventoryMap);
         }
       } catch (error) {
         console.warn('Failed to fetch stock status:', error);
@@ -45,11 +72,16 @@ export default function BuyNowButton({ product }: BuyNowButtonProps) {
     }
 
     fetchStockStatus();
-  }, [product.id]);
+  }, [product.id, product.variants]);
 
   const selectedVariantData = product.variants?.find(v => v.key === selectedVariant);
   const priceId = selectedVariantData?.stripePriceId || product.stripePriceId;
-  const variantOutOfStock = selectedVariantData && selectedVariantData.stock <= 0;
+  
+  // Check variant inventory from synced data, not static product definition
+  const selectedVariantInventory = selectedVariant ? variantInventories.get(selectedVariant) : null;
+  const variantOutOfStock = selectedVariantInventory 
+    ? (selectedVariantInventory.outOfStock || (selectedVariantInventory.stock !== null && selectedVariantInventory.stock <= 0))
+    : false; // If no inventory data, assume in stock
 
   function handleAddToCart() {
     if (!priceId) {
@@ -105,11 +137,18 @@ export default function BuyNowButton({ product }: BuyNowButtonProps) {
             className="w-full px-4 py-3 border border-warmOchre/20 bg-ivory text-deepIndigo focus:border-warmOchre focus:outline-none transition-colors"
           >
             <option value="">Välj storlek</option>
-            {product.variants.map((variant) => (
-              <option key={variant.key} value={variant.key} disabled={variant.stock <= 0}>
-                {variant.key} {variant.stock <= 0 ? '— Slutsåld' : ''}
-              </option>
-            ))}
+            {product.variants.map((variant) => {
+              const variantInventory = variantInventories.get(variant.key);
+              const isOutOfStock = variantInventory 
+                ? (variantInventory.outOfStock || (variantInventory.stock !== null && variantInventory.stock <= 0))
+                : false; // If no inventory data, assume in stock
+              
+              return (
+                <option key={variant.key} value={variant.key} disabled={isOutOfStock}>
+                  {variant.key} {isOutOfStock ? '— Slutsåld' : ''}
+                </option>
+              );
+            })}
           </select>
         </div>
       )}
