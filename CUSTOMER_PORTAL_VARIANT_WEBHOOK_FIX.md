@@ -2,11 +2,22 @@
 
 ## Issues Found
 
-### 1. Wrong Webhook URL ❌
+### 1. Wrong Webhook URL ❌ CRITICAL
 **Current (WRONG):** `https://tanja-unlimited.onrender.com/api/inventory/sync/api/campaigns/webhook`  
 **Should be:** `https://tanja-unlimited.onrender.com/api/campaigns/webhook`
 
-The URL appears to be concatenated incorrectly. Use the `/api/campaigns/webhook` endpoint directly.
+**The URL is being concatenated incorrectly!** The customer portal is trying to append `/api/campaigns/webhook` to `/api/inventory/sync`, which creates an invalid URL.
+
+**Solution:** Use `/api/campaigns/webhook` directly as the base URL. Do NOT concatenate it with `/api/inventory/sync`.
+
+### Available Endpoints
+
+There are TWO endpoints, but you should use ONE:
+
+1. **`/api/campaigns/webhook`** ✅ **USE THIS ONE** - Supports both regular products AND variants
+2. **`/api/inventory/sync`** ❌ **DO NOT USE** - Only supports regular products (no variants), and is being phased out
+
+**Recommendation:** Use `/api/campaigns/webhook` for ALL inventory updates (both regular products and variants).
 
 ### 2. Wrong Product ID Format ⚠️ (Now Fixed - Fallback Added)
 **Current:** `productId: 'prod_TTuM1DVrUtgru5'` (Stripe Product ID)  
@@ -20,8 +31,21 @@ The payload is missing the `variants` array. Variants must be included for varia
 ## Correct Webhook Configuration
 
 ### Endpoint
+
+**IMPORTANT:** Use this URL exactly as shown. Do NOT concatenate it with any other path.
+
 ```
 POST https://tanja-unlimited.onrender.com/api/campaigns/webhook
+```
+
+**Common mistake:** Customer portal code might be doing something like:
+```javascript
+// WRONG ❌
+const baseUrl = 'https://tanja-unlimited.onrender.com/api/inventory/sync';
+const webhookUrl = `${baseUrl}/api/campaigns/webhook`;  // Creates invalid URL!
+
+// CORRECT ✅
+const webhookUrl = 'https://tanja-unlimited.onrender.com/api/campaigns/webhook';
 ```
 
 ### Authentication
