@@ -8,7 +8,7 @@ type CampaignBadgeProps = {
   defaultPrice: number; // Original price in SEK
   currency?: string;
   onCampaignFound?: (campaignPrice: number) => void;
-  hasVariants?: boolean; // If true, skip campaign check (variants don't support campaigns)
+  hasVariants?: boolean; // Deprecated: API now handles variant detection automatically
 };
 
 type PriceInfo = {
@@ -35,12 +35,7 @@ export default function CampaignBadge({
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Skip campaign check for products with variants (variants have fixed prices)
-    if (hasVariants) {
-      setLoading(false);
-      return;
-    }
-
+    // API now handles variant detection automatically - no need to skip
     async function fetchPrice() {
       try {
         // Query Stripe directly for latest price (Kraftverk approach)
@@ -79,7 +74,7 @@ export default function CampaignBadge({
     }
 
     fetchPrice();
-  }, [productId, onCampaignFound, hasVariants]);
+  }, [productId, onCampaignFound]);
 
   if (loading || !priceInfo?.isCampaign || !priceInfo.campaignInfo) {
     return null;

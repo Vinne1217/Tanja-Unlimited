@@ -36,7 +36,8 @@ export const STRIPE_PRODUCT_MAPPING: Record<string, string> = {
  */
 export async function getLatestActivePriceForProduct(
   productId: string,
-  stripeSecretKey: string
+  stripeSecretKey: string,
+  variantPriceIds?: string[] // Optional: list of variant price IDs to exclude from campaign detection
 ): Promise<{
   priceId: string;
   amount: number;
@@ -73,6 +74,56 @@ export async function getLatestActivePriceForProduct(
       return null;
     }
 
+    // If variant price IDs provided, filter them out to check for campaign prices
+    if (variantPriceIds && variantPriceIds.length > 0) {
+      // Separate variant prices from potential campaign prices
+      const variantPrices = prices.data.filter(p => variantPriceIds.includes(p.id));
+      const nonVariantPrices = prices.data.filter(p => !variantPriceIds.includes(p.id));
+      
+      // If we have non-variant prices, check if they're campaign prices
+      if (nonVariantPrices.length > 0) {
+        // Get the base variant price for comparison (use first variant)
+        const baseVariantPrice = variantPrices[0]?.unit_amount || 0;
+        
+        // Sort non-variant prices by creation date (newest first)
+        const sorted = nonVariantPrices.sort((a, b) => {
+          return (b.created || 0) - (a.created || 0);
+        });
+        
+        const latestPrice = sorted[0];
+        const amount = latestPrice.unit_amount || 0;
+        
+        // Check if this is cheaper than variant prices (campaign)
+        if (baseVariantPrice > 0 && amount < baseVariantPrice) {
+          const discountPercent = Math.round(((baseVariantPrice - amount) / baseVariantPrice) * 100);
+          
+          console.log(`🎯 Campaign price detected for variant product ${productId}:`, {
+            campaignPrice: amount / 100,
+            originalPrice: baseVariantPrice / 100,
+            discount: `${discountPercent}%`,
+            priceId: latestPrice.id
+          });
+          
+          return {
+            priceId: latestPrice.id,
+            amount,
+            currency: latestPrice.currency,
+            isCampaign: true,
+            campaignInfo: {
+              originalAmount: baseVariantPrice,
+              discountPercent,
+              description: latestPrice.nickname || undefined
+            }
+          };
+        }
+      }
+      
+      // No campaign found for variant product
+      console.log(`💰 No campaign found for variant product ${productId} (variants have fixed prices)`);
+      return null;
+    }
+
+    // Original logic for non-variant products
     // Sort by creation date (newest first)
     const sorted = prices.data.sort((a, b) => {
       return (b.created || 0) - (a.created || 0);

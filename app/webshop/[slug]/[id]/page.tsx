@@ -116,13 +116,12 @@ export default function ProductDetailPage({
                 </h1>
                 
                 {/* Campaign Badge & Price (if campaign exists) */}
-                {/* Skip campaign check for products with variants - variants have fixed prices */}
+                {/* API automatically handles variant detection - campaigns will show if they exist */}
                 <CampaignBadge 
                   productId={product.id}
                   defaultPrice={product.price}
                   currency={product.currency || 'SEK'}
                   onCampaignFound={setCampaignPrice}
-                  hasVariants={!!(product.variants && product.variants.length > 0)}
                 />
                 
                 {/* Regular Price Display (if no campaign) */}
