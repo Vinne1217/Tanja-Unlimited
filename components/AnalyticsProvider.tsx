@@ -86,9 +86,17 @@ async function trackEvent(eventType: string, eventProps: Record<string, any> = {
     event_props: eventProps
   };
   
+  // ✅ Add logging for debugging
+  console.log(`📊 Tracking event: ${eventType}`, {
+    page: event.page,
+    session: event.session_id,
+    source: event.source,
+    device: event.device
+  });
+  
   // Skicka event via vår API route
   try {
-    await fetch('/api/analytics', {
+    const response = await fetch('/api/analytics', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -97,11 +105,16 @@ async function trackEvent(eventType: string, eventProps: Record<string, any> = {
         events: [event]
       })
     });
-  } catch (err) {
-    // Silent fail - don't break the site if analytics fails
-    if (process.env.NODE_ENV === 'development') {
-      console.warn('Analytics tracking error:', err);
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`❌ Analytics API error (${response.status}):`, errorText);
+    } else {
+      console.log(`✅ Event tracked successfully: ${eventType}`);
     }
+  } catch (err) {
+    // ✅ Always log errors, not just in development
+    console.error('❌ Analytics tracking error:', err);
   }
 }
 

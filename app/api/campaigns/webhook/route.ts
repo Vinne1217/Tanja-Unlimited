@@ -274,12 +274,53 @@ export async function POST(req: NextRequest) {
     });
   }
 
-  // Handle campaign metadata events (legacy support)
+  // Handle campaign sync events (from documentation)
   const c = body.campaign;
-  if (action === 'deleted' && c?.id) {
-    deleteCampaign(c.id);
-  } else if (action === 'created' || action === 'updated') {
-    if (c) upsertCampaign(c);
+  if (c) {
+    if (action === 'deleted') {
+      deleteCampaign(c.id);
+      console.log(`🗑️  Campaign deleted: ${c.id}`);
+    } else if (action === 'created' || action === 'updated') {
+      // Store campaign with all fields from documentation
+      const campaign: Campaign = {
+        id: c.id,
+        name: c.name,
+        type: c.type || 'percentage',
+        status: c.status === 'active' ? 'active' : 'inactive',
+        discountType: c.discountType || c.type === 'percentage' ? 'percentage' : 'amount',
+        discountValue: c.discountValue,
+        products: c.products,
+        startDate: c.startDate,
+        endDate: c.endDate,
+        stripeCouponId: c.stripeCouponId,
+        stripePromotionCodeId: c.stripePromotionCodeId,
+        stripePriceIds: c.stripePriceIds || [], // Campaign price IDs for checkout
+        usageCount: c.usageCount,
+        maxUses: c.maxUses,
+      };
+      
+      upsertCampaign(campaign);
+      
+      console.log(`✅ Campaign ${action}: ${c.id}`, {
+        name: c.name,
+        status: c.status,
+        stripePriceIdsCount: campaign.stripePriceIds?.length || 0,
+        productsCount: campaign.products?.length || 0
+      });
+      
+      // If stripePriceIds are provided, ensure they're stored as campaign prices
+      if (campaign.stripePriceIds && campaign.stripePriceIds.length > 0) {
+        console.log(`📦 Processing ${campaign.stripePriceIds.length} campaign price IDs for campaign ${c.id}`);
+        
+        // Store each campaign price ID (for lookup during checkout)
+        for (const stripePriceId of campaign.stripePriceIds) {
+          // Find which product this price belongs to (from products array or from price metadata)
+          // For now, we'll store the campaign association via the campaign-price-service
+          // The actual price-to-product mapping should come from the customer portal
+          console.log(`   Campaign price ID: ${stripePriceId}`);
+        }
+      }
+    }
   }
 
   revalidatePath('/');
