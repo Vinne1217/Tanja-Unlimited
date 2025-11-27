@@ -98,8 +98,8 @@ export const products: Product[] = [
     description: 'Hand-quilted silk jacket, reversible with two different fronts',
     image: '/Images/Short Jacket Silk (SJS).webp',
     inStock: true,
-    stripeProductId: 'prod_TM8HrnCVZxAkzA',
-    stripePriceId: 'price_1SPQ0nP6vvUUervCNY9ApxdL'
+    stripeProductId: 'prod_TUhwHTMbcNO6LQ',
+    stripePriceId: 'price_1SXn8NP6vvUUervCl61Tt7QC'
   },
   {
     id: 'ljsf-001',
@@ -110,8 +110,8 @@ export const products: Product[] = [
     description: 'Fitted long silk jacket, completely reversible',
     image: '/Images/Long Jacket Silk fitted (LJSf).webp',
     inStock: true,
-    stripeProductId: 'prod_TM8KNMKe85ZYMM',
-    stripePriceId: 'price_1SPQ3cP6vvUUervCRevV3pPO'
+    stripeProductId: 'prod_TUhwXhECUhrZ8S',
+    stripePriceId: 'price_1SXn86P6vvUUervCXuUqU2Bn'
   },
   {
     id: 'sjcilw-001',
@@ -122,8 +122,8 @@ export const products: Product[] = [
     description: 'Cotton jacket in imperial line design, white',
     image: '/Images/Short jacket Cotton Imperial Line White (SJCilW).webp',
     inStock: true,
-    stripeProductId: 'prod_TM8ObxolUedP4W',
-    stripePriceId: 'price_1SPQ7MP6vvUUervCPTBo0sHM'
+    stripeProductId: 'prod_TUhwaYvZLfYk0s',
+    stripePriceId: 'price_1SXn8oP6vvUUervCWLLhK1nI'
   },
   {
     id: 'njcilw-001',
@@ -134,8 +134,8 @@ export const products: Product[] = [
     description: 'Nehru style cotton jacket in imperial line, white',
     image: '/Images/Nehru Jacket Cotton imperial line White (NJCilW).webp',
     inStock: true,
-    stripeProductId: 'prod_TM8PR5YzRhLcGo',
-    stripePriceId: 'price_1SPQ8KP6vvUUervCFalBRK9b'
+    stripeProductId: 'prod_TUhwCzidnMBjbU',
+    stripePriceId: 'price_1SYBbwP6vvUUervCqGt2b6yY'
   },
   {
     id: 'ljckils-001',
@@ -146,8 +146,8 @@ export const products: Product[] = [
     description: 'Knee-length cotton jacket in imperial line, silver',
     image: '/Images/Long Jacket Cotton knee imperial line Silver (LJCkilS).webp',
     inStock: true,
-    stripeProductId: 'prod_TM8U3Iw6TlUoba',
-    stripePriceId: 'price_1SPQDlP6vvUUervCQP2ffvW4'
+    stripeProductId: 'prod_TUhwLQR2PQ0H1s',
+    stripePriceId: 'price_1SXnAQP6vvUUervCh8orZFOz'
   },
   {
     id: 'ljcfils-001',

@@ -9,11 +9,11 @@ import Stripe from 'stripe';
 // Map Tanja product IDs to Stripe Product IDs
 export const STRIPE_PRODUCT_MAPPING: Record<string, string> = {
   // The Tanja Jacket Collection
-  'sjs-001': 'prod_TM8HrnCVZxAkzA',      // Short Jacket Silk (SJS)
-  'ljsf-001': 'prod_TM8KNMKe85ZYMM',     // Long Jacket Silk fitted (LJSf)
-  'sjcilw-001': 'prod_TM8ObxolUedP4W',   // Short jacket Cotton Imperial Line White (SJCilW)
-  'njcilw-001': 'prod_TM8PR5YzRhLcGo',   // Nehru Jacket Cotton imperial line White (NJCilW)
-  'ljckils-001': 'prod_TM8U3Iw6TlUoba',  // Long Jacket Cotton knee imperial line Silver (LJCkilS)
+  'sjs-001': 'prod_TUhwHTMbcNO6LQ',      // Short Jacket Silk (SJS)
+  'ljsf-001': 'prod_TUhwXhECUhrZ8S',     // Long Jacket Silk fitted (LJSf)
+  'sjcilw-001': 'prod_TUhwaYvZLfYk0s',   // Short jacket Cotton Imperial Line White (SJCilW)
+  'njcilw-001': 'prod_TUhwCzidnMBjbU',   // Nehru Jacket Cotton imperial line White (NJCilW)
+  'ljckils-001': 'prod_TUhwLQR2PQ0H1s',  // Long Jacket Cotton knee imperial line Silver (LJCkilS)
   'ljcfils-001': 'prod_TM8WtsmaCpBGLm',  // Long Jacket Cotton fitted imperial line Silver (LJCfilS)
   'ljckilg-001': 'prod_TTuI3y4djIk4dl',  // Long Jacket Cotton knee imperial line Gold (LJCkilG)
   'ljckilp-001': 'prod_TTuQwJfAiYh99j',  // Long Jacket Cotton knee imperial line Platinum (LJCkilP)
