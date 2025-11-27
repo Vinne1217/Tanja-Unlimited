@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { revalidatePath } from 'next/cache';
-import { upsertCampaign, deleteCampaign } from '@/lib/campaigns';
+import { upsertCampaign, deleteCampaign, type Campaign } from '@/lib/campaigns';
 import { 
   storeCampaignPrice, 
   expireCampaignPrice, 
