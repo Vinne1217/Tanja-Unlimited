@@ -1,6 +1,9 @@
 substitutions:
   _IMAGE: europe-north1-docker.pkg.dev/sigma-future-479409-h9/source-services/tanja-unlimited:latest
 
+options:
+  logging: CLOUD_LOGGING_ONLY
+
 steps:
   - name: gcr.io/cloud-builders/docker
     id: Build image
