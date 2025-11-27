@@ -1,0 +1,35 @@
+substitutions:
+  _IMAGE: europe-north1-docker.pkg.dev/sigma-future-479409-h9/source-services/tanja-unlimited:${COMMIT_SHA}
+
+steps:
+  - name: gcr.io/cloud-builders/docker
+    id: Build image
+    args:
+      - build
+      - --tag
+      - ${_IMAGE}
+      - .
+
+  - name: gcr.io/cloud-builders/docker
+    id: Push image
+    args:
+      - push
+      - ${_IMAGE}
+
+  - name: gcr.io/google.com/cloudsdktool/cloud-sdk
+    id: Deploy to Cloud Run
+    entrypoint: gcloud
+    args:
+      - run
+      - deploy
+      - tanja-unlimited
+      - --image=${_IMAGE}
+      - --region=europe-north1
+      - --platform=managed
+      - --allow-unauthenticated
+      - --service-account=source-run-sa@sigma-future-479409-h9.iam.gserviceaccount.com
+      - --update-secrets=FRONTEND_API_KEY=TANJA_FRONTEND_API_KEY:latest,FRONTEND_SYNC_SECRET=TANJA_FRONTEND_SYNC_SECRET:latest,NEXT_PUBLIC_BASE_URL=TANJA_NEXT_PUBLIC_BASE_URL:latest,OPENAI_API_KEY=TANJA_OPENAI_API_KEY:latest,SOURCE_DATABASE_URL=TANJA_SOURCE_DATABASE_URL:latest,SOURCE_TENANT_ID=TANJA_SOURCE_TENANT_ID:latest,STRIPE_SECRET_KEY=TANJA_STRIPE_SECRET_KEY:latest,STRIPE_WEBHOOK_SECRET=TANJA_STRIPE_WEBHOOK_SECRET:latest
+
+images:
+  - ${_IMAGE}
+

@@ -4,9 +4,9 @@ import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { ShoppingCart, Trash2, Plus, Minus, ArrowLeft, Loader2 } from 'lucide-react';
 import Link from 'next/link';
-import { useCart } from '@/lib/cart-context';
-import StockStatus from '@/components/StockStatus';
-import { formatPrice } from '@/lib/products';
+import { useCart } from '../../lib/cart-context';
+import StockStatus from '../../components/StockStatus';
+import { formatPrice } from '../../lib/products';
 
 export default function CartPage() {
   const { items, removeItem, updateQuantity, clearCart, getTotalPrice } = useCart();

@@ -1,9 +1,9 @@
 'use client';
 
-import ContactForm from '@/components/ContactForm';
+import ContactForm from '../../components/ContactForm';
 import { motion } from 'framer-motion';
 import { Calendar, Sparkles, Phone, CheckCircle } from 'lucide-react';
-import { useTranslation } from '@/lib/useTranslation';
+import { useTranslation } from '../../lib/useTranslation';
 
 // Mark as dynamic to support useSearchParams
 export const dynamic = 'force-dynamic';
