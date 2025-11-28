@@ -232,9 +232,9 @@ export async function getAllStorefrontProductsAsProducts(): Promise<Product[]> {
 
 /**
  * Get single storefront product as Product format
+ * productId can be baseSku, variant articleNumber, or product ID
  */
 export async function getStorefrontProductAsProduct(productId: string): Promise<Product | null> {
-  const storefrontProduct can be baseSku, variant articleNumber, or product ID
   const storefrontProduct = await fetchStorefrontProduct(productId);
   
   if (!storefrontProduct) {
