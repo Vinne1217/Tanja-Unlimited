@@ -50,7 +50,15 @@ export async function POST(req: NextRequest) {
       return transformed;
     });
     
-    const portalUrl = process.env.SOURCE_DATABASE_URL ?? 'https://source-database.onrender.com';
+    // Get Source Database URL - mandatory, no fallbacks
+    const portalUrl = process.env.SOURCE_DATABASE_URL;
+    if (!portalUrl) {
+      console.error('[Analytics] ERROR: SOURCE_DATABASE_URL environment variable is required');
+      return NextResponse.json(
+        { success: false, error: 'SOURCE_DATABASE_URL missing' },
+        { status: 500 }
+      );
+    }
     console.log(`🌐 Sending to customer portal: ${portalUrl}/api/ingest/analytics`);
     
     const res = await sourceFetch('/api/ingest/analytics', {

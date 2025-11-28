@@ -265,7 +265,15 @@ export async function POST(req: NextRequest) {
 
   // Forward ALL webhooks (success, failure, etc.) to Source Database customer portal
   // Source Database will handle payment events and route them appropriately
-  const sourceUrl = process.env.SOURCE_DATABASE_URL || 'https://source-database.onrender.com';
+  // Get Source Database URL - mandatory, no fallbacks
+  const sourceUrl = process.env.SOURCE_DATABASE_URL;
+  if (!sourceUrl) {
+    console.error('[Stripe Webhook] ERROR: SOURCE_DATABASE_URL environment variable is required');
+    return NextResponse.json(
+      { error: 'SOURCE_DATABASE_URL missing' },
+      { status: 500 }
+    );
+  }
   const tenantId = process.env.SOURCE_TENANT_ID || 'tanjaunlimited';
 
   try {

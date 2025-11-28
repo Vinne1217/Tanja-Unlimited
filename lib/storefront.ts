@@ -6,9 +6,18 @@
 
 import type { Product } from './products';
 
-// Get tenant ID dynamically from environment
+/**
+ * Get tenant ID - consistent across backend and frontend
+ * Uses same logic as lib/source.ts
+ * Defaults to 'tanjaunlimited' if not set
+ */
 function getTenantId(): string {
-  return process.env.SOURCE_TENANT_ID || process.env.NEXT_PUBLIC_TENANT_ID || 'tanjaunlimited';
+  // On client, only NEXT_PUBLIC_* vars are available
+  if (typeof window !== 'undefined') {
+    return process.env.NEXT_PUBLIC_TENANT_ID || 'tanjaunlimited';
+  }
+  // On server, use SOURCE_TENANT_ID
+  return process.env.SOURCE_TENANT_ID || 'tanjaunlimited';
 }
 
 // Get base URL for API calls (works both server and client side)

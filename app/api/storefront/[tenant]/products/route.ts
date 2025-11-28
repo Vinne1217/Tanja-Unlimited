@@ -1,5 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { sourceFetch } from '@/lib/source';
+
+/**
+ * Get Source Database URL - MANDATORY, no fallbacks
+ * Throws error if missing to prevent silent failures
+ */
+function getSourceDatabaseUrl(): string {
+  const url = process.env.SOURCE_DATABASE_URL;
+  if (!url) {
+    const error = 'SOURCE_DATABASE_URL environment variable is required. Set it to your Google Cloud Run Source Database URL.';
+    console.error(`[Storefront API] ERROR: ${error}`);
+    throw new Error(error);
+  }
+  return url;
+}
 
 export async function GET(
   req: NextRequest,
@@ -16,9 +29,14 @@ export async function GET(
       );
     }
 
-    // Fetch products from Source Database Storefront API
-    const sourceBase = process.env.SOURCE_DATABASE_URL ?? 'https://source-database.onrender.com';
-    const response = await fetch(`${sourceBase}/storefront/${tenant}/products`, {
+    // Get Source Database URL - throws if missing
+    const sourceBase = getSourceDatabaseUrl();
+    const apiUrl = `${sourceBase}/storefront/${tenant}/products`;
+    
+    console.log(`[Storefront API] Fetching products from: ${apiUrl}`);
+    console.log(`[Storefront API] Tenant: ${tenant}`);
+
+    const response = await fetch(apiUrl, {
       headers: {
         'Content-Type': 'application/json',
         'X-Tenant': tenant
@@ -26,31 +44,35 @@ export async function GET(
       cache: 'no-store'
     });
 
+    console.log(`[Storefront API] Response status: ${response.status} ${response.statusText}`);
+
     if (!response.ok) {
-      console.error(`Source Database Storefront API error: ${response.status} ${response.statusText}`);
-      // Fallback to empty products if Source API fails
-      return NextResponse.json({
-        success: true,
-        tenant,
-        generatedAt: new Date().toISOString(),
-        version: 'v1',
-        products: [],
-        categories: [],
-        meta: {
-          totalProducts: 0,
-          totalVariants: 0
+      const errorText = await response.text().catch(() => 'No error details');
+      console.error(`[Storefront API] Source Database error: ${response.status} ${response.statusText}`);
+      console.error(`[Storefront API] Error details: ${errorText}`);
+      
+      // Return error response instead of silently returning empty products
+      return NextResponse.json(
+        { 
+          success: false, 
+          error: 'Failed to fetch products from Source Database',
+          status: response.status,
+          statusText: response.statusText,
+          details: errorText
+        },
+        { 
+          status: response.status || 502,
+          headers: {
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Methods': 'GET, OPTIONS',
+            'Access-Control-Allow-Headers': 'Content-Type'
+          }
         }
-      }, {
-        headers: {
-          'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=300',
-          'Access-Control-Allow-Origin': '*',
-          'Access-Control-Allow-Methods': 'GET, OPTIONS',
-          'Access-Control-Allow-Headers': 'Content-Type'
-        }
-      });
+      );
     }
 
     const data = await response.json();
+    console.log(`[Storefront API] Products received: ${data.products?.length || 0}`);
 
     // Return the data from Source Database (it already has the correct format)
     return NextResponse.json(data, {
@@ -62,7 +84,19 @@ export async function GET(
       }
     });
   } catch (error) {
-    console.error('Error fetching storefront products:', error);
+    // Handle missing SOURCE_DATABASE_URL
+    if (error instanceof Error && error.message.includes('SOURCE_DATABASE_URL')) {
+      return NextResponse.json(
+        { 
+          success: false, 
+          error: 'SOURCE_DATABASE_URL missing',
+          message: error.message
+        },
+        { status: 500 }
+      );
+    }
+    
+    console.error('[Storefront API] Error fetching storefront products:', error);
     return NextResponse.json(
       { 
         success: false, 
