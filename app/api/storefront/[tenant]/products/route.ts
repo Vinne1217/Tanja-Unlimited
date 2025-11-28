@@ -3,10 +3,10 @@ import { getAllStorefrontProducts, getStorefrontCategories } from '@/lib/storefr
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { tenant: string } }
+  { params }: { params: Promise<{ tenant: string }> }
 ) {
   try {
-    const tenant = params.tenant;
+    const { tenant } = await params;
 
     // Validate tenant (optional - you can add tenant validation here)
     if (!tenant) {

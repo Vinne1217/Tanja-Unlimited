@@ -3,11 +3,10 @@ import { getStorefrontProductById } from '@/lib/storefront-api';
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { tenant: string; id: string } }
+  { params }: { params: Promise<{ tenant: string; id: string }> }
 ) {
   try {
-    const tenant = params.tenant;
-    const productId = params.id;
+    const { tenant, id: productId } = await params;
 
     if (!tenant || !productId) {
       return NextResponse.json(

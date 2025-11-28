@@ -5,10 +5,10 @@ import { getInventoryByStripePriceId } from '@/lib/inventory';
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: { tenant: string } }
+  { params }: { params: Promise<{ tenant: string }> }
 ) {
   try {
-    const tenant = params.tenant;
+    const { tenant } = await params;
 
     // Validate tenant
     if (!tenant) {
