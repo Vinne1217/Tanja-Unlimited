@@ -51,6 +51,7 @@ export async function POST(req: NextRequest) {
     });
     
     // Get Source Database URL - mandatory, no fallbacks
+    // Validate SOURCE_DATABASE_URL lazily (only when route is called, not during build)
     const portalUrl = process.env.SOURCE_DATABASE_URL;
     if (!portalUrl) {
       console.error('[Analytics] ERROR: SOURCE_DATABASE_URL environment variable is required');
