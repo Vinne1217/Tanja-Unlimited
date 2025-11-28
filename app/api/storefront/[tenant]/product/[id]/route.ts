@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getStorefrontProductById } from '@/lib/storefront-api';
 
 export async function GET(
   req: NextRequest,
@@ -15,23 +14,33 @@ export async function GET(
       );
     }
 
-    // Get product by ID/SKU
-    const product = await getStorefrontProductById(productId);
+    // Fetch product from Source Database Storefront API
+    const sourceBase = process.env.SOURCE_DATABASE_URL ?? 'https://source-database.onrender.com';
+    const response = await fetch(`${sourceBase}/storefront/${tenant}/product/${encodeURIComponent(productId)}`, {
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Tenant': tenant
+      },
+      cache: 'no-store'
+    });
 
-    if (!product) {
+    if (!response.ok) {
+      if (response.status === 404) {
+        return NextResponse.json(
+          { success: false, error: 'Product not found' },
+          { status: 404 }
+        );
+      }
+      console.error(`Source Database Storefront API error: ${response.status} ${response.statusText}`);
       return NextResponse.json(
-        { success: false, error: 'Product not found' },
-        { status: 404 }
+        { success: false, error: 'Failed to fetch product' },
+        { status: response.status }
       );
     }
 
-    return NextResponse.json({
-      success: true,
-      tenant,
-      product,
-      generatedAt: new Date().toISOString(),
-      version: 'v1'
-    }, {
+    const data = await response.json();
+
+    return NextResponse.json(data, {
       headers: {
         'Cache-Control': 'public, s-maxage=30, stale-while-revalidate=60',
         'Access-Control-Allow-Origin': '*',

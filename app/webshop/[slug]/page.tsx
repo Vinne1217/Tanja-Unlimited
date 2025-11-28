@@ -1,9 +1,11 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { ArrowLeft, ShoppingCart } from 'lucide-react';
 import Link from 'next/link';
-import { getCategoryBySlug, getProductsByCategory, formatPrice } from '@/lib/products';
+import { getCategoryBySlug, formatPrice, type Product } from '@/lib/products';
+import { getStorefrontProductsByCategory } from '@/lib/storefront';
 import { use } from 'react';
 
 // Mark as dynamic to support client-side rendering
@@ -12,7 +14,30 @@ export const dynamic = 'force-dynamic';
 export default function CategoryPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = use(params);
   const category = getCategoryBySlug(slug);
-  const products = category ? getProductsByCategory(category.id) : [];
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function loadProducts() {
+      if (!category) {
+        setLoading(false);
+        return;
+      }
+
+      try {
+        // Fetch products from Storefront API
+        const storefrontProducts = await getStorefrontProductsByCategory(slug);
+        setProducts(storefrontProducts);
+      } catch (error) {
+        console.error('Error loading products:', error);
+        setProducts([]);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    loadProducts();
+  }, [slug, category]);
 
   if (!category) {
     return (
@@ -64,7 +89,11 @@ export default function CategoryPage({ params }: { params: Promise<{ slug: strin
       {/* Products Grid */}
       <section className="py-24 bg-ivory">
         <div className="max-w-7xl mx-auto px-6 lg:px-12">
-          {products.length === 0 ? (
+          {loading ? (
+            <div className="text-center py-16">
+              <p className="text-xl text-softCharcoal">Loading products...</p>
+            </div>
+          ) : products.length === 0 ? (
             <div className="text-center py-16">
               <p className="text-xl text-softCharcoal">
                 No products available in this category at the moment.

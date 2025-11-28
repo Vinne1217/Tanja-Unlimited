@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAllStorefrontProducts, getStorefrontCategories } from '@/lib/storefront-api';
+import { sourceFetch } from '@/lib/source';
 
 export async function GET(
   req: NextRequest,
@@ -8,7 +8,7 @@ export async function GET(
   try {
     const { tenant } = await params;
 
-    // Validate tenant (optional - you can add tenant validation here)
+    // Validate tenant
     if (!tenant) {
       return NextResponse.json(
         { success: false, error: 'Tenant ID is required' },
@@ -16,22 +16,44 @@ export async function GET(
       );
     }
 
-    // Get all products
-    const products = await getAllStorefrontProducts();
-    const categories = getStorefrontCategories();
+    // Fetch products from Source Database Storefront API
+    const sourceBase = process.env.SOURCE_DATABASE_URL ?? 'https://source-database.onrender.com';
+    const response = await fetch(`${sourceBase}/storefront/${tenant}/products`, {
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Tenant': tenant
+      },
+      cache: 'no-store'
+    });
 
-    return NextResponse.json({
-      success: true,
-      tenant,
-      generatedAt: new Date().toISOString(),
-      version: 'v1',
-      products,
-      categories,
-      meta: {
-        totalProducts: products.length,
-        totalVariants: products.reduce((sum, p) => sum + p.variants.length, 0)
-      }
-    }, {
+    if (!response.ok) {
+      console.error(`Source Database Storefront API error: ${response.status} ${response.statusText}`);
+      // Fallback to empty products if Source API fails
+      return NextResponse.json({
+        success: true,
+        tenant,
+        generatedAt: new Date().toISOString(),
+        version: 'v1',
+        products: [],
+        categories: [],
+        meta: {
+          totalProducts: 0,
+          totalVariants: 0
+        }
+      }, {
+        headers: {
+          'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=300',
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Methods': 'GET, OPTIONS',
+          'Access-Control-Allow-Headers': 'Content-Type'
+        }
+      });
+    }
+
+    const data = await response.json();
+
+    // Return the data from Source Database (it already has the correct format)
+    return NextResponse.json(data, {
       headers: {
         'Cache-Control': 'public, s-maxage=3600, stale-while-revalidate=86400',
         'Access-Control-Allow-Origin': '*',

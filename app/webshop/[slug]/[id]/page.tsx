@@ -1,10 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { ArrowLeft, ShoppingCart, Heart, Share2, CheckCircle } from 'lucide-react';
 import Link from 'next/link';
-import { getCategoryBySlug, getProductById, formatPrice } from '@/lib/products';
+import { getCategoryBySlug, formatPrice, type Product } from '@/lib/products';
+import { getStorefrontProductAsProduct } from '@/lib/storefront';
 import BuyNowButton from '@/components/BuyNowButton';
 import CampaignBadge from '@/components/CampaignBadge';
 import StockStatus from '@/components/StockStatus';
@@ -20,8 +21,37 @@ export default function ProductDetailPage({
 }) {
   const { slug, id } = use(params);
   const category = getCategoryBySlug(slug);
-  const product = getProductById(id);
+  const [product, setProduct] = useState<Product | null>(null);
+  const [loading, setLoading] = useState(true);
   const [campaignPrice, setCampaignPrice] = useState<number | null>(null);
+
+  useEffect(() => {
+    async function loadProduct() {
+      try {
+        // Fetch product from Storefront API
+        // id can be baseSku, variant articleNumber, or product ID
+        const storefrontProduct = await getStorefrontProductAsProduct(id);
+        setProduct(storefrontProduct);
+      } catch (error) {
+        console.error('Error loading product:', error);
+        setProduct(null);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    loadProduct();
+  }, [id]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-ivory flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-xl text-softCharcoal">Loading product...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (!product || !category) {
     return (
