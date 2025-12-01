@@ -51,14 +51,29 @@ export default function CartPage() {
 
       const data = await response.json();
 
+      if (!response.ok) {
+        // API returned an error
+        const errorMessage = data.error || 'Unknown error occurred';
+        console.error('Checkout API error:', {
+          status: response.status,
+          error: errorMessage,
+          data
+        });
+        alert(`Kunde inte slutföra köpet: ${errorMessage}`);
+        setCheckingOut(false);
+        return;
+      }
+
       if (data.url) {
         window.location.href = data.url;
       } else {
+        console.error('Checkout response missing URL:', data);
         throw new Error('No checkout URL returned');
       }
     } catch (error) {
       console.error('Checkout error:', error);
-      alert('There was an error processing your request. Please try again or contact us.');
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      alert(`Det uppstod ett fel vid behandling av din begäran: ${errorMessage}. Försök igen eller kontakta oss.`);
       setCheckingOut(false);
     }
   }
