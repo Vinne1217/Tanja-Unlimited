@@ -141,20 +141,26 @@ export default function BuyNowButton({ product }: BuyNowButtonProps) {
   const isOutOfStock = inventory?.outOfStock ?? false;
   const isDisabled = checkingStock || isOutOfStock || variantOutOfStock || (product.variants && !selectedVariant);
 
+  // Determine if variants have sizes or colors to show correct label
+  const hasSizes = product.variants?.some(v => v.size) ?? false;
+  const hasColors = product.variants?.some(v => v.color) ?? false;
+  const variantLabel = hasSizes ? 'Storlek' : hasColors ? 'Färg' : 'Variant';
+  const placeholderText = hasSizes ? 'Välj storlek' : hasColors ? 'Välj färg' : 'Välj variant';
+
   return (
     <div className="space-y-4">
-      {/* Size Selector */}
+      {/* Variant Selector */}
       {product.variants && product.variants.length > 0 && (
         <div>
           <label className="block text-sm font-medium text-deepIndigo mb-2">
-            Storlek
+            {variantLabel}
           </label>
           <select
             value={selectedVariant || ''}
             onChange={(e) => setSelectedVariant(e.target.value)}
             className="w-full px-4 py-3 border border-warmOchre/20 bg-ivory text-deepIndigo focus:border-warmOchre focus:outline-none transition-colors"
           >
-            <option value="">Välj storlek</option>
+            <option value="">{placeholderText}</option>
             {product.variants.map((variant) => {
               const variantInventory = variantInventories.get(variant.key);
               // Check availability: use variant's own stock/status, or inventory data, or variant properties
