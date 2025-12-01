@@ -18,14 +18,9 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    // Get product to check if it has variants
-    const product = getProductById(productId);
-    const variantPriceIds = product?.variants?.map(v => v.stripePriceId) || undefined;
-
     const priceInfo = await getLatestActivePriceForProduct(
       productId,
-      process.env.STRIPE_SECRET_KEY,
-      variantPriceIds // Pass variant price IDs to exclude them from campaign detection
+      process.env.STRIPE_SECRET_KEY
     );
 
     if (!priceInfo) {
