@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getInventoryFromSource } from '@/lib/inventory-source';
 // Keep in-memory as fallback
 import { getInventoryStatus, getInventoryByStripePriceId } from '@/lib/inventory';
+import { getProduct } from '@/lib/catalog';
 
 export async function GET(req: NextRequest) {
   try {
@@ -88,6 +89,45 @@ export async function GET(req: NextRequest) {
           sku: memoryStatus.sku,
           lastUpdated: memoryStatus.lastUpdated
         };
+      }
+    }
+
+    // Check if product has variants and if all variants are out of stock
+    if (inventory && !inventory.outOfStock) {
+      try {
+        const product = await getProduct(productId);
+        if (product?.variants && product.variants.length > 0) {
+          // Check if all variants are out of stock
+          const allVariantsOutOfStock = product.variants.every(variant => {
+            // Check variant inventory from in-memory store
+            const variantInventory = variant.stripePriceId 
+              ? getInventoryByStripePriceId(variant.stripePriceId)
+              : null;
+            
+            // Determine if variant is out of stock
+            if (variantInventory) {
+              return variantInventory.outOfStock || 
+                     (variantInventory.stock !== null && variantInventory.stock <= 0) || 
+                     variantInventory.status === 'out_of_stock';
+            } else {
+              // Use variant's own properties from product data
+              return variant.outOfStock || 
+                     variant.stock <= 0 || 
+                     variant.status === 'out_of_stock' || 
+                     variant.inStock === false;
+            }
+          });
+
+          if (allVariantsOutOfStock) {
+            console.log(`⚠️ All variants out of stock for product ${productId}, marking product as out of stock`);
+            inventory.outOfStock = true;
+            inventory.status = 'out_of_stock';
+            inventory.stock = 0;
+          }
+        }
+      } catch (error) {
+        console.warn(`Failed to check variant stock for product ${productId}:`, error);
+        // Continue with product-level inventory if variant check fails
       }
     }
 

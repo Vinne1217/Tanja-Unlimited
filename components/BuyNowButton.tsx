@@ -139,7 +139,19 @@ export default function BuyNowButton({ product }: BuyNowButtonProps) {
   }
 
   const isOutOfStock = inventory?.outOfStock ?? false;
-  const isDisabled = checkingStock || isOutOfStock || variantOutOfStock || (product.variants && !selectedVariant);
+  
+  // Check if all variants are out of stock
+  const allVariantsOutOfStock = product.variants && product.variants.length > 0 
+    ? product.variants.every(variant => {
+        const variantInventory = variantInventories.get(variant.key);
+        const stockCount = variantInventory?.stock ?? variant.stock ?? 0;
+        return variantInventory 
+          ? (variantInventory.outOfStock || (variantInventory.stock !== null && variantInventory.stock <= 0) || variantInventory.status === 'out_of_stock')
+          : (variant.outOfStock || stockCount <= 0 || variant.status === 'out_of_stock' || variant.inStock === false);
+      })
+    : false;
+  
+  const isDisabled = checkingStock || isOutOfStock || allVariantsOutOfStock || variantOutOfStock || (product.variants && !selectedVariant);
 
   // Determine if variants have sizes or colors to show correct label
   const hasSizes = product.variants?.some(v => v.size) ?? false;
