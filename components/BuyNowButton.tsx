@@ -87,11 +87,13 @@ export default function BuyNowButton({ product }: BuyNowButtonProps) {
   const selectedVariantData = product.variants?.find(v => v.key === selectedVariant);
   const priceId = selectedVariantData?.stripePriceId || product.stripePriceId;
   
-  // Check variant inventory from synced data, not static product definition
+  // Check variant inventory from synced data, or use variant's own stock/status properties
   const selectedVariantInventory = selectedVariant ? variantInventories.get(selectedVariant) : null;
   const variantOutOfStock = selectedVariantInventory 
-    ? (selectedVariantInventory.outOfStock || (selectedVariantInventory.stock !== null && selectedVariantInventory.stock <= 0))
-    : false; // If no inventory data, assume in stock
+    ? (selectedVariantInventory.outOfStock || (selectedVariantInventory.stock !== null && selectedVariantInventory.stock <= 0) || selectedVariantInventory.status === 'out_of_stock')
+    : (selectedVariantData 
+      ? (selectedVariantData.outOfStock || selectedVariantData.stock <= 0 || selectedVariantData.status === 'out_of_stock' || selectedVariantData.inStock === false)
+      : false); // If no inventory data and no variant data, assume in stock
 
   function handleAddToCart() {
     if (!priceId) {
@@ -104,8 +106,14 @@ export default function BuyNowButton({ product }: BuyNowButtonProps) {
       return;
     }
 
-    // Check if out of stock
-    if (inventory?.outOfStock || variantOutOfStock) {
+    // Check if out of stock - prioritize variant-level stock over product-level
+    if (variantOutOfStock) {
+      alert('Denna variant är tyvärr slutsåld. Vänligen välj en annan storlek eller kontakta oss för mer information.');
+      return;
+    }
+    
+    // Also check product-level inventory exists (fallback)
+    if (inventory?.outOfStock) {
       alert('Detta produkt är tyvärr slutsåld. Vänligen kontakta oss för mer information.');
       return;
     }
@@ -149,13 +157,26 @@ export default function BuyNowButton({ product }: BuyNowButtonProps) {
             <option value="">Välj storlek</option>
             {product.variants.map((variant) => {
               const variantInventory = variantInventories.get(variant.key);
+              // Check availability: use variant's own stock/status, or inventory data, or variant properties
               const isOutOfStock = variantInventory 
-                ? (variantInventory.outOfStock || (variantInventory.stock !== null && variantInventory.stock <= 0))
-                : false; // If no inventory data, assume in stock
+                ? (variantInventory.outOfStock || (variantInventory.stock !== null && variantInventory.stock <= 0) || variantInventory.status === 'out_of_stock')
+                : (variant.outOfStock || variant.stock <= 0 || variant.status === 'out_of_stock' || variant.inStock === false);
+              
+              // Build human-readable label: prefer size + color, not article number/SKU
+              const labelParts = [variant.size, variant.color].filter(Boolean);
+              const displayLabel = labelParts.length > 0 
+                ? labelParts.join(' / ')
+                : variant.key || variant.sku || 'Variant';
+              
+              // Show stock count if available
+              const stockCount = variantInventory?.stock ?? variant.stock;
+              const stockText = !isOutOfStock && stockCount !== null && stockCount > 0
+                ? ` (${stockCount} i lager)`
+                : '';
               
               return (
                 <option key={variant.key} value={variant.key} disabled={isOutOfStock}>
-                  {variant.key} {isOutOfStock ? '— Slutsåld' : ''}
+                  {displayLabel}{isOutOfStock ? ' — Slutsåld' : stockText}
                 </option>
               );
             })}

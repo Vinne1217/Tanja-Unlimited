@@ -5,6 +5,12 @@ export type Variant = {
   sku: string;
   stock: number;
   stripePriceId: string;
+  size?: string;
+  color?: string;
+  status?: 'in_stock' | 'low_stock' | 'out_of_stock';
+  outOfStock?: boolean;
+  lowStock?: boolean;
+  inStock?: boolean;
 };
 
 export type Product = {

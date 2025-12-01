@@ -47,7 +47,17 @@ export default function ProductPurchase({ product }: { product: Product }) {
       return;
     }
 
-    // Check if out of stock
+    // Check if selected variant is out of stock (prioritize variant-level stock)
+    const selectedVariant = product.variants?.find(v => v.key === variantKey);
+    if (selectedVariant) {
+      const variantOutOfStock = selectedVariant.outOfStock || selectedVariant.stock <= 0 || selectedVariant.status === 'out_of_stock' || selectedVariant.inStock === false;
+      if (variantOutOfStock) {
+        alert('Denna variant är tyvärr slutsåld. Vänligen välj en annan variant eller kontakta oss för mer information.');
+        return;
+      }
+    }
+    
+    // Also check product-level inventory (fallback)
     if (inventory?.outOfStock) {
       alert('Detta produkt är tyvärr slutsåld. Vänligen kontakta oss för mer information.');
       return;
@@ -84,10 +94,25 @@ export default function ProductPurchase({ product }: { product: Product }) {
       {product.variants && product.variants.length > 0 && (
         <div>
           <label className="block text-sm mb-1">Variant</label>
-          <select className="border p-2" value={variantKey} onChange={(e) => setVariantKey(e.target.value)}>
-            {product.variants.map(v => (
-              <option key={v.key} value={v.key} disabled={v.stock <= 0}>{v.key}{v.stock <= 0 ? ' — Out of stock' : ''}</option>
-            ))}
+          <select className="border p-2" value={variantKey || ''} onChange={(e) => setVariantKey(e.target.value)}>
+            <option value="">Välj variant</option>
+            {product.variants.map(v => {
+                // Build human-readable label: prefer size + color, not article number/SKU
+                const labelParts = [v.size, v.color].filter(Boolean);
+                const displayLabel = labelParts.length > 0 
+                  ? labelParts.join(' / ')
+                  : v.key || v.sku || 'Variant';
+                
+                // Check availability using variant's own stock/status
+                const isOutOfStock = v.outOfStock || v.stock <= 0 || v.status === 'out_of_stock' || v.inStock === false;
+                const stockText = !isOutOfStock && v.stock > 0 ? ` (${v.stock} i lager)` : '';
+                
+                return (
+                  <option key={v.key} value={v.key} disabled={isOutOfStock}>
+                    {displayLabel}{isOutOfStock ? ' — Slutsåld' : stockText}
+                  </option>
+                );
+              })}
           </select>
         </div>
       )}

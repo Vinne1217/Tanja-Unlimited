@@ -1,7 +1,18 @@
 import { sourceFetch, SOURCE_BASE } from './source';
 
 export type Category = { id: string; slug: string; name: string };
-export type Variant = { key: string; sku: string; stock: number; stripePriceId: string };
+export type Variant = { 
+  key: string; 
+  sku: string; 
+  stock: number; 
+  stripePriceId: string;
+  size?: string;
+  color?: string;
+  status?: 'in_stock' | 'low_stock' | 'out_of_stock';
+  outOfStock?: boolean;
+  lowStock?: boolean;
+  inStock?: boolean;
+};
 export type Product = {
   id: string;
   name: string;
@@ -72,10 +83,16 @@ export async function getProducts(params: { locale?: string; category?: string; 
       price: p.priceRange?.min || (p.variants?.[0]?.priceSEK),
       currency: 'SEK',
       variants: p.variants?.map((v: any) => ({
-        key: v.articleNumber || v.id,
-        sku: v.articleNumber || v.id,
-        stock: v.stock || 0,
-        stripePriceId: v.stripePriceId
+        key: v.articleNumber || v.id || v.key,
+        sku: v.articleNumber || v.sku || v.id,
+        stock: v.stock ?? 0,
+        stripePriceId: v.stripePriceId,
+        size: v.size,
+        color: v.color,
+        status: v.status || (v.inStock === false ? 'out_of_stock' : v.lowStock ? 'low_stock' : 'in_stock'),
+        outOfStock: v.outOfStock ?? (v.stock === 0 || v.stock <= 0 || v.inStock === false),
+        lowStock: v.lowStock ?? false,
+        inStock: v.inStock ?? (v.stock > 0)
       })),
       categoryId: p.category
     }));
@@ -124,10 +141,16 @@ export async function getProduct(productId: string, locale = 'sv'): Promise<Prod
       price: p.priceRange?.min || (p.variants?.[0]?.priceSEK),
       currency: 'SEK',
       variants: p.variants?.map((v: any) => ({
-        key: v.articleNumber || v.id,
-        sku: v.articleNumber || v.id,
-        stock: v.stock || 0,
-        stripePriceId: v.stripePriceId
+        key: v.articleNumber || v.id || v.key,
+        sku: v.articleNumber || v.sku || v.id,
+        stock: v.stock ?? 0,
+        stripePriceId: v.stripePriceId,
+        size: v.size,
+        color: v.color,
+        status: v.status || (v.inStock === false ? 'out_of_stock' : v.lowStock ? 'low_stock' : 'in_stock'),
+        outOfStock: v.outOfStock ?? (v.stock === 0 || v.stock <= 0 || v.inStock === false),
+        lowStock: v.lowStock ?? false,
+        inStock: v.inStock ?? (v.stock > 0)
       })),
       categoryId: p.category
     };
