@@ -1,5 +1,12 @@
 // Product data for Tanja Unlimited Webshop
 
+export type Variant = {
+  key: string;
+  sku: string;
+  stock: number;
+  stripePriceId: string;
+};
+
 export type Product = {
   id: string;
   name: string;
@@ -12,6 +19,7 @@ export type Product = {
   inStock: boolean;
   stripeProductId?: string;
   stripePriceId?: string;
+  variants?: Variant[];
 };
 
 export type Category = {
