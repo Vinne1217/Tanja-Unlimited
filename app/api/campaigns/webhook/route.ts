@@ -162,6 +162,8 @@ export async function POST(req: NextRequest) {
 
       // Handle variants if provided (guide: "Handle variant-level stock updates separately")
       if (inventoryUpdate.variants && Array.isArray(inventoryUpdate.variants)) {
+        console.log(`📦 Processing ${inventoryUpdate.variants.length} variants for product ${mappedProductId}`);
+        
         for (const variant of inventoryUpdate.variants) {
           if (variant.stripePriceId) {
             const variantInventoryId = `price_${variant.stripePriceId}`;
@@ -174,10 +176,28 @@ export async function POST(req: NextRequest) {
               lowStock: variant.lowStock ?? variant.status === 'low_stock',
               outOfStock: variantOutOfStock,
               name: variant.name || inventoryUpdate.name,
-              sku: variant.sku || variant.key,
+              sku: variant.sku || variant.articleNumber || variant.key,
               lastUpdated: new Date().toISOString()
             });
-            console.log(`📦 Variant inventory updated for stripePriceId: ${variant.stripePriceId} (${variant.key || variant.sku})`);
+            
+            console.log(`📦 Variant inventory updated for stripePriceId: ${variant.stripePriceId}`, {
+              articleNumber: variant.articleNumber,
+              size: variant.size,
+              color: variant.color,
+              stock: variant.stock,
+              outOfStock: variantOutOfStock,
+              status: variantStatus,
+              hasSize: !!variant.size,
+              hasColor: !!variant.color
+            });
+          } else {
+            console.warn(`⚠️ Variant missing stripePriceId:`, {
+              articleNumber: variant.articleNumber,
+              key: variant.key,
+              sku: variant.sku,
+              size: variant.size,
+              color: variant.color
+            });
           }
         }
       }

@@ -98,8 +98,22 @@ export default function ProductPurchase({ product }: { product: Product }) {
             <option value="">Välj variant</option>
             {product.variants.map(v => {
               // Build human-readable label: show ONLY size OR color (not both, not article number)
-              // Prefer size if available, otherwise color, otherwise fallback to key
-              let displayLabel = v.size || v.color || v.key || v.sku || 'Variant';
+              // IMPORTANT: Never show SKU/article number - only size or color
+              let displayLabel: string;
+              if (v.size) {
+                displayLabel = v.size;
+              } else if (v.color) {
+                displayLabel = v.color;
+              } else {
+                // If neither size nor color is available, this is a data issue
+                // Log warning and show a placeholder - never show SKU/article number
+                console.warn(`Variant ${v.key} missing both size and color`, {
+                  variantKey: v.key,
+                  variantSku: v.sku,
+                  stripePriceId: v.stripePriceId
+                });
+                displayLabel = 'Variant'; // Don't show SKU/article number
+              }
               
               // Check availability using variant's own stock/status
               const stockCount = v.stock ?? 0;

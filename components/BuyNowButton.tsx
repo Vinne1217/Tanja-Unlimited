@@ -182,8 +182,22 @@ export default function BuyNowButton({ product }: BuyNowButtonProps) {
                 : (variant.outOfStock || variant.stock <= 0 || variant.status === 'out_of_stock' || variant.inStock === false);
               
               // Build human-readable label: show ONLY size OR color (not both, not article number)
-              // Prefer size if available, otherwise color, otherwise fallback to key
-              let displayLabel = variant.size || variant.color || variant.key || variant.sku || 'Variant';
+              // IMPORTANT: Never show SKU/article number - only size or color
+              let displayLabel: string;
+              if (variant.size) {
+                displayLabel = variant.size;
+              } else if (variant.color) {
+                displayLabel = variant.color;
+              } else {
+                // If neither size nor color is available, this is a data issue
+                // Log warning and show a placeholder - never show SKU/article number
+                console.warn(`Variant ${variant.key} missing both size and color`, {
+                  variantKey: variant.key,
+                  variantSku: variant.sku,
+                  stripePriceId: variant.stripePriceId
+                });
+                displayLabel = 'Variant'; // Don't show SKU/article number
+              }
               
               // Stock display logic:
               // - Only show stock if low stock (< 10) with "snart slutsåld"
