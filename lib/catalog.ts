@@ -139,12 +139,16 @@ export async function getProducts(params: { locale?: string; category?: string; 
         
         // Log for debugging if size/color couldn't be parsed
         if (!parsed.size && !parsed.color && articleNumber) {
+          const parts = articleNumber.split('-');
           console.log(`⚠️ Could not parse size/color from variant:`, {
             articleNumber,
             providedSize: v.size,
             providedColor: v.color,
             providedKey: v.key,
-            productId: p.baseSku || p.id
+            productId: p.baseSku || p.id,
+            parts,
+            lastPart: parts[parts.length - 1],
+            matchesSizeRegex: parts.length > 0 ? /^(XS|S|M|L|XL|XXL|XXXL)$/i.test(parts[parts.length - 1]) : false
           });
         }
         
@@ -213,12 +217,16 @@ export async function getProduct(productId: string, locale = 'sv'): Promise<Prod
         
         // Log for debugging if size/color couldn't be parsed
         if (!parsed.size && !parsed.color && articleNumber) {
+          const parts = articleNumber.split('-');
           console.log(`⚠️ Could not parse size/color from variant:`, {
             articleNumber,
             providedSize: v.size,
             providedColor: v.color,
             providedKey: v.key,
-            productId: p.baseSku || p.id
+            productId: p.baseSku || p.id,
+            parts,
+            lastPart: parts[parts.length - 1],
+            matchesSizeRegex: parts.length > 0 ? /^(XS|S|M|L|XL|XXL|XXXL)$/i.test(parts[parts.length - 1]) : false
           });
         }
         

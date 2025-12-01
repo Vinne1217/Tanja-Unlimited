@@ -38,6 +38,13 @@ export async function POST(req: NextRequest) {
     if (item.productId) {
       const inventory = getInventoryStatus(item.productId);
       if (inventory?.outOfStock) {
+        console.error(`❌ Checkout blocked: Product ${item.productId} is out of stock`, {
+          inventory: {
+            stock: inventory.stock,
+            status: inventory.status,
+            outOfStock: inventory.outOfStock
+          }
+        });
         return NextResponse.json(
           { error: `Product ${item.productId} is out of stock` },
           { status: 400 }
@@ -48,6 +55,7 @@ export async function POST(req: NextRequest) {
     // Also check by stripePriceId if provided (for campaign prices)
     // Guide: "Match products by stripePriceId to update campaign price inventory"
     if (item.stripePriceId && isStripePriceOutOfStock(item.stripePriceId)) {
+      console.error(`❌ Checkout blocked: Price ${item.stripePriceId} is out of stock`);
       return NextResponse.json(
         { error: `Price ${item.stripePriceId} is out of stock` },
         { status: 400 }
@@ -98,12 +106,35 @@ export async function POST(req: NextRequest) {
         }
       }
 
+      // Validate that we have a price ID
+      if (!priceId) {
+        console.error(`❌ No price ID found for item ${index}:`, {
+          productId: item.productId,
+          stripePriceId: item.stripePriceId
+        });
+        throw new Error(`No price ID available for product ${item.productId || 'unknown'}`);
+      }
+
       return { 
         price: priceId, 
         quantity: item.quantity || 1 
       };
     })
   );
+
+  // Validate all line items have prices
+  const invalidItems = line_items.filter(item => !item.price);
+  if (invalidItems.length > 0) {
+    console.error('❌ Some line items are missing prices:', {
+      invalidItems,
+      allItems: line_items,
+      originalItems: items
+    });
+    return NextResponse.json(
+      { error: 'Some products are missing price information. Please try again or contact support.' },
+      { status: 400 }
+    );
+  }
 
   // Build comprehensive metadata for Source portal
   const websiteUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://tanja-unlimited-809785351172.europe-north1.run.app';
