@@ -6,35 +6,50 @@ export type Category = { id: string; slug: string; name: string };
  * Extract size and color from articleNumber if not provided directly
  * Example: "LJCfilG-L-Black" -> size: "L", color: "Black"
  * Example: "LJCfilG-XS" -> size: "XS", color: undefined
+ * Example: "LJCfilG-S" -> size: "S", color: undefined
  */
 function parseVariantAttributes(articleNumber: string, providedSize?: string, providedColor?: string, providedKey?: string): { size?: string; color?: string } {
-  // If size/color are provided, use them
-  if (providedSize && providedSize !== 'Standard') return { size: providedSize, color: providedColor };
-  if (providedColor && providedColor !== 'Standard') return { size: providedSize, color: providedColor };
-  
-  // Try to use key if it looks like a size (single letter or size code)
+  // Try to use key if it looks like a size (single letter or size code) - prioritize this
   if (providedKey && /^(XS|S|M|L|XL|XXL|XXXL)$/i.test(providedKey)) {
     return { size: providedKey.toUpperCase() };
   }
   
   // Parse from articleNumber: format is usually "BASESKU-SIZE" or "BASESKU-SIZE-COLOR"
+  // This is the most reliable source when API doesn't provide size/color directly
   if (articleNumber && articleNumber.includes('-')) {
     const parts = articleNumber.split('-');
     if (parts.length >= 2) {
-      const sizePart = parts[parts.length - 2]; // Second to last part
-      const colorPart = parts[parts.length - 1]; // Last part
+      // For "LJCfilG-XS" -> parts = ["LJCfilG", "XS"], size is last part
+      // For "LJCfilG-L-Black" -> parts = ["LJCfilG", "L", "Black"], size is second to last, color is last
+      const lastPart = parts[parts.length - 1];
+      const secondToLastPart = parts.length >= 3 ? parts[parts.length - 2] : null;
       
-      // Check if sizePart looks like a size
-      if (/^(XS|S|M|L|XL|XXL|XXXL|\d+)$/i.test(sizePart)) {
-        const size = sizePart.toUpperCase();
-        // Check if colorPart looks like a color (not a size code)
-        const color = /^(XS|S|M|L|XL|XXL|XXXL)$/i.test(colorPart) ? undefined : colorPart;
+      // Check if last part is a size code
+      if (/^(XS|S|M|L|XL|XXL|XXXL)$/i.test(lastPart)) {
+        const size = lastPart.toUpperCase();
+        // If there's a second-to-last part and it's also a size, ignore it (shouldn't happen)
+        // Otherwise, if there's a second-to-last part, it might be a color
+        const color = secondToLastPart && !/^(XS|S|M|L|XL|XXL|XXXL)$/i.test(secondToLastPart) 
+          ? secondToLastPart 
+          : undefined;
+        return { size, color };
+      }
+      
+      // Check if second-to-last part is a size (for format "BASESKU-SIZE-COLOR")
+      if (secondToLastPart && /^(XS|S|M|L|XL|XXL|XXXL)$/i.test(secondToLastPart)) {
+        const size = secondToLastPart.toUpperCase();
+        const color = lastPart; // Last part is color
         return { size, color };
       }
     }
   }
   
-  return { size: providedSize, color: providedColor };
+  // If size/color are provided and not "Standard", use them
+  if (providedSize && providedSize !== 'Standard') return { size: providedSize, color: providedColor };
+  if (providedColor && providedColor !== 'Standard') return { size: providedSize, color: providedColor };
+  
+  // Fallback: return undefined if nothing found
+  return { size: undefined, color: undefined };
 }
 
 export type Variant = { 
@@ -122,6 +137,17 @@ export async function getProducts(params: { locale?: string; category?: string; 
         const articleNumber = v.articleNumber || v.sku || v.id || v.key;
         const parsed = parseVariantAttributes(articleNumber, v.size, v.color, v.key);
         
+        // Log for debugging if size/color couldn't be parsed
+        if (!parsed.size && !parsed.color && articleNumber) {
+          console.log(`⚠️ Could not parse size/color from variant:`, {
+            articleNumber,
+            providedSize: v.size,
+            providedColor: v.color,
+            providedKey: v.key,
+            productId: p.baseSku || p.id
+          });
+        }
+        
         return {
           key: articleNumber,
           sku: articleNumber,
@@ -184,6 +210,17 @@ export async function getProduct(productId: string, locale = 'sv'): Promise<Prod
       variants: p.variants?.map((v: any) => {
         const articleNumber = v.articleNumber || v.sku || v.id || v.key;
         const parsed = parseVariantAttributes(articleNumber, v.size, v.color, v.key);
+        
+        // Log for debugging if size/color couldn't be parsed
+        if (!parsed.size && !parsed.color && articleNumber) {
+          console.log(`⚠️ Could not parse size/color from variant:`, {
+            articleNumber,
+            providedSize: v.size,
+            providedColor: v.color,
+            providedKey: v.key,
+            productId: p.baseSku || p.id
+          });
+        }
         
         return {
           key: articleNumber,
