@@ -1,15 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { getLatestActivePriceForProduct } from '@/lib/stripe-products';
-import { getActiveCampaignForProduct } from '@/lib/campaigns';
 
 const TENANT_ID = 'tanjaunlimited';
 
 type CartItem = {
   quantity: number;
-  stripePriceId: string; // fallback price ID or variant price ID
+  stripePriceId: string; // fallback price ID
   productId?: string; // To query Stripe for latest price
-  variantKey?: string; // If present, this is a variant-specific price
 };
 
 export async function POST(req: NextRequest) {
@@ -62,61 +60,8 @@ export async function POST(req: NextRequest) {
       let priceId = item.stripePriceId; // fallback to provided price
       let isCampaign = false;
 
-      // Check for active campaign with stripePriceIds (from documentation)
+      // If productId provided, query Stripe for latest active price
       if (item.productId) {
-        const activeCampaign = getActiveCampaignForProduct(item.productId, item.stripePriceId);
-        
-        if (activeCampaign && activeCampaign.stripePriceIds && activeCampaign.stripePriceIds.length > 0) {
-          // Find matching campaign price for this variant/product
-          let campaignPriceId: string | undefined;
-          
-          if (item.stripePriceId) {
-            // For variants: find campaign price that matches the variant's stripePriceId
-            // The campaign stripePriceIds array should contain campaign prices for variants
-            // We need to find the campaign price that corresponds to this variant
-            // For now, check if the variant's price is in the campaign prices (direct match)
-            if (activeCampaign.stripePriceIds.includes(item.stripePriceId)) {
-              campaignPriceId = item.stripePriceId;
-            } else {
-              // Try to find a campaign price for this variant
-              // In practice, the customer portal should send campaign prices that match variants
-              // For now, use the first campaign price if available
-              campaignPriceId = activeCampaign.stripePriceIds[0];
-            }
-          } else {
-            // For base products: use first campaign price
-            campaignPriceId = activeCampaign.stripePriceIds[0];
-          }
-          
-          if (campaignPriceId) {
-            priceId = campaignPriceId;
-            isCampaign = true;
-            console.log(`🎯 Using campaign price from stripePriceIds for ${item.productId}:`, {
-              campaignId: activeCampaign.id,
-              campaignName: activeCampaign.name,
-              priceId: campaignPriceId,
-              variantKey: item.variantKey
-            });
-            campaignData[`product_${index}_campaign`] = 'active';
-            campaignData[`product_${index}_campaign_id`] = activeCampaign.id;
-            campaignData[`product_${index}_campaign_name`] = activeCampaign.name;
-            if (activeCampaign.discountValue) {
-              campaignData[`product_${index}_discount`] = `${activeCampaign.discountValue}${activeCampaign.discountType === 'percentage' ? '%' : ' SEK'}`;
-            }
-          }
-        }
-      }
-      
-      // If this is a variant-specific price and no campaign price found, use it directly
-      if (item.variantKey && !isCampaign) {
-        console.log(`👕 Using variant price for ${item.productId} (${item.variantKey}): ${priceId}`);
-        if (item.productId) {
-          campaignData[`product_${index}_id`] = item.productId;
-          campaignData[`product_${index}_price`] = priceId;
-          campaignData[`product_${index}_variant`] = item.variantKey;
-        }
-      } else if (item.productId && !isCampaign) {
-        // For non-variant products without campaign, query Stripe for latest active price
         try {
           const priceInfo = await getLatestActivePriceForProduct(
             item.productId,
@@ -128,7 +73,7 @@ export async function POST(req: NextRequest) {
             isCampaign = priceInfo.isCampaign;
             
             if (isCampaign && priceInfo.campaignInfo) {
-              console.log(`🎯 Using campaign price from Stripe for ${item.productId}:`);
+              console.log(`🎯 Using campaign price for ${item.productId}:`);
               console.log(`   ${priceInfo.amount / 100} ${priceInfo.currency.toUpperCase()} (${priceInfo.campaignInfo.discountPercent}% off)`);
               campaignData[`product_${index}_campaign`] = 'active';
               campaignData[`product_${index}_discount`] = `${priceInfo.campaignInfo.discountPercent}%`;
@@ -152,12 +97,6 @@ export async function POST(req: NextRequest) {
           }
         }
       }
-      
-      // Ensure productId is always in metadata
-      if (item.productId && !campaignData[`product_${index}_id`]) {
-        campaignData[`product_${index}_id`] = item.productId;
-        campaignData[`product_${index}_price`] = priceId;
-      }
 
       return { 
         price: priceId, 
@@ -167,10 +106,13 @@ export async function POST(req: NextRequest) {
   );
 
   // Build comprehensive metadata for Source portal
+  const websiteUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://tanja-unlimited-809785351172.europe-north1.run.app';
+  const websiteDomain = websiteUrl.replace(/^https?:\/\//, '').replace(/\/$/, '');
+  
   const sessionMetadata = {
     tenant: process.env.SOURCE_TENANT_ID ?? TENANT_ID,
     source: 'tanja_website',
-    website: 'tanja-unlimited.onrender.com',
+    website: websiteDomain,
     ...campaignData
   };
 

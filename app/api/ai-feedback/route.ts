@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-const CUSTOMER_PORTAL_URL = 'https://source-database.onrender.com/api/statistics/ai-feedback';
+const CUSTOMER_PORTAL_URL = process.env.SOURCE_DATABASE_URL 
+  ? `${process.env.SOURCE_DATABASE_URL}/api/statistics/ai-feedback`
+  : 'https://source-database-809785351172.europe-north1.run.app/api/statistics/ai-feedback';
 const TENANT_ID = process.env.SOURCE_TENANT_ID ?? 'tanjaunlimited';
 
 // Rate limiting: Simple in-memory tracking (resets on server restart)

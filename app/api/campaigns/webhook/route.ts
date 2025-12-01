@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { revalidatePath } from 'next/cache';
-import { upsertCampaign, deleteCampaign, type Campaign } from '@/lib/campaigns';
+import { upsertCampaign, deleteCampaign } from '@/lib/campaigns';
 import { 
   storeCampaignPrice, 
   expireCampaignPrice, 
@@ -162,44 +162,23 @@ export async function POST(req: NextRequest) {
 
       // Handle variants if provided (guide: "Handle variant-level stock updates separately")
       if (inventoryUpdate.variants && Array.isArray(inventoryUpdate.variants)) {
-        console.log(`📦 Processing ${inventoryUpdate.variants.length} variants for product ${mappedProductId}`);
-        
         for (const variant of inventoryUpdate.variants) {
-          // Support both stripePriceId and priceId (customer portal may send either)
-          const stripePriceId = variant.stripePriceId || variant.priceId;
-          
-          if (!stripePriceId) {
-            console.warn(`⚠️ Variant missing stripePriceId/priceId:`, {
-              key: variant.key,
-              sku: variant.sku,
-              articleNumber: variant.articleNumber,
-              size: variant.size
+          if (variant.stripePriceId) {
+            const variantInventoryId = `price_${variant.stripePriceId}`;
+            const variantOutOfStock = variant.outOfStock ?? (variant.stock === 0 || variant.stock <= 0);
+            const variantStatus = variant.status || (variantOutOfStock ? 'out_of_stock' : variant.lowStock ? 'low_stock' : 'in_stock');
+            
+            await updateInventory(variantInventoryId, {
+              stock: variant.stock ?? 0,
+              status: variantStatus,
+              lowStock: variant.lowStock ?? variant.status === 'low_stock',
+              outOfStock: variantOutOfStock,
+              name: variant.name || inventoryUpdate.name,
+              sku: variant.sku || variant.key,
+              lastUpdated: new Date().toISOString()
             });
-            continue;
+            console.log(`📦 Variant inventory updated for stripePriceId: ${variant.stripePriceId} (${variant.key || variant.sku})`);
           }
-          
-          const variantInventoryId = `price_${stripePriceId}`;
-          const variantOutOfStock = variant.outOfStock ?? (variant.stock === 0 || variant.stock <= 0);
-          const variantStatus = variant.status || (variantOutOfStock ? 'out_of_stock' : variant.lowStock ? 'low_stock' : 'in_stock');
-          
-          await updateInventory(variantInventoryId, {
-            stock: variant.stock ?? 0,
-            status: variantStatus,
-            lowStock: variant.lowStock ?? variant.status === 'low_stock',
-            outOfStock: variantOutOfStock,
-            name: variant.name || inventoryUpdate.name,
-            sku: variant.sku || variant.articleNumber || variant.key,
-            lastUpdated: new Date().toISOString()
-          });
-          
-          console.log(`📦 Variant inventory updated:`, {
-            key: variant.key || variant.size,
-            stripePriceId,
-            stock: variant.stock,
-            status: variantStatus,
-            outOfStock: variantOutOfStock,
-            inventoryId: variantInventoryId
-          });
         }
       }
 
@@ -274,53 +253,12 @@ export async function POST(req: NextRequest) {
     });
   }
 
-  // Handle campaign sync events (from documentation)
+  // Handle campaign metadata events (legacy support)
   const c = body.campaign;
-  if (c) {
-    if (action === 'deleted') {
-      deleteCampaign(c.id);
-      console.log(`🗑️  Campaign deleted: ${c.id}`);
-    } else if (action === 'created' || action === 'updated') {
-      // Store campaign with all fields from documentation
-      const campaign: Campaign = {
-        id: c.id,
-        name: c.name,
-        type: c.type || 'percentage',
-        status: c.status === 'active' ? 'active' : 'inactive',
-        discountType: c.discountType || c.type === 'percentage' ? 'percentage' : 'amount',
-        discountValue: c.discountValue,
-        products: c.products,
-        startDate: c.startDate,
-        endDate: c.endDate,
-        stripeCouponId: c.stripeCouponId,
-        stripePromotionCodeId: c.stripePromotionCodeId,
-        stripePriceIds: c.stripePriceIds || [], // Campaign price IDs for checkout
-        usageCount: c.usageCount,
-        maxUses: c.maxUses,
-      };
-      
-      upsertCampaign(campaign);
-      
-      console.log(`✅ Campaign ${action}: ${c.id}`, {
-        name: c.name,
-        status: c.status,
-        stripePriceIdsCount: campaign.stripePriceIds?.length || 0,
-        productsCount: campaign.products?.length || 0
-      });
-      
-      // If stripePriceIds are provided, ensure they're stored as campaign prices
-      if (campaign.stripePriceIds && campaign.stripePriceIds.length > 0) {
-        console.log(`📦 Processing ${campaign.stripePriceIds.length} campaign price IDs for campaign ${c.id}`);
-        
-        // Store each campaign price ID (for lookup during checkout)
-        for (const stripePriceId of campaign.stripePriceIds) {
-          // Find which product this price belongs to (from products array or from price metadata)
-          // For now, we'll store the campaign association via the campaign-price-service
-          // The actual price-to-product mapping should come from the customer portal
-          console.log(`   Campaign price ID: ${stripePriceId}`);
-        }
-      }
-    }
+  if (action === 'deleted' && c?.id) {
+    deleteCampaign(c.id);
+  } else if (action === 'created' || action === 'updated') {
+    if (c) upsertCampaign(c);
   }
 
   revalidatePath('/');

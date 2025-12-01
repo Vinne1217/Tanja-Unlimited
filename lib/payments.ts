@@ -1,4 +1,4 @@
-import { getSourceDatabaseUrl, getTenantId } from './source';
+import { SOURCE_BASE, TENANT } from './source';
 
 export async function sendPaymentToSourceDirect(p: {
   sessionId: string;
@@ -17,12 +17,8 @@ export async function sendPaymentToSourceDirect(p: {
   quantity?: number;
   metadata?: Record<string, unknown>;
 }) {
-  // Lazy evaluation - only get values when function is called, not at module load time
-  const sourceBase = getSourceDatabaseUrl();
-  const tenant = getTenantId();
-  
   const body = {
-    tenant: tenant,
+    tenant: TENANT,
     sessionId: p.sessionId,
     customerEmail: p.customerEmail,
     customerName: p.customerName,
@@ -42,7 +38,7 @@ export async function sendPaymentToSourceDirect(p: {
     metadata: p.metadata ?? {}
   };
 
-  const res = await fetch(`${sourceBase}/webhooks/tanja-customer-data`, {
+  const res = await fetch(`${SOURCE_BASE}/webhooks/tanja-customer-data`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body)
