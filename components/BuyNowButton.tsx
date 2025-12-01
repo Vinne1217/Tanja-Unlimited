@@ -158,25 +158,28 @@ export default function BuyNowButton({ product }: BuyNowButtonProps) {
             {product.variants.map((variant) => {
               const variantInventory = variantInventories.get(variant.key);
               // Check availability: use variant's own stock/status, or inventory data, or variant properties
+              const stockCount = variantInventory?.stock ?? variant.stock ?? 0;
               const isOutOfStock = variantInventory 
                 ? (variantInventory.outOfStock || (variantInventory.stock !== null && variantInventory.stock <= 0) || variantInventory.status === 'out_of_stock')
                 : (variant.outOfStock || variant.stock <= 0 || variant.status === 'out_of_stock' || variant.inStock === false);
               
-              // Build human-readable label: prefer size + color, not article number/SKU
-              const labelParts = [variant.size, variant.color].filter(Boolean);
-              const displayLabel = labelParts.length > 0 
-                ? labelParts.join(' / ')
-                : variant.key || variant.sku || 'Variant';
+              // Build human-readable label: show ONLY size OR color (not both, not article number)
+              // Prefer size if available, otherwise color, otherwise fallback to key
+              let displayLabel = variant.size || variant.color || variant.key || variant.sku || 'Variant';
               
-              // Show stock count if available
-              const stockCount = variantInventory?.stock ?? variant.stock;
-              const stockText = !isOutOfStock && stockCount !== null && stockCount > 0
-                ? ` (${stockCount} i lager)`
-                : '';
+              // Stock display logic:
+              // - Only show stock if low stock (< 10) with "snart slutsåld"
+              // - If sold out, show "Slutsåld" and disable
+              let stockText = '';
+              if (isOutOfStock) {
+                stockText = ' — Slutsåld';
+              } else if (stockCount !== null && stockCount > 0 && stockCount < 10) {
+                stockText = ' — Snart slutsåld';
+              }
               
               return (
                 <option key={variant.key} value={variant.key} disabled={isOutOfStock}>
-                  {displayLabel}{isOutOfStock ? ' — Slutsåld' : stockText}
+                  {displayLabel}{stockText}
                 </option>
               );
             })}
