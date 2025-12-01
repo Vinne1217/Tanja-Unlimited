@@ -74,11 +74,36 @@ export async function POST(req: NextRequest) {
     const objectId = event.data?.object && 'id' in event.data.object 
       ? event.data.object.id 
       : 'unknown';
+    
+    // Extract checkout session details if available
+    const sessionId = event.data?.object && 'id' in event.data.object && event.type.includes('checkout')
+      ? event.data.object.id
+      : event.data?.object && 'session' in event.data.object
+      ? (event.data.object as any).session
+      : null;
+    
     console.log(`📨 Webhook event received: ${event.type}`, {
       eventId: event.id,
       livemode: event.livemode,
-      objectId
+      objectId,
+      sessionId,
+      timestamp: new Date().toISOString()
     });
+    
+    // Log checkout session completion specifically
+    if (event.type === 'checkout.session.completed') {
+      const session = event.data.object as Stripe.Checkout.Session;
+      console.log(`✅ Checkout session completed:`, {
+        sessionId: session.id,
+        customerEmail: session.customer_email,
+        amountTotal: session.amount_total,
+        currency: session.currency,
+        metadata: session.metadata,
+        lineItems: session.line_items ? 'present' : 'not loaded'
+      });
+    }
+  } else {
+    console.warn('⚠️ Webhook event could not be parsed');
   }
 
   // Forward ALL webhooks (success, failure, etc.) to Source Database customer portal

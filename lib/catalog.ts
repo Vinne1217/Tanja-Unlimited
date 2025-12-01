@@ -1,6 +1,42 @@
 import { sourceFetch, SOURCE_BASE } from './source';
 
 export type Category = { id: string; slug: string; name: string };
+
+/**
+ * Extract size and color from articleNumber if not provided directly
+ * Example: "LJCfilG-L-Black" -> size: "L", color: "Black"
+ * Example: "LJCfilG-XS" -> size: "XS", color: undefined
+ */
+function parseVariantAttributes(articleNumber: string, providedSize?: string, providedColor?: string, providedKey?: string): { size?: string; color?: string } {
+  // If size/color are provided, use them
+  if (providedSize && providedSize !== 'Standard') return { size: providedSize, color: providedColor };
+  if (providedColor && providedColor !== 'Standard') return { size: providedSize, color: providedColor };
+  
+  // Try to use key if it looks like a size (single letter or size code)
+  if (providedKey && /^(XS|S|M|L|XL|XXL|XXXL)$/i.test(providedKey)) {
+    return { size: providedKey.toUpperCase() };
+  }
+  
+  // Parse from articleNumber: format is usually "BASESKU-SIZE" or "BASESKU-SIZE-COLOR"
+  if (articleNumber && articleNumber.includes('-')) {
+    const parts = articleNumber.split('-');
+    if (parts.length >= 2) {
+      const sizePart = parts[parts.length - 2]; // Second to last part
+      const colorPart = parts[parts.length - 1]; // Last part
+      
+      // Check if sizePart looks like a size
+      if (/^(XS|S|M|L|XL|XXL|XXXL|\d+)$/i.test(sizePart)) {
+        const size = sizePart.toUpperCase();
+        // Check if colorPart looks like a color (not a size code)
+        const color = /^(XS|S|M|L|XL|XXL|XXXL)$/i.test(colorPart) ? undefined : colorPart;
+        return { size, color };
+      }
+    }
+  }
+  
+  return { size: providedSize, color: providedColor };
+}
+
 export type Variant = { 
   key: string; 
   sku: string; 
@@ -82,18 +118,23 @@ export async function getProducts(params: { locale?: string; category?: string; 
       images: p.images || [],
       price: p.priceRange?.min || (p.variants?.[0]?.priceSEK),
       currency: 'SEK',
-      variants: p.variants?.map((v: any) => ({
-        key: v.articleNumber || v.id || v.key,
-        sku: v.articleNumber || v.sku || v.id,
-        stock: v.stock ?? 0,
-        stripePriceId: v.stripePriceId,
-        size: v.size,
-        color: v.color,
-        status: v.status || (v.inStock === false ? 'out_of_stock' : v.lowStock ? 'low_stock' : 'in_stock'),
-        outOfStock: v.outOfStock ?? (v.stock === 0 || v.stock <= 0 || v.inStock === false),
-        lowStock: v.lowStock ?? false,
-        inStock: v.inStock ?? (v.stock > 0)
-      })),
+      variants: p.variants?.map((v: any) => {
+        const articleNumber = v.articleNumber || v.sku || v.id || v.key;
+        const parsed = parseVariantAttributes(articleNumber, v.size, v.color, v.key);
+        
+        return {
+          key: articleNumber,
+          sku: articleNumber,
+          stock: v.stock ?? 0,
+          stripePriceId: v.stripePriceId,
+          size: parsed.size,
+          color: parsed.color,
+          status: v.status || (v.inStock === false ? 'out_of_stock' : v.lowStock ? 'low_stock' : 'in_stock'),
+          outOfStock: v.outOfStock ?? (v.stock === 0 || v.stock <= 0 || v.inStock === false),
+          lowStock: v.lowStock ?? false,
+          inStock: v.inStock ?? (v.stock > 0)
+        };
+      }),
       categoryId: p.category
     }));
     return { items: mappedProducts };
@@ -140,18 +181,23 @@ export async function getProduct(productId: string, locale = 'sv'): Promise<Prod
       images: p.images || [],
       price: p.priceRange?.min || (p.variants?.[0]?.priceSEK),
       currency: 'SEK',
-      variants: p.variants?.map((v: any) => ({
-        key: v.articleNumber || v.id || v.key,
-        sku: v.articleNumber || v.sku || v.id,
-        stock: v.stock ?? 0,
-        stripePriceId: v.stripePriceId,
-        size: v.size,
-        color: v.color,
-        status: v.status || (v.inStock === false ? 'out_of_stock' : v.lowStock ? 'low_stock' : 'in_stock'),
-        outOfStock: v.outOfStock ?? (v.stock === 0 || v.stock <= 0 || v.inStock === false),
-        lowStock: v.lowStock ?? false,
-        inStock: v.inStock ?? (v.stock > 0)
-      })),
+      variants: p.variants?.map((v: any) => {
+        const articleNumber = v.articleNumber || v.sku || v.id || v.key;
+        const parsed = parseVariantAttributes(articleNumber, v.size, v.color, v.key);
+        
+        return {
+          key: articleNumber,
+          sku: articleNumber,
+          stock: v.stock ?? 0,
+          stripePriceId: v.stripePriceId,
+          size: parsed.size,
+          color: parsed.color,
+          status: v.status || (v.inStock === false ? 'out_of_stock' : v.lowStock ? 'low_stock' : 'in_stock'),
+          outOfStock: v.outOfStock ?? (v.stock === 0 || v.stock <= 0 || v.inStock === false),
+          lowStock: v.lowStock ?? false,
+          inStock: v.inStock ?? (v.stock > 0)
+        };
+      }),
       categoryId: p.category
     };
   } else if (data.id) {
