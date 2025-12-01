@@ -5,6 +5,7 @@
  */
 
 import Stripe from 'stripe';
+import { mapProductId } from './inventory-mapping';
 
 // Map Tanja product IDs to Stripe Product IDs
 export const STRIPE_PRODUCT_MAPPING: Record<string, string> = {
@@ -15,6 +16,10 @@ export const STRIPE_PRODUCT_MAPPING: Record<string, string> = {
   'njcilw-001': 'prod_TM8PR5YzRhLcGo',   // Nehru Jacket Cotton imperial line White (NJCilW)
   'ljckils-001': 'prod_TM8U3Iw6TlUoba',  // Long Jacket Cotton knee imperial line Silver (LJCkilS)
   'ljcfils-001': 'prod_TM8WtsmaCpBGLm',  // Long Jacket Cotton fitted imperial line Silver (LJCfilS)
+  'ljckilg-001': 'prod_TTuI3y4djIk4dl',  // Long Jacket Cotton Knee Imperial Line Gold (LJCkilG)
+  'ljcfilg-001': 'prod_TTuM1DVrUtgru5',  // Long Jacket Cotton Fitted Imperial Line Gold (LJCfilG)
+  'ljckilp-001': 'prod_TTuQwJfAiYh99j',  // Long Jacket Cotton Knee Imperial Line Platinum (LJCkilP)
+  'ljcfild-001': 'prod_TTuSJQSVbUdio6',  // Long Jacket Cotton Fitted Imperial Line Diamond (LJCfilD)
   
   // Add more products as you integrate them with Stripe
 };
@@ -44,10 +49,13 @@ export async function getLatestActivePriceForProduct(
     description?: string;
   };
 } | null> {
-  const stripeProductId = STRIPE_PRODUCT_MAPPING[productId];
+  // Map customer portal product ID (e.g., "LJCfilG") to Tanja product ID (e.g., "ljcfilg-001")
+  // This allows the function to work with both formats
+  const tanjaProductId = mapProductId(productId);
+  const stripeProductId = STRIPE_PRODUCT_MAPPING[tanjaProductId];
   
   if (!stripeProductId) {
-    console.warn(`⚠️ No Stripe Product ID mapped for: ${productId}`);
+    console.warn(`⚠️ No Stripe Product ID mapped for: ${productId} (mapped to: ${tanjaProductId})`);
     return null;
   }
 
