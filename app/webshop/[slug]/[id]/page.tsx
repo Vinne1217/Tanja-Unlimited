@@ -55,12 +55,17 @@ export default async function ProductDetailPage({
     // Fetch categories from Source API to find matching category
     let sourceCategories: any[] = [];
     try {
-      sourceCategories = await getCategories('sv');
+      const categoriesResult = await getCategories('sv');
+      // Ensure we have an array (getCategories might return different formats)
+      sourceCategories = Array.isArray(categoriesResult) ? categoriesResult : [];
+      console.log(`✅ Fetched ${sourceCategories.length} categories from Source API`);
     } catch (error) {
       console.warn(`⚠️ Error fetching categories, using static category only:`, error);
+      sourceCategories = [];
     }
     
-    const sourceCategory = sourceCategories.find(c => c.slug === slug);
+    // Ensure sourceCategories is an array before calling .find()
+    const sourceCategory = Array.isArray(sourceCategories) ? sourceCategories.find(c => c.slug === slug) : undefined;
     
     // Use static category for display info, or fallback to Source API category
     const category = staticCategory || (sourceCategory ? {

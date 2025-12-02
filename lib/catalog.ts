@@ -91,8 +91,28 @@ export async function getCategories(locale = 'sv'): Promise<Category[]> {
     });
   }
   
-  if (!res.ok) return [];
-  return res.json();
+  if (!res.ok) {
+    console.warn(`⚠️ Failed to fetch categories: ${res.status} ${res.statusText}`);
+    return [];
+  }
+  
+  try {
+    const data = await res.json();
+    // Handle different response formats
+    if (Array.isArray(data)) {
+      return data;
+    } else if (data.categories && Array.isArray(data.categories)) {
+      return data.categories;
+    } else if (data.success && Array.isArray(data.categories)) {
+      return data.categories;
+    } else {
+      console.warn(`⚠️ Unexpected categories response format:`, typeof data, Object.keys(data || {}));
+      return [];
+    }
+  } catch (error) {
+    console.error(`❌ Error parsing categories response:`, error);
+    return [];
+  }
 }
 
 export async function getProducts(params: { locale?: string; category?: string; q?: string; limit?: number; cursor?: string } = {}): Promise<{ items: Product[]; nextCursor?: string }>{
