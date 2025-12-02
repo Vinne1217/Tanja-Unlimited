@@ -74,12 +74,19 @@ export default async function ProductDetailPage({
   };
   
   // Add variants if they exist (BuyNowButton uses this)
+  // IMPORTANT: Include size and color fields directly from Source API
   if (sourceProduct.variants && sourceProduct.variants.length > 0) {
     product.variants = sourceProduct.variants.map((v: any) => ({
       key: v.key,
       sku: v.sku,
       stock: v.stock,
-      stripePriceId: v.stripePriceId
+      stripePriceId: v.stripePriceId,
+      size: v.size, // ✅ Include size field directly from Source API
+      color: v.color, // ✅ Include color field directly from Source API
+      status: v.status,
+      outOfStock: v.outOfStock,
+      lowStock: v.lowStock,
+      inStock: v.inStock
     }));
   }
 

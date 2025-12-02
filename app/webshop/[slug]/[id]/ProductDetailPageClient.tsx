@@ -139,6 +139,7 @@ export default function ProductDetailPageClient({
                   currency={product.currency || 'SEK'}
                   onCampaignFound={setCampaignPrice}
                   variantPriceId={variantPriceId}
+                  hasVariants={hasMultipleSizes}
                 />
                 
                 {/* Regular Price Display (if no campaign) */}

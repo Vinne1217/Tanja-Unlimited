@@ -188,7 +188,7 @@ export default function CampaignBadge({
     }
 
     fetchCampaignPrice();
-  }, [productId, variantPriceId, defaultPrice, currency, onCampaignFound]);
+  }, [productId, variantPriceId, defaultPrice, currency, hasVariants, onCampaignFound]);
 
   if (loading || !priceInfo?.isCampaign || !priceInfo.campaignInfo) {
     return null;
