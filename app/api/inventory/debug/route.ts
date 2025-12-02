@@ -21,16 +21,6 @@ export async function GET(req: NextRequest) {
     const allInventory = getAllInventory();
     const keys = Array.from(allInventory.keys());
     
-    return type InventoryStatus = {
-    //   stock: number;
-    //   status: 'in_stock' | 'low_stock' | 'out_of_stock';
-    //   lowStock: boolean;
-    //   outOfStock: boolean;
-    //   name?: string;
-    //   sku?: string;
-    //   lastUpdated: string;
-    // };
-    
     return NextResponse.json({
       totalKeys: keys.length,
       keys: keys.slice(0, 20), // First 20 keys
