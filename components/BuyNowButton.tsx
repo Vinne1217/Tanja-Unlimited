@@ -162,14 +162,13 @@ export default function BuyNowButton({ product, onVariantChange }: BuyNowButtonP
     }
 
     // Only require variant selection if there are multiple sizes
-    const sizeVariants = product.variants?.filter(v => v.size) || [];
-    if (sizeVariants.length > 1 && !selectedVariant) {
+    if (hasMultipleSizes && !selectedVariant) {
       alert('Vänligen välj en storlek.');
       return;
     }
     
     // If only one size variant, auto-select it
-    if (sizeVariants.length === 1 && !selectedVariant) {
+    if (!hasMultipleSizes && sizeVariants.length === 1 && !selectedVariant) {
       setSelectedVariant(sizeVariants[0].key);
     }
 
@@ -217,10 +216,6 @@ export default function BuyNowButton({ product, onVariantChange }: BuyNowButtonP
           : (variant.outOfStock || stockCount <= 0 || variant.status === 'out_of_stock' || variant.inStock === false);
       })
     : false;
-  
-  // Filter variants to only those with sizes (for size selector)
-  const sizeVariants = product.variants?.filter(v => v.size) || [];
-  const hasMultipleSizes = sizeVariants.length > 1;
   
   // Only require variant selection if there are multiple sizes
   const requiresVariantSelection = hasMultipleSizes;
