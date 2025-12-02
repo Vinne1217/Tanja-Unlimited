@@ -137,20 +137,27 @@ export async function getProducts(params: { locale?: string; category?: string; 
       stripeProductId: p.stripeProductId || p.stripe_product_id, // Use Stripe Product ID from Source API
       variants: p.variants?.map((v: any) => {
         const articleNumber = v.articleNumber || v.sku || v.id || v.key;
-        const parsed = parseVariantAttributes(articleNumber, v.size, v.color, v.key);
         
-        // Log for debugging if size/color couldn't be parsed
-        if (!parsed.size && !parsed.color && articleNumber) {
-          const parts = articleNumber.split('-');
-          console.log(`⚠️ Could not parse size/color from variant:`, {
+        // ✅ Use size and color fields directly from API (Source Portal provides these)
+        // Only fall back to parsing if not provided
+        let size = v.size;
+        let color = v.color;
+        
+        // Fallback to parsing only if size/color not provided directly
+        if (!size && !color) {
+          const parsed = parseVariantAttributes(articleNumber, v.size, v.color, v.key);
+          size = parsed.size;
+          color = parsed.color;
+        }
+        
+        // Log if we still don't have size/color after parsing
+        if (!size && !color && articleNumber) {
+          console.log(`⚠️ Variant missing size/color:`, {
             articleNumber,
             providedSize: v.size,
             providedColor: v.color,
             providedKey: v.key,
-            productId: p.baseSku || p.id,
-            parts,
-            lastPart: parts[parts.length - 1],
-            matchesSizeRegex: parts.length > 0 ? /^(XS|S|M|L|XL|XXL|XXXL)$/i.test(parts[parts.length - 1]) : false
+            productId: p.baseSku || p.id
           });
         }
         
@@ -159,8 +166,8 @@ export async function getProducts(params: { locale?: string; category?: string; 
           sku: articleNumber,
           stock: v.stock ?? 0,
           stripePriceId: v.stripePriceId,
-          size: parsed.size,
-          color: parsed.color,
+          size: size, // ✅ Use direct field, fallback to parsed
+          color: color, // ✅ Use direct field, fallback to parsed
           status: v.status || (v.inStock === false ? 'out_of_stock' : v.lowStock ? 'low_stock' : 'in_stock'),
           outOfStock: v.outOfStock ?? (v.stock === 0 || v.stock <= 0 || v.inStock === false),
           lowStock: v.lowStock ?? false,
@@ -216,20 +223,27 @@ export async function getProduct(productId: string, locale = 'sv'): Promise<Prod
       stripeProductId: p.stripeProductId || p.stripe_product_id, // Use Stripe Product ID from Source API
       variants: p.variants?.map((v: any) => {
         const articleNumber = v.articleNumber || v.sku || v.id || v.key;
-        const parsed = parseVariantAttributes(articleNumber, v.size, v.color, v.key);
         
-        // Log for debugging if size/color couldn't be parsed
-        if (!parsed.size && !parsed.color && articleNumber) {
-          const parts = articleNumber.split('-');
-          console.log(`⚠️ Could not parse size/color from variant:`, {
+        // ✅ Use size and color fields directly from API (Source Portal provides these)
+        // Only fall back to parsing if not provided
+        let size = v.size;
+        let color = v.color;
+        
+        // Fallback to parsing only if size/color not provided directly
+        if (!size && !color) {
+          const parsed = parseVariantAttributes(articleNumber, v.size, v.color, v.key);
+          size = parsed.size;
+          color = parsed.color;
+        }
+        
+        // Log if we still don't have size/color after parsing
+        if (!size && !color && articleNumber) {
+          console.log(`⚠️ Variant missing size/color:`, {
             articleNumber,
             providedSize: v.size,
             providedColor: v.color,
             providedKey: v.key,
-            productId: p.baseSku || p.id,
-            parts,
-            lastPart: parts[parts.length - 1],
-            matchesSizeRegex: parts.length > 0 ? /^(XS|S|M|L|XL|XXL|XXXL)$/i.test(parts[parts.length - 1]) : false
+            productId: p.baseSku || p.id
           });
         }
         
@@ -238,8 +252,8 @@ export async function getProduct(productId: string, locale = 'sv'): Promise<Prod
           sku: articleNumber,
           stock: v.stock ?? 0,
           stripePriceId: v.stripePriceId,
-          size: parsed.size,
-          color: parsed.color,
+          size: size, // ✅ Use direct field, fallback to parsed
+          color: color, // ✅ Use direct field, fallback to parsed
           status: v.status || (v.inStock === false ? 'out_of_stock' : v.lowStock ? 'low_stock' : 'in_stock'),
           outOfStock: v.outOfStock ?? (v.stock === 0 || v.stock <= 0 || v.inStock === false),
           lowStock: v.lowStock ?? false,
