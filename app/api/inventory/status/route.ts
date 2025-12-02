@@ -12,10 +12,12 @@ export async function GET(req: NextRequest) {
 
     // Support querying by stripePriceId (for variants)
     if (stripePriceId) {
+      // CRITICAL: Stripe Price IDs already start with "price_", don't duplicate the prefix
+      const inventoryId = stripePriceId.startsWith('price_') ? stripePriceId : `price_${stripePriceId}`;
       console.log(`📊 Variant inventory requested:`, {
         productId,
         stripePriceId,
-        inventoryId: `price_${stripePriceId}`
+        inventoryId
       });
       
       const variantInventory = getInventoryByStripePriceId(stripePriceId);

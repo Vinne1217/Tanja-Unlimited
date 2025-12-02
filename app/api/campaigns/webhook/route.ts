@@ -146,8 +146,11 @@ export async function POST(req: NextRequest) {
 
       // If stripePriceId is provided, also update inventory for that specific price (for campaign prices)
       // Guide: "Match products by stripePriceId to update campaign price inventory"
+      // CRITICAL: Stripe Price IDs already start with "price_", don't duplicate the prefix
       if (inventoryUpdate.stripePriceId) {
-        const priceInventoryId = `price_${inventoryUpdate.stripePriceId}`;
+        const priceInventoryId = inventoryUpdate.stripePriceId.startsWith('price_') 
+          ? inventoryUpdate.stripePriceId 
+          : `price_${inventoryUpdate.stripePriceId}`;
         await updateInventory(priceInventoryId, {
           stock: inventoryUpdate.stock ?? 0,
           status: status,
@@ -157,7 +160,7 @@ export async function POST(req: NextRequest) {
           sku: inventoryUpdate.sku,
           lastUpdated: new Date().toISOString()
         });
-        console.log(`📦 Inventory also updated for stripePriceId: ${inventoryUpdate.stripePriceId}`);
+        console.log(`📦 Inventory also updated for stripePriceId: ${inventoryUpdate.stripePriceId} (stored as: ${priceInventoryId})`);
       }
 
       // Handle variants if provided (guide: "Handle variant-level stock updates separately")
@@ -166,7 +169,10 @@ export async function POST(req: NextRequest) {
         
         for (const variant of inventoryUpdate.variants) {
           if (variant.stripePriceId) {
-            const variantInventoryId = `price_${variant.stripePriceId}`;
+            // CRITICAL: Stripe Price IDs already start with "price_", don't duplicate the prefix
+            const variantInventoryId = variant.stripePriceId.startsWith('price_') 
+              ? variant.stripePriceId 
+              : `price_${variant.stripePriceId}`;
             const variantOutOfStock = variant.outOfStock ?? (variant.stock === 0 || variant.stock <= 0);
             const variantStatus = variant.status || (variantOutOfStock ? 'out_of_stock' : variant.lowStock ? 'low_stock' : 'in_stock');
             
@@ -180,7 +186,7 @@ export async function POST(req: NextRequest) {
               lastUpdated: new Date().toISOString()
             });
             
-            console.log(`📦 Variant inventory updated for stripePriceId: ${variant.stripePriceId}`, {
+            console.log(`📦 Variant inventory updated for stripePriceId: ${variant.stripePriceId} (stored as: ${variantInventoryId})`, {
               articleNumber: variant.articleNumber,
               size: variant.size,
               color: variant.color,

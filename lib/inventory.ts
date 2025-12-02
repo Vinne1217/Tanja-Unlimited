@@ -98,9 +98,11 @@ export function clearInventory(productId: string): void {
 /**
  * Get inventory status by stripePriceId (for campaign prices)
  * Guide: "Match products by stripePriceId to update campaign price inventory"
+ * CRITICAL: Stripe Price IDs already start with "price_", don't duplicate the prefix
  */
 export function getInventoryByStripePriceId(stripePriceId: string): InventoryStatus | null {
-  const priceInventoryId = `price_${stripePriceId}`;
+  // Stripe Price IDs already start with "price_", use directly
+  const priceInventoryId = stripePriceId.startsWith('price_') ? stripePriceId : `price_${stripePriceId}`;
   return inventoryStore.get(priceInventoryId) || null;
 }
 
