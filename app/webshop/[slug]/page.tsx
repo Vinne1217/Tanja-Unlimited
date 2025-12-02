@@ -9,20 +9,67 @@ export const revalidate = 300;
 export default async function CategoryPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   
+  console.log(`📦 CategoryPage: Loading category ${slug}`);
+  
   // Get static category info for display (name, description, etc.)
   const staticCategory = getCategoryBySlug(slug);
   
   // Fetch categories from Source API to find matching category
-  const sourceCategories = await getCategories('sv');
-  const sourceCategory = sourceCategories.find(c => c.slug === slug);
+  let sourceCategories: any[] = [];
+  try {
+    sourceCategories = await getCategories('sv');
+    console.log(`✅ Fetched ${sourceCategories.length} categories from Source API`);
+  } catch (error) {
+    console.warn(`⚠️ Error fetching categories:`, error);
+  }
   
-  // Fetch products from Source API using the category slug or ID
-  const categoryParam = sourceCategory?.id || sourceCategory?.slug || slug;
-  const { items: products } = await getProducts({ 
-    locale: 'sv', 
-    category: categoryParam, 
-    limit: 100 
+  // Ensure sourceCategories is an array
+  if (!Array.isArray(sourceCategories)) {
+    console.warn(`⚠️ sourceCategories is not an array:`, typeof sourceCategories);
+    sourceCategories = [];
+  }
+  
+  const sourceCategory = sourceCategories.find(c => c.slug === slug);
+  console.log(`🔍 Category lookup:`, {
+    slug,
+    foundStaticCategory: !!staticCategory,
+    foundSourceCategory: !!sourceCategory,
+    sourceCategoryId: sourceCategory?.id,
+    sourceCategorySlug: sourceCategory?.slug
   });
+  
+  // Fetch products from Source API
+  // NOTE: Storefront API might not support category filtering, so try without category first
+  let products: any[] = [];
+  try {
+    // First try without category filter (Storefront API might return all products)
+    const result = await getProducts({ 
+      locale: 'sv', 
+      limit: 100 
+    });
+    products = result.items || [];
+    console.log(`✅ Fetched ${products.length} products from Source API (no category filter)`);
+    
+    // If we have products, filter by category if sourceCategory exists
+    if (products.length > 0 && sourceCategory) {
+      const categoryParam = sourceCategory.id || sourceCategory.slug;
+      // Filter products by category (check if product.category matches)
+      const filteredProducts = products.filter(p => {
+        const productCategory = p.categoryId || p.category;
+        return productCategory === categoryParam || productCategory === slug;
+      });
+      
+      if (filteredProducts.length > 0) {
+        products = filteredProducts;
+        console.log(`✅ Filtered to ${products.length} products in category ${categoryParam}`);
+      } else {
+        console.warn(`⚠️ No products found after filtering by category ${categoryParam}, showing all products`);
+      }
+    }
+  } catch (error) {
+    console.error(`❌ Error fetching products:`, error);
+    products = [];
+  }
   
   // Use static category for display info, or fallback to Source API category
   const category = staticCategory || (sourceCategory ? {
@@ -47,19 +94,31 @@ export default async function CategoryPage({ params }: { params: Promise<{ slug:
   }
 
   // Convert Source API products to format expected by client component
-  const formattedProducts = products.map(p => ({
-    id: p.id,
-    name: p.name,
-    description: p.description,
-    image: p.images?.[0],
-    price: p.price ? p.price / 100 : 0, // Convert from cents to SEK
-    currency: p.currency || 'SEK',
-    salePrice: undefined, // Will be handled by campaign pricing
-    inStock: true,
-    stripeProductId: undefined,
-    stripePriceId: undefined,
-    category: category.id
-  }));
+  const formattedProducts = products.map(p => {
+    // Handle price conversion (might be in cents or SEK)
+    let price = 0;
+    if (p.price) {
+      // If price is very large (> 10000), assume it's in cents (e.g., 500000 = 5000 SEK)
+      // Otherwise assume it's already in SEK
+      price = p.price > 10000 ? p.price / 100 : p.price;
+    }
+    
+    return {
+      id: p.id,
+      name: p.name,
+      description: p.description,
+      image: p.images?.[0],
+      price: price,
+      currency: p.currency || 'SEK',
+      salePrice: undefined, // Will be handled by campaign pricing
+      inStock: true,
+      stripeProductId: p.stripeProductId, // Include Stripe Product ID
+      stripePriceId: p.variants?.[0]?.stripePriceId || undefined,
+      category: category.id
+    };
+  });
+  
+  console.log(`✅ CategoryPage: Prepared ${formattedProducts.length} products for display`);
 
   return (
     <CategoryPageClient 
