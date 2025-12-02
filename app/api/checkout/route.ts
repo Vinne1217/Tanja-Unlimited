@@ -79,15 +79,27 @@ export async function POST(req: NextRequest) {
       // If productId and variant price ID provided, check Source Portal for campaign price
       if (item.productId && item.stripePriceId) {
         try {
-          // Convert customer portal product ID to Stripe Product ID for Source Portal API
-          const isStripeProductId = item.productId.startsWith('prod_');
+          // ✅ IMPROVED: Fetch Stripe Product ID from Storefront API instead of using mapping
+          // This ensures we always use the correct Stripe Product ID
           let apiProductId: string;
           
-          if (isStripeProductId) {
+          // Check if productId is already a Stripe Product ID
+          if (item.productId.startsWith('prod_')) {
             apiProductId = item.productId;
+            console.log(`✅ Using Stripe Product ID directly: ${apiProductId}`);
           } else {
-            const tanjaProductId = mapProductId(item.productId);
-            apiProductId = STRIPE_PRODUCT_MAPPING[tanjaProductId] || item.productId;
+            // Fetch product from Storefront API to get stripeProductId
+            const product = await getProductFromStorefront(item.productId, { revalidate: 0 });
+            
+            if (product?.stripeProductId) {
+              apiProductId = product.stripeProductId;
+              console.log(`✅ Fetched Stripe Product ID from Storefront API: ${item.productId} → ${apiProductId}`);
+            } else {
+              // Fallback to mapping if Storefront API doesn't have stripeProductId
+              console.warn(`⚠️ No stripeProductId in Storefront API for ${item.productId}, using mapping fallback`);
+              const tanjaProductId = mapProductId(item.productId);
+              apiProductId = STRIPE_PRODUCT_MAPPING[tanjaProductId] || item.productId;
+            }
           }
           
           // Check Source Portal API for variant-specific campaign price
@@ -137,15 +149,26 @@ export async function POST(req: NextRequest) {
         // No variant price ID, check Source Portal for campaign price (for products without variants)
         // Also check if stripePriceId is provided - use it as originalPriceId
         try {
-          // Convert customer portal product ID to Stripe Product ID for Source Portal API
-          const isStripeProductId = item.productId.startsWith('prod_');
+          // ✅ IMPROVED: Fetch Stripe Product ID from Storefront API instead of using mapping
           let apiProductId: string;
           
-          if (isStripeProductId) {
+          // Check if productId is already a Stripe Product ID
+          if (item.productId.startsWith('prod_')) {
             apiProductId = item.productId;
+            console.log(`✅ Using Stripe Product ID directly: ${apiProductId}`);
           } else {
-            const tanjaProductId = mapProductId(item.productId);
-            apiProductId = STRIPE_PRODUCT_MAPPING[tanjaProductId] || item.productId;
+            // Fetch product from Storefront API to get stripeProductId
+            const product = await getProductFromStorefront(item.productId, { revalidate: 0 });
+            
+            if (product?.stripeProductId) {
+              apiProductId = product.stripeProductId;
+              console.log(`✅ Fetched Stripe Product ID from Storefront API: ${item.productId} → ${apiProductId}`);
+            } else {
+              // Fallback to mapping if Storefront API doesn't have stripeProductId
+              console.warn(`⚠️ No stripeProductId in Storefront API for ${item.productId}, using mapping fallback`);
+              const tanjaProductId = mapProductId(item.productId);
+              apiProductId = STRIPE_PRODUCT_MAPPING[tanjaProductId] || item.productId;
+            }
           }
           
           // Check Source Portal API for campaign price
