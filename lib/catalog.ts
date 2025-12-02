@@ -71,6 +71,7 @@ export type Product = {
   images?: string[];
   price?: number; // cents for default price if no variants
   currency?: string;
+  stripeProductId?: string; // Stripe Product ID (prod_...)
   variants?: Variant[];
   categoryId?: string;
 };
