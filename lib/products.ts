@@ -11,6 +11,9 @@ export type Variant = {
   outOfStock?: boolean;
   lowStock?: boolean;
   inStock?: boolean;
+  priceSEK?: number; // Price in cents from Storefront API
+  price?: number; // Price in SEK (converted)
+  priceFormatted?: string; // Formatted price string (e.g., "299.00 kr")
 };
 
 export type Product = {

@@ -118,18 +118,28 @@ export default async function ProductDetailPage({
     // IMPORTANT: Include size and color fields directly from Source API
     if (sourceProduct.variants && sourceProduct.variants.length > 0) {
       try {
-        product.variants = sourceProduct.variants.map((v: any) => ({
-          key: v.key,
-          sku: v.sku,
-          stock: v.stock ?? 0,
-          stripePriceId: v.stripePriceId,
-          size: v.size, // ✅ Include size field directly from Source API
-          color: v.color, // ✅ Include color field directly from Source API
-          status: v.status,
-          outOfStock: v.outOfStock,
-          lowStock: v.lowStock,
-          inStock: v.inStock
-        }));
+        product.variants = sourceProduct.variants.map((v: any) => {
+          // ✅ Include variant-specific price data from Storefront API
+          // priceSEK is in cents (e.g., 29900 = 299 SEK), priceFormatted is already formatted
+          const variantPriceSEK = v.priceSEK ?? v.price ?? null;
+          const variantPrice = variantPriceSEK ? (variantPriceSEK > 10000 ? variantPriceSEK / 100 : variantPriceSEK) : null;
+          
+          return {
+            key: v.key,
+            sku: v.sku,
+            stock: v.stock ?? 0,
+            stripePriceId: v.stripePriceId,
+            size: v.size, // ✅ Include size field directly from Source API
+            color: v.color, // ✅ Include color field directly from Source API
+            status: v.status,
+            outOfStock: v.outOfStock,
+            lowStock: v.lowStock,
+            inStock: v.inStock,
+            priceSEK: variantPriceSEK, // Price in cents from API
+            price: variantPrice, // Price in SEK (converted)
+            priceFormatted: v.priceFormatted || (variantPrice ? `${variantPrice.toFixed(2)} kr` : undefined) // Formatted price string
+          };
+        });
       } catch (error) {
         console.error(`❌ Error mapping variants for product ${id}:`, error);
         // Continue without variants if mapping fails

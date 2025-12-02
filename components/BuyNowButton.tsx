@@ -121,7 +121,8 @@ export default function BuyNowButton({ product, onVariantChange }: BuyNowButtonP
               const priceData = await priceRes.json();
               if (priceData.found && priceData.amount) {
                 const campaignAmount = priceData.amount / 100; // Convert cents to SEK
-                const originalAmount = product.price;
+                // ✅ Use variant-specific price as original amount if available
+                const originalAmount = selectedVariantData?.price ?? product.price;
                 const discountPercent = Math.round(((originalAmount - campaignAmount) / originalAmount) * 100);
                 
                 setCampaignPrice({
@@ -186,16 +187,18 @@ export default function BuyNowButton({ product, onVariantChange }: BuyNowButtonP
     }
 
     // Convert Product to CartProduct format
+    // ✅ Use variant-specific price if available, otherwise use product price
+    const variantPrice = selectedVariantData?.price ?? product.price;
     const cartProduct: CartProduct = {
       id: product.id,
       name: product.name,
-      price: product.salePrice || product.price,
+      price: product.salePrice || variantPrice, // Use variant price if available
       currency: product.currency,
       category: product.category,
       description: product.description,
       image: product.image,
       inStock: !inventory?.outOfStock && !variantOutOfStock,
-      stripePriceId: product.stripePriceId, // Fallback
+      stripePriceId: priceId || product.stripePriceId, // Use selected variant's price ID
       variantKey: selectedVariant || undefined,
       variantPriceId: selectedVariantData?.stripePriceId,
     };

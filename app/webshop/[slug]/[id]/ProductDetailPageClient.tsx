@@ -143,25 +143,34 @@ export default function ProductDetailPageClient({
                 />
                 
                 {/* Regular Price Display (if no campaign) */}
+                {/* ✅ Show variant-specific price if variant is selected, otherwise show product price */}
                 {!campaignPrice && (
                   <div className="flex items-baseline gap-3 mb-6">
-                    {product.salePrice ? (
-                      <>
-                        <span className="text-4xl font-serif text-terracotta">
-                          {formatPrice(product.salePrice, product.currency)}
+                    {(() => {
+                      // Use variant-specific price if available and variant is selected
+                      const displayPrice = selectedVariantData?.price ?? product.price;
+                      const displayPriceFormatted = selectedVariantData?.priceFormatted 
+                        ? selectedVariantData.priceFormatted.replace(/\.00/, '') // Remove .00 if present
+                        : formatPrice(displayPrice, product.currency);
+                      
+                      return product.salePrice ? (
+                        <>
+                          <span className="text-4xl font-serif text-terracotta">
+                            {formatPrice(product.salePrice, product.currency)}
+                          </span>
+                          <span className="text-2xl text-softCharcoal/50 line-through">
+                            {displayPriceFormatted}
+                          </span>
+                          <span className="px-3 py-1 bg-terracotta/10 text-terracotta text-sm font-medium">
+                            Save {formatPrice(displayPrice - product.salePrice, product.currency)}
+                          </span>
+                        </>
+                      ) : (
+                        <span className="text-4xl font-serif text-deepIndigo">
+                          {displayPriceFormatted}
                         </span>
-                        <span className="text-2xl text-softCharcoal/50 line-through">
-                          {formatPrice(product.price, product.currency)}
-                        </span>
-                        <span className="px-3 py-1 bg-terracotta/10 text-terracotta text-sm font-medium">
-                          Save {formatPrice(product.price - product.salePrice, product.currency)}
-                        </span>
-                      </>
-                    ) : (
-                      <span className="text-4xl font-serif text-deepIndigo">
-                        {formatPrice(product.price, product.currency)}
-                      </span>
-                    )}
+                      );
+                    })()}
                   </div>
                 )}
 
