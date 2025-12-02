@@ -109,16 +109,36 @@ export default function CampaignBadge({
               });
               
               if (priceData.found && priceData.amount) {
+                // For variant products, we need to get the original variant price, not product default price
+                // Try to fetch original variant price from Stripe if variantPriceId is provided
+                let originalAmount = defaultPrice * 100; // Default: convert SEK to cents
+                
+                if (variantPriceId) {
+                  try {
+                    // Fetch original variant price from Stripe
+                    const originalPriceRes = await fetch(`/api/products/price?productId=${productId}&stripePriceId=${encodeURIComponent(variantPriceId)}`);
+                    if (originalPriceRes.ok) {
+                      const originalPriceData = await originalPriceRes.json();
+                      if (originalPriceData.found && originalPriceData.amount) {
+                        originalAmount = originalPriceData.amount; // Already in cents
+                        console.log(`💰 CampaignBadge: Using variant original price: ${originalAmount / 100} SEK`);
+                      }
+                    }
+                  } catch (error) {
+                    console.warn(`⚠️ CampaignBadge: Could not fetch original variant price, using default:`, error);
+                  }
+                }
+                
                 // Calculate discount percentage
                 const campaignAmount = priceData.amount;
-                const originalAmount = defaultPrice * 100; // Convert SEK to cents
                 const discountPercent = Math.round(((originalAmount - campaignAmount) / originalAmount) * 100);
 
                 console.log(`📊 CampaignBadge: Price calculation:`, {
                   campaignAmount,
                   originalAmount,
                   discountPercent,
-                  defaultPrice
+                  defaultPrice,
+                  variantPriceId: variantPriceId || 'none'
                 });
 
                 if (discountPercent > 0) {
