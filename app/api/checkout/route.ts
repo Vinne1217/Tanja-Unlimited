@@ -3,6 +3,8 @@ import Stripe from 'stripe';
 import { getLatestActivePriceForProduct } from '@/lib/stripe-products';
 import { mapProductId } from '@/lib/inventory-mapping';
 import { STRIPE_PRODUCT_MAPPING } from '@/lib/stripe-products';
+import { mapProductId } from '@/lib/inventory-mapping';
+import { STRIPE_PRODUCT_MAPPING } from '@/lib/stripe-products';
 
 const TENANT_ID = 'tanjaunlimited';
 
@@ -128,40 +130,66 @@ export async function POST(req: NextRequest) {
           console.warn(`⚠️ Campaign price lookup failed for ${item.productId}, using regular price:`, error instanceof Error ? error.message : 'Unknown error');
         }
       } else if (item.productId) {
-        // No variant price ID, try product-level campaign check (for products without variants)
+        // No variant price ID, check Source Portal for campaign price (for products without variants)
+        // Also check if stripePriceId is provided - use it as originalPriceId
         try {
-          const priceInfo = await getLatestActivePriceForProduct(
-            item.productId,
-            process.env.STRIPE_SECRET_KEY!
-          );
+          // Convert customer portal product ID to Stripe Product ID for Source Portal API
+          const isStripeProductId = item.productId.startsWith('prod_');
+          let apiProductId: string;
           
-          if (priceInfo) {
-            priceId = priceInfo.priceId;
-            isCampaign = priceInfo.isCampaign;
-            
-            if (isCampaign && priceInfo.campaignInfo) {
-              console.log(`🎯 Using campaign price for ${item.productId}:`);
-              console.log(`   ${priceInfo.amount / 100} ${priceInfo.currency.toUpperCase()} (${priceInfo.campaignInfo.discountPercent}% off)`);
-              campaignData[`product_${index}_campaign`] = 'active';
-              campaignData[`product_${index}_discount`] = `${priceInfo.campaignInfo.discountPercent}%`;
-            } else {
-              console.log(`💰 Using standard price for ${item.productId}: ${priceInfo.amount / 100} ${priceInfo.currency.toUpperCase()}`);
-            }
-            
-            campaignData[`product_${index}_id`] = item.productId;
-            campaignData[`product_${index}_price`] = priceInfo.priceId;
+          if (isStripeProductId) {
+            apiProductId = item.productId;
           } else {
-            console.log(`📝 Using fallback price for ${item.productId}: ${priceId}`);
-            if (item.productId) {
-              campaignData[`product_${index}_id`] = item.productId;
+            const tanjaProductId = mapProductId(item.productId);
+            apiProductId = STRIPE_PRODUCT_MAPPING[tanjaProductId] || item.productId;
+          }
+          
+          // Check Source Portal API for campaign price
+          const SOURCE_BASE = process.env.SOURCE_DATABASE_URL ?? 'https://source-database-809785351172.europe-north1.run.app';
+          const TENANT_ID = 'tanjaunlimited';
+          
+          let campaignUrl = `${SOURCE_BASE}/api/campaigns/price/${apiProductId}?tenant=${TENANT_ID}`;
+          // If stripePriceId is provided, use it as originalPriceId (for products without variants)
+          if (item.stripePriceId) {
+            campaignUrl += `&originalPriceId=${encodeURIComponent(item.stripePriceId)}`;
+          }
+          
+          console.log(`🔍 Checking campaign price for ${item.productId} → ${apiProductId} (no variant)`);
+          
+          const campaignResponse = await fetch(campaignUrl, {
+            headers: {
+              'X-Tenant': TENANT_ID,
+              'Content-Type': 'application/json'
+            },
+            cache: 'no-store'
+          });
+
+          if (campaignResponse.ok) {
+            const campaignData_response = await campaignResponse.json();
+            
+            if (campaignData_response.hasCampaignPrice && campaignData_response.priceId) {
+              // Use campaign price
+              priceId = campaignData_response.priceId;
+              isCampaign = true;
+              
+              console.log(`🎯 Using campaign price for ${item.productId}:`);
+              console.log(`   Campaign: ${campaignData_response.campaignName || 'Unknown'}`);
+              console.log(`   Price ID: ${priceId}`);
+              
+              campaignData[`product_${index}_campaign`] = 'active';
+              campaignData[`product_${index}_campaign_id`] = campaignData_response.campaignId || '';
+              campaignData[`product_${index}_campaign_name`] = campaignData_response.campaignName || '';
+            } else {
+              // No campaign found, use provided stripePriceId or fallback
+              console.log(`💰 Using standard price for ${item.productId} (no campaign)`);
             }
+          } else {
+            // API call failed, fall back to provided price
+            console.warn(`⚠️ Campaign API returned ${campaignResponse.status}, using provided price`);
           }
         } catch (error) {
-          // Stripe API failed - use fallback price
-          console.warn(`⚠️ Stripe price lookup failed for ${item.productId}, using fallback:`, error instanceof Error ? error.message : 'Unknown error');
-          if (item.productId) {
-            campaignData[`product_${index}_id`] = item.productId;
-          }
+          // Campaign API failed - use fallback price
+          console.warn(`⚠️ Campaign price lookup failed for ${item.productId}, using provided price:`, error instanceof Error ? error.message : 'Unknown error');
         }
       }
 
