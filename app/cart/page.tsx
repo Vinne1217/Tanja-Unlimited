@@ -144,7 +144,7 @@ export default function CartPage() {
                   <div className="flex-1">
                     <h3 className="text-xl font-serif text-deepIndigo mb-2">{item.product.name}</h3>
                     {item.product.variantKey && (
-                      <p className="text-sm text-softCharcoal mb-2">Variant: {item.product.variantKey}</p>
+                      <p className="text-sm text-softCharcoal mb-2">Storlek: {item.product.variantKey}</p>
                     )}
                     <StockStatus productId={item.product.id} />
                     <div className="flex items-center justify-between mt-4">
