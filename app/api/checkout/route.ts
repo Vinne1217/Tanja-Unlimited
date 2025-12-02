@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { getLatestActivePriceForProduct } from '@/lib/stripe-products';
+import { mapProductId } from '@/lib/inventory-mapping';
+import { STRIPE_PRODUCT_MAPPING } from '@/lib/stripe-products';
 
 const TENANT_ID = 'tanjaunlimited';
 
@@ -71,13 +73,24 @@ export async function POST(req: NextRequest) {
       // If productId and variant price ID provided, check Source Portal for campaign price
       if (item.productId && item.stripePriceId) {
         try {
+          // Convert customer portal product ID to Stripe Product ID for Source Portal API
+          const isStripeProductId = item.productId.startsWith('prod_');
+          let apiProductId: string;
+          
+          if (isStripeProductId) {
+            apiProductId = item.productId;
+          } else {
+            const tanjaProductId = mapProductId(item.productId);
+            apiProductId = STRIPE_PRODUCT_MAPPING[tanjaProductId] || item.productId;
+          }
+          
           // Check Source Portal API for variant-specific campaign price
           const SOURCE_BASE = process.env.SOURCE_DATABASE_URL ?? 'https://source-database-809785351172.europe-north1.run.app';
           const TENANT_ID = process.env.SOURCE_TENANT_ID ?? 'tanjaunlimited';
           
-          const campaignUrl = `${SOURCE_BASE}/api/campaigns/price/${item.productId}?originalPriceId=${encodeURIComponent(item.stripePriceId)}&tenant=${TENANT_ID}`;
+          const campaignUrl = `${SOURCE_BASE}/api/campaigns/price/${apiProductId}?originalPriceId=${encodeURIComponent(item.stripePriceId)}&tenant=${TENANT_ID}`;
           
-          console.log(`🔍 Checking campaign price for ${item.productId} (variant: ${item.stripePriceId})`);
+          console.log(`🔍 Checking campaign price for ${item.productId} → ${apiProductId} (variant: ${item.stripePriceId})`);
           
           const campaignResponse = await fetch(campaignUrl, {
             headers: {
