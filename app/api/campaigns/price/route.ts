@@ -74,12 +74,15 @@ export async function GET(req: NextRequest) {
 
     const data = await response.json();
 
-    console.log(`📊 Campaign API: Source Portal response data:`, {
+    // Log full response for debugging
+    console.log(`📊 Campaign API: Source Portal full response:`, JSON.stringify(data, null, 2));
+    console.log(`📊 Campaign API: Source Portal response summary:`, {
       hasCampaignPrice: data.hasCampaignPrice,
       priceId: data.priceId,
       campaignId: data.campaignId,
       campaignName: data.campaignName,
-      success: data.success
+      success: data.success,
+      responseKeys: Object.keys(data)
     });
 
     if (!data.hasCampaignPrice) {
