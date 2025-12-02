@@ -23,7 +23,8 @@ export async function GET(req: NextRequest) {
       url += `&originalPriceId=${encodeURIComponent(originalPriceId)}`;
     }
 
-    console.log(`🔍 Checking campaign price for product: ${productId}${originalPriceId ? ` (variant: ${originalPriceId})` : ''}`);
+    console.log(`🔍 Campaign API: Checking campaign price for product: ${productId}${originalPriceId ? ` (variant: ${originalPriceId})` : ''}`);
+    console.log(`📡 Campaign API: Calling Source Portal: ${url}`);
 
     const response = await fetch(url, {
       headers: {
@@ -32,6 +33,8 @@ export async function GET(req: NextRequest) {
       },
       cache: 'no-store'
     });
+
+    console.log(`📦 Campaign API: Source Portal response status: ${response.status}`);
 
     if (!response.ok) {
       // 404 or other error = no campaign found
@@ -54,7 +57,16 @@ export async function GET(req: NextRequest) {
 
     const data = await response.json();
 
+    console.log(`📊 Campaign API: Source Portal response data:`, {
+      hasCampaignPrice: data.hasCampaignPrice,
+      priceId: data.priceId,
+      campaignId: data.campaignId,
+      campaignName: data.campaignName,
+      success: data.success
+    });
+
     if (!data.hasCampaignPrice) {
+      console.log(`ℹ️ Campaign API: No campaign found for ${productId}`);
       return NextResponse.json({
         success: true,
         hasCampaignPrice: false,
@@ -62,7 +74,7 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    console.log(`🎯 Campaign price found for ${productId}:`, {
+    console.log(`🎯 Campaign API: Campaign price found for ${productId}:`, {
       priceId: data.priceId,
       campaignName: data.campaignName,
       originalPriceId: data.originalPriceId

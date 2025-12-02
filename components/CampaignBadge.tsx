@@ -38,6 +38,8 @@ export default function CampaignBadge({
 
   useEffect(() => {
     async function fetchCampaignPrice() {
+      console.log(`🔍 CampaignBadge: Checking campaign price for product: ${productId}${variantPriceId ? ` (variant: ${variantPriceId})` : ' (no variant)'}`);
+      
       try {
         // Use Source Portal API for campaign prices (supports variant-specific prices)
         const controller = new AbortController();
@@ -49,6 +51,8 @@ export default function CampaignBadge({
           url += `&originalPriceId=${encodeURIComponent(variantPriceId)}`;
         }
 
+        console.log(`📡 CampaignBadge: Fetching from: ${url}`);
+
         const res = await fetch(url, {
           signal: controller.signal
         });
@@ -56,24 +60,45 @@ export default function CampaignBadge({
         clearTimeout(timeoutId);
 
         if (!res.ok) {
+          console.warn(`⚠️ CampaignBadge: API returned ${res.status} for ${productId}`);
           setLoading(false);
           return;
         }
 
         const data = await res.json();
+        console.log(`📦 CampaignBadge: API response for ${productId}:`, {
+          hasCampaignPrice: data.hasCampaignPrice,
+          priceId: data.priceId,
+          campaignName: data.campaignName,
+          success: data.success
+        });
 
         // If campaign price found, fetch the actual price amount from Stripe
         if (data.hasCampaignPrice && data.priceId) {
+          console.log(`✅ CampaignBadge: Campaign found! Fetching price details for ${data.priceId}`);
           try {
             // Fetch campaign price details from Stripe to get amount
             const priceRes = await fetch(`/api/products/price?productId=${productId}&stripePriceId=${encodeURIComponent(data.priceId)}`);
             if (priceRes.ok) {
               const priceData = await priceRes.json();
+              console.log(`💰 CampaignBadge: Stripe price data:`, {
+                found: priceData.found,
+                amount: priceData.amount,
+                currency: priceData.currency
+              });
+              
               if (priceData.found && priceData.amount) {
                 // Calculate discount percentage
                 const campaignAmount = priceData.amount;
                 const originalAmount = defaultPrice * 100; // Convert SEK to cents
                 const discountPercent = Math.round(((originalAmount - campaignAmount) / originalAmount) * 100);
+
+                console.log(`📊 CampaignBadge: Price calculation:`, {
+                  campaignAmount,
+                  originalAmount,
+                  discountPercent,
+                  defaultPrice
+                });
 
                 if (discountPercent > 0) {
                   const campaignInfo: PriceInfo = {
@@ -92,16 +117,26 @@ export default function CampaignBadge({
                   setPriceInfo(campaignInfo);
                   const campaignPrice = campaignAmount / 100; // Convert cents to SEK
                   
+                  console.log(`🎯 CampaignBadge: Campaign price set! ${campaignPrice} SEK (${discountPercent}% off)`);
+                  
                   // Notify parent component
                   if (onCampaignFound) {
                     onCampaignFound(campaignPrice);
                   }
+                } else {
+                  console.warn(`⚠️ CampaignBadge: Discount percent is ${discountPercent}, not showing campaign`);
                 }
+              } else {
+                console.warn(`⚠️ CampaignBadge: Stripe price data not found or missing amount`);
               }
+            } else {
+              console.warn(`⚠️ CampaignBadge: Failed to fetch Stripe price: ${priceRes.status}`);
             }
           } catch (error) {
-            console.warn('Failed to fetch campaign price details from Stripe:', error);
+            console.error('❌ CampaignBadge: Failed to fetch campaign price details from Stripe:', error);
           }
+        } else {
+          console.log(`ℹ️ CampaignBadge: No campaign found for ${productId}${variantPriceId ? ` (variant: ${variantPriceId})` : ''}`);
         }
       } catch (error) {
         // Silently fail - just don't show campaign badge
