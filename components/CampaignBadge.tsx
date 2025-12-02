@@ -46,7 +46,18 @@ export default function CampaignBadge({
 
   useEffect(() => {
     async function fetchCampaignPrice() {
+      // Reset loading state when variant changes
+      setLoading(true);
+      setPriceInfo(null);
+      
       console.log(`🔍 CampaignBadge: useEffect triggered for product: ${productId}${variantPriceId ? ` (variant: ${variantPriceId})` : ' (no variant)'}`);
+      
+      // If we have variants but no variantPriceId selected yet, don't fetch (wait for selection)
+      if (hasVariants && !variantPriceId) {
+        console.log(`⏳ CampaignBadge: Waiting for variant selection...`);
+        setLoading(false);
+        return;
+      }
       
       try {
         // Use Source Portal API for campaign prices (supports variant-specific prices)

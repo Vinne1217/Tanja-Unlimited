@@ -28,8 +28,15 @@ export default function ProductDetailPageClient({
   slug: string;
 }) {
   const [campaignPrice, setCampaignPrice] = useState<number | null>(null);
+  
+  // Filter variants to only those with sizes (matching BuyNowButton logic)
+  const sizeVariants = product.variants?.filter(v => v.size) || [];
+  const hasMultipleSizes = sizeVariants.length > 1;
+  
+  // Initialize selectedVariant: if multiple sizes, start with null (user must select)
+  // If single size or no sizes, auto-select first variant
   const [selectedVariant, setSelectedVariant] = useState<string | null>(
-    product.variants?.[0]?.key || null
+    hasMultipleSizes ? null : (sizeVariants[0]?.key || product.variants?.[0]?.key || null)
   );
   
   // Get selected variant's price ID for campaign badge

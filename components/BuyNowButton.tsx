@@ -91,7 +91,8 @@ export default function BuyNowButton({ product, onVariantChange }: BuyNowButtonP
     fetchStockStatus();
   }, [product.id, product.variants]);
 
-  // Fetch campaign price when variant is selected
+  // Fetch campaign price when variant is selected (for BuyNowButton's own display)
+  // Note: CampaignBadge also fetches campaign prices, but this is for the button's internal state
   useEffect(() => {
     async function fetchCampaignPrice() {
       if (!selectedVariant || !product.variants) {
@@ -106,14 +107,16 @@ export default function BuyNowButton({ product, onVariantChange }: BuyNowButtonP
       }
 
       try {
-        const url = `/api/campaigns/price?productId=${encodeURIComponent(product.id)}&originalPriceId=${encodeURIComponent(variant.stripePriceId)}`;
+        // Use Stripe Product ID if available, otherwise use product.id
+        const productIdForCampaign = product.stripeProductId || product.id;
+        const url = `/api/campaigns/price?productId=${encodeURIComponent(productIdForCampaign)}&originalPriceId=${encodeURIComponent(variant.stripePriceId)}`;
         const res = await fetch(url, { cache: 'no-store' });
         
         if (res.ok) {
           const data = await res.json();
           if (data.hasCampaignPrice && data.priceId) {
             // Fetch price amount from Stripe
-            const priceRes = await fetch(`/api/products/price?productId=${encodeURIComponent(product.id)}&stripePriceId=${encodeURIComponent(data.priceId)}`);
+            const priceRes = await fetch(`/api/products/price?productId=${encodeURIComponent(productIdForCampaign)}&stripePriceId=${encodeURIComponent(data.priceId)}`);
             if (priceRes.ok) {
               const priceData = await priceRes.json();
               if (priceData.found && priceData.amount) {
@@ -139,7 +142,7 @@ export default function BuyNowButton({ product, onVariantChange }: BuyNowButtonP
     }
 
     fetchCampaignPrice();
-  }, [selectedVariant, product.id, product.variants, product.price]);
+  }, [selectedVariant, product.id, product.stripeProductId, product.variants, product.price]);
 
   const selectedVariantData = product.variants?.find(v => v.key === selectedVariant);
   const priceId = selectedVariantData?.stripePriceId || product.stripePriceId;
