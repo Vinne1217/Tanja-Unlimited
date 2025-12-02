@@ -29,10 +29,11 @@ export async function updateInventory(
   status: InventoryStatus
 ): Promise<void> {
   inventoryStore.set(productId, status);
-  console.log(`📦 Inventory updated for ${productId}:`, {
+  console.log(`📦 Inventory stored in Map for key "${productId}":`, {
     stock: status.stock,
     status: status.status,
-    outOfStock: status.outOfStock
+    outOfStock: status.outOfStock,
+    totalKeysInStore: inventoryStore.size
   });
 }
 
@@ -103,7 +104,25 @@ export function clearInventory(productId: string): void {
 export function getInventoryByStripePriceId(stripePriceId: string): InventoryStatus | null {
   // Stripe Price IDs already start with "price_", use directly
   const priceInventoryId = stripePriceId.startsWith('price_') ? stripePriceId : `price_${stripePriceId}`;
-  return inventoryStore.get(priceInventoryId) || null;
+  
+  const result = inventoryStore.get(priceInventoryId);
+  
+  // Enhanced logging for debugging
+  if (!result) {
+    console.log(`🔍 Inventory lookup for "${priceInventoryId}": NOT FOUND`, {
+      searchedKey: priceInventoryId,
+      totalKeysInStore: inventoryStore.size,
+      sampleKeys: Array.from(inventoryStore.keys()).slice(0, 5)
+    });
+  } else {
+    console.log(`✅ Inventory lookup for "${priceInventoryId}": FOUND`, {
+      stock: result.stock,
+      status: result.status,
+      outOfStock: result.outOfStock
+    });
+  }
+  
+  return result || null;
 }
 
 /**

@@ -81,6 +81,15 @@ export async function POST(req: NextRequest) {
     const inventoryAction = action.replace('inventory.', ''); // 'updated', 'created', 'deleted'
     const inventoryUpdate = body.inventory || body.item;
     
+    // Enhanced logging for debugging
+    console.log(`📨 Inventory webhook received:`, {
+      action: inventoryAction,
+      hasInventory: !!inventoryUpdate,
+      productId: inventoryUpdate?.productId || inventoryUpdate?.id,
+      variantCount: inventoryUpdate?.variants?.length || 0,
+      hasVariants: !!inventoryUpdate?.variants
+    });
+    
     if (!inventoryUpdate) {
       console.error('❌ Missing inventory data in inventory update');
       return NextResponse.json({ 
@@ -167,12 +176,26 @@ export async function POST(req: NextRequest) {
       if (inventoryUpdate.variants && Array.isArray(inventoryUpdate.variants)) {
         console.log(`📦 Processing ${inventoryUpdate.variants.length} variants for product ${mappedProductId}`);
         
+        // Log all variants received for debugging
+        console.log(`🔍 Variants received:`, inventoryUpdate.variants.map((v: any) => ({
+          articleNumber: v.articleNumber,
+          size: v.size,
+          color: v.color,
+          stock: v.stock,
+          stripePriceId: v.stripePriceId || v.priceId,
+          hasStripePriceId: !!v.stripePriceId
+        })));
+        
+        let indexedCount = 0;
         for (const variant of inventoryUpdate.variants) {
-          if (variant.stripePriceId) {
+          // Support both stripePriceId and priceId fields
+          const stripePriceId = variant.stripePriceId || variant.priceId;
+          
+          if (stripePriceId) {
             // CRITICAL: Stripe Price IDs already start with "price_", don't duplicate the prefix
-            const variantInventoryId = variant.stripePriceId.startsWith('price_') 
-              ? variant.stripePriceId 
-              : `price_${variant.stripePriceId}`;
+            const variantInventoryId = stripePriceId.startsWith('price_') 
+              ? stripePriceId 
+              : `price_${stripePriceId}`;
             const variantOutOfStock = variant.outOfStock ?? (variant.stock === 0 || variant.stock <= 0);
             const variantStatus = variant.status || (variantOutOfStock ? 'out_of_stock' : variant.lowStock ? 'low_stock' : 'in_stock');
             
@@ -186,26 +209,33 @@ export async function POST(req: NextRequest) {
               lastUpdated: new Date().toISOString()
             });
             
-            console.log(`📦 Variant inventory updated for stripePriceId: ${variant.stripePriceId} (stored as: ${variantInventoryId})`, {
+            indexedCount++;
+            console.log(`✅ Indexed variant: ${variant.size || 'N/A'} ${variant.color || 'N/A'} -> ${variantInventoryId} (stock: ${variant.stock})`, {
+              originalStripePriceId: stripePriceId,
+              storedAs: variantInventoryId,
               articleNumber: variant.articleNumber,
               size: variant.size,
               color: variant.color,
               stock: variant.stock,
               outOfStock: variantOutOfStock,
-              status: variantStatus,
-              hasSize: !!variant.size,
-              hasColor: !!variant.color
+              status: variantStatus
             });
           } else {
-            console.warn(`⚠️ Variant missing stripePriceId:`, {
+            console.warn(`⚠️ Variant missing stripePriceId/priceId:`, {
               articleNumber: variant.articleNumber,
               key: variant.key,
               sku: variant.sku,
               size: variant.size,
-              color: variant.color
+              color: variant.color,
+              hasStripePriceId: !!variant.stripePriceId,
+              hasPriceId: !!variant.priceId
             });
           }
         }
+        
+        console.log(`✅ Successfully indexed ${indexedCount} of ${inventoryUpdate.variants.length} variants`);
+      } else {
+        console.log(`ℹ️ No variants array in inventory update for ${mappedProductId}`);
       }
 
       // Guide: "If a product is out of stock, all campaign prices for that product should also be unavailable"
