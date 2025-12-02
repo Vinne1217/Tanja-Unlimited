@@ -69,29 +69,32 @@ export async function GET(req: NextRequest) {
 
     console.log(`📊 Inventory status requested for product: ${productId}`);
 
-    // Hybrid approach: Try Source API first (persistent storage), then in-memory (webhook updates)
-    let inventory = await getInventoryFromSource(productId);
+    // PRIORITY: Use webhook data FIRST (fast, variant-level), then fall back to Source API
+    let inventory: InventoryData | null = null;
     let source = 'none';
 
-    if (inventory) {
-      source = 'source_api';
-      console.log(`📦 Using inventory from Source API for ${productId}`);
+    // 1. FIRST: Check in-memory webhook data (fastest, has variant-level stock)
+    const memoryStatus = getInventoryStatus(productId);
+    if (memoryStatus) {
+      source = 'in_memory';
+      console.log(`📦 Using inventory from in-memory storage (webhook) for ${productId}`);
+      inventory = {
+        productId,
+        stock: memoryStatus.stock,
+        status: memoryStatus.status,
+        lowStock: memoryStatus.lowStock,
+        outOfStock: memoryStatus.outOfStock,
+        name: memoryStatus.name,
+        sku: memoryStatus.sku,
+        lastUpdated: memoryStatus.lastUpdated
+      };
     } else {
-      // Fallback to in-memory if Source API has no data (updated via webhooks)
-      const memoryStatus = getInventoryStatus(productId);
-      if (memoryStatus) {
-        source = 'in_memory';
-        console.log(`📦 Using inventory from in-memory storage (webhook) for ${productId}`);
-        inventory = {
-          productId,
-          stock: memoryStatus.stock,
-          status: memoryStatus.status,
-          lowStock: memoryStatus.lowStock,
-          outOfStock: memoryStatus.outOfStock,
-          name: memoryStatus.name,
-          sku: memoryStatus.sku,
-          lastUpdated: memoryStatus.lastUpdated
-        };
+      // 2. FALLBACK: Only call Source API if webhook data doesn't exist
+      console.log(`📦 No webhook data found for ${productId}, checking Source API...`);
+      inventory = await getInventoryFromSource(productId);
+      if (inventory) {
+        source = 'source_api';
+        console.log(`📦 Using inventory from Source API for ${productId} (fallback)`);
       }
     }
 

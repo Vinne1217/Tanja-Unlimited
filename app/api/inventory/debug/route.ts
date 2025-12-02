@@ -1,28 +1,55 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAllInventory } from '@/lib/inventory';
+import { getAllInventory, getInventoryByStripePriceId } from '@/lib/inventory';
 
-/**
- * Debug endpoint to view all current inventory data
- * GET /api/inventory/debug
- */
 export async function GET(req: NextRequest) {
   try {
+    const { searchParams } = new URL(req.url);
+    const stripePriceId = searchParams.get('stripePriceId');
+    
+    if (stripePriceId) {
+      // Check specific variant
+      const variant = getInventoryByStripePriceId(stripePriceId);
+      return NextResponse.json({
+        stripePriceId,
+        found: !!variant,
+        inventory: variant,
+        allKeys: Array.from(new Set([stripePriceId]))
+      });
+    }
+    
+    // Return all inventory data
     const allInventory = getAllInventory();
-    const inventoryArray = Array.from(allInventory.entries()).map(([id, status]) => ({
-      productId: id,
-      ...status
-    }));
-
+    const keys = Array.from(allInventory.keys());
+    
+    return type InventoryStatus = {
+    //   stock: number;
+    //   status: 'in_stock' | 'low_stock' | 'out_of_stock';
+    //   lowStock: boolean;
+    //   outOfStock: boolean;
+    //   name?: string;
+    //   sku?: string;
+    //   lastUpdated: string;
+    // };
+    
     return NextResponse.json({
-      count: inventoryArray.length,
-      inventory: inventoryArray
+      totalKeys: keys.length,
+      keys: keys.slice(0, 20), // First 20 keys
+      sampleEntries: Array.from(allInventory.entries())
+        .slice(0, 5)
+        .map(([key, value]) => ({
+          key,
+          stock: value.stock,
+          status: value.status,
+          outOfStock: value.outOfStock,
+          name: value.name,
+          sku: value.sku
+        }))
     });
   } catch (error) {
-    console.error('Error getting inventory debug info:', error);
+    console.error('Debug endpoint error:', error);
     return NextResponse.json(
-      { error: 'Failed to get inventory' },
+      { error: 'Failed to fetch debug data', details: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }
     );
   }
 }
-
