@@ -181,6 +181,11 @@ export async function getProducts(params: { locale?: string; category?: string; 
           });
         }
         
+        // ✅ Include variant-specific price data from Storefront API
+        // priceSEK is in cents (e.g., 29900 = 299 SEK), priceFormatted is already formatted
+        const variantPriceSEK = v.priceSEK ?? v.price ?? null;
+        const variantPrice = variantPriceSEK ? (variantPriceSEK > 10000 ? variantPriceSEK / 100 : variantPriceSEK) : null;
+        
         return {
           key: articleNumber,
           sku: articleNumber,
@@ -191,7 +196,10 @@ export async function getProducts(params: { locale?: string; category?: string; 
           status: v.status || (v.inStock === false ? 'out_of_stock' : v.lowStock ? 'low_stock' : 'in_stock'),
           outOfStock: v.outOfStock ?? (v.stock === 0 || v.stock <= 0 || v.inStock === false),
           lowStock: v.lowStock ?? false,
-          inStock: v.inStock ?? (v.stock > 0)
+          inStock: v.inStock ?? (v.stock > 0),
+          priceSEK: variantPriceSEK, // Price in cents from API
+          price: variantPrice, // Price in SEK (converted)
+          priceFormatted: v.priceFormatted || (variantPrice ? `${variantPrice.toFixed(2)} kr` : undefined) // Formatted price string
         };
       }),
       categoryId: p.category
@@ -267,6 +275,11 @@ export async function getProduct(productId: string, locale = 'sv'): Promise<Prod
           });
         }
         
+        // ✅ Include variant-specific price data from Storefront API
+        // priceSEK is in cents (e.g., 29900 = 299 SEK), priceFormatted is already formatted
+        const variantPriceSEK = v.priceSEK ?? v.price ?? null;
+        const variantPrice = variantPriceSEK ? (variantPriceSEK > 10000 ? variantPriceSEK / 100 : variantPriceSEK) : null;
+        
         return {
           key: articleNumber,
           sku: articleNumber,
@@ -277,7 +290,10 @@ export async function getProduct(productId: string, locale = 'sv'): Promise<Prod
           status: v.status || (v.inStock === false ? 'out_of_stock' : v.lowStock ? 'low_stock' : 'in_stock'),
           outOfStock: v.outOfStock ?? (v.stock === 0 || v.stock <= 0 || v.inStock === false),
           lowStock: v.lowStock ?? false,
-          inStock: v.inStock ?? (v.stock > 0)
+          inStock: v.inStock ?? (v.stock > 0),
+          priceSEK: variantPriceSEK, // Price in cents from API
+          price: variantPrice, // Price in SEK (converted)
+          priceFormatted: v.priceFormatted || (variantPrice ? `${variantPrice.toFixed(2)} kr` : undefined) // Formatted price string
         };
       }),
       categoryId: p.category
