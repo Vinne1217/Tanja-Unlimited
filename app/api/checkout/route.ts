@@ -34,17 +34,19 @@ export async function POST(req: NextRequest) {
   const { getInventoryStatus, isStripePriceOutOfStock } = await import('@/lib/inventory');
   
   // Check inventory for all items before processing
+  // CRITICAL: Block checkout if inventory is missing or out of stock
   for (const item of items) {
     // Check by productId first
     if (item.productId) {
       const inventory = getInventoryStatus(item.productId);
-      if (inventory?.outOfStock) {
-        console.error(`❌ Checkout blocked: Product ${item.productId} is out of stock`, {
-          inventory: {
+      // CRITICAL: Treat missing inventory as out of stock (prevents overselling)
+      if (!inventory || inventory.outOfStock) {
+        console.error(`❌ Checkout blocked: Product ${item.productId} ${!inventory ? 'has no inventory data (treating as out of stock)' : 'is out of stock'}`, {
+          inventory: inventory ? {
             stock: inventory.stock,
             status: inventory.status,
             outOfStock: inventory.outOfStock
-          }
+          } : null
         });
         return NextResponse.json(
           { error: `Product ${item.productId} is out of stock` },
@@ -53,12 +55,13 @@ export async function POST(req: NextRequest) {
       }
     }
     
-    // Also check by stripePriceId if provided (for campaign prices)
+    // Also check by stripePriceId if provided (for variants and campaign prices)
     // Guide: "Match products by stripePriceId to update campaign price inventory"
+    // CRITICAL: isStripePriceOutOfStock now returns true if inventory is missing
     if (item.stripePriceId && isStripePriceOutOfStock(item.stripePriceId)) {
-      console.error(`❌ Checkout blocked: Price ${item.stripePriceId} is out of stock`);
+      console.error(`❌ Checkout blocked: Price ${item.stripePriceId} is out of stock or has no inventory data`);
       return NextResponse.json(
-        { error: `Price ${item.stripePriceId} is out of stock` },
+        { error: `This item is out of stock` },
         { status: 400 }
       );
     }

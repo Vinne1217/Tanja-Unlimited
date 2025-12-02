@@ -38,7 +38,7 @@ export async function updateInventory(
 
 /**
  * Get inventory status for a product
- * Returns null if no inventory data exists (assumes in stock)
+ * Returns null if no inventory data exists (CRITICAL: treat as out of stock, not in stock)
  */
 export function getInventoryStatus(productId: string): InventoryStatus | null {
   return inventoryStore.get(productId) || null;
@@ -60,10 +60,15 @@ export function getInventoryStatuses(productIds: string[]): Map<string, Inventor
 
 /**
  * Check if a product is in stock
+ * CRITICAL: Returns false (out of stock) if no inventory data exists
+ * Never assume in stock when data is missing - prevents overselling
  */
 export function isInStock(productId: string): boolean {
   const status = inventoryStore.get(productId);
-  if (!status) return true; // Default to in stock if no data
+  if (!status) {
+    console.warn(`⚠️ No inventory data for ${productId}, treating as OUT OF STOCK`);
+    return false; // CRITICAL: Treat missing data as out of stock
+  }
   return !status.outOfStock && status.stock > 0;
 }
 
@@ -102,10 +107,15 @@ export function getInventoryByStripePriceId(stripePriceId: string): InventorySta
 /**
  * Check if a stripePriceId is out of stock
  * Used for campaign price inventory checks
+ * CRITICAL: Returns true (out of stock) if no inventory data exists
+ * Never assume in stock when data is missing - prevents overselling
  */
 export function isStripePriceOutOfStock(stripePriceId: string): boolean {
   const status = getInventoryByStripePriceId(stripePriceId);
-  if (!status) return false; // If no inventory data, assume in stock
+  if (!status) {
+    console.warn(`⚠️ No inventory data for stripePriceId ${stripePriceId}, treating as OUT OF STOCK`);
+    return true; // CRITICAL: Treat missing data as out of stock
+  }
   return status.outOfStock || status.stock <= 0;
 }
 

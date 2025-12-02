@@ -42,15 +42,16 @@ export async function GET(req: NextRequest) {
           source: 'in_memory'
         });
       } else {
-        console.log(`ℹ️  No variant inventory found for ${stripePriceId}, assuming in stock`);
-        // No variant inventory data = assume in stock
+        // CRITICAL: No variant inventory data = treat as OUT OF STOCK (not in stock)
+        // This prevents overselling when inventory sync hasn't happened yet
+        console.warn(`⚠️ No variant inventory found for ${stripePriceId}, treating as OUT OF STOCK`);
         return NextResponse.json({
           productId: productId || undefined,
           stripePriceId,
-          stock: null,
-          status: 'in_stock',
+          stock: 0,
+          status: 'out_of_stock',
           lowStock: false,
-          outOfStock: false,
+          outOfStock: true, // CRITICAL: Treat missing data as out of stock
           hasData: false,
           source: 'default'
         });
@@ -132,14 +133,15 @@ export async function GET(req: NextRequest) {
     }
 
     if (!inventory) {
-      // No inventory data = assume in stock (default behavior)
-      console.log(`ℹ️  No inventory data for ${productId} (checked Source API and in-memory), returning default (in stock)`);
+      // CRITICAL: No inventory data = treat as OUT OF STOCK (not in stock)
+      // This prevents overselling when inventory sync hasn't happened yet
+      console.warn(`⚠️ No inventory data for ${productId} (checked Source API and in-memory), treating as OUT OF STOCK`);
       return NextResponse.json({
         productId,
-        stock: null,
-        status: 'in_stock',
+        stock: 0,
+        status: 'out_of_stock',
         lowStock: false,
-        outOfStock: false,
+        outOfStock: true, // CRITICAL: Treat missing data as out of stock
         hasData: false,
         source: 'default'
       });

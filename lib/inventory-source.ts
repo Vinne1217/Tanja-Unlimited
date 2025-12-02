@@ -67,10 +67,10 @@ export async function getInventoryFromSource(
     }
 
     if (!res || !res.ok) {
-      // 404 = no inventory data (product is in stock by default)
+      // 404 = no inventory data (CRITICAL: treat as out of stock, not in stock)
       if (res && res.status === 404) {
-        console.log(`ℹ️  No inventory data for product: ${productId}, assuming in stock`);
-        return null; // Return null = assume in stock
+        console.warn(`⚠️ No inventory data for product: ${productId} (404), treating as OUT OF STOCK`);
+        return null; // Return null = will be treated as out of stock by caller
       } else {
         if (res) {
           // Log more details for debugging
@@ -105,13 +105,13 @@ export async function getInventoryFromSource(
     
     // New response format: { success: true, productId: "...", found: true, inventory: {...} }
     if (!data.success || !data.found || !data.inventory) {
-      // Product not found or no inventory data
+      // Product not found or no inventory data (CRITICAL: treat as out of stock, not in stock)
       if (data.found === false) {
-        console.log(`ℹ️  Product ${productId} not found in inventory, assuming in stock`);
+        console.warn(`⚠️ Product ${productId} not found in inventory, treating as OUT OF STOCK`);
       } else {
-        console.log(`ℹ️  No inventory data for product: ${productId}, assuming in stock`);
+        console.warn(`⚠️ No inventory data for product: ${productId}, treating as OUT OF STOCK`);
       }
-      return null;
+      return null; // Return null = will be treated as out of stock by caller
     }
 
     const inventory = data.inventory;

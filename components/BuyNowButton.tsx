@@ -148,12 +148,13 @@ export default function BuyNowButton({ product, onVariantChange }: BuyNowButtonP
   const priceId = selectedVariantData?.stripePriceId || product.stripePriceId;
   
   // Check variant inventory from synced data, or use variant's own stock/status properties
+  // CRITICAL: Treat missing inventory as out of stock (prevents overselling)
   const selectedVariantInventory = selectedVariant ? variantInventories.get(selectedVariant) : null;
   const variantOutOfStock = selectedVariantInventory 
     ? (selectedVariantInventory.outOfStock || (selectedVariantInventory.stock !== null && selectedVariantInventory.stock <= 0) || selectedVariantInventory.status === 'out_of_stock')
     : (selectedVariantData 
       ? (selectedVariantData.outOfStock || selectedVariantData.stock <= 0 || selectedVariantData.status === 'out_of_stock' || selectedVariantData.inStock === false)
-      : false); // If no inventory data and no variant data, assume in stock
+      : true); // CRITICAL: If no inventory data and no variant data, treat as OUT OF STOCK (not in stock)
 
   function handleAddToCart() {
     if (!priceId) {
