@@ -13,7 +13,14 @@ type InventoryData = {
 };
 
 export default function ProductPurchase({ product }: { product: Product }) {
-  const [variantKey, setVariantKey] = useState(product.variants?.[0]?.key);
+  // Filter variants to only those with sizes
+  const sizeVariants = product.variants?.filter(v => v.size) || [];
+  const hasMultipleSizes = sizeVariants.length > 1;
+  
+  // Auto-select the only variant if there's only one size, otherwise start with first variant or null
+  const [variantKey, setVariantKey] = useState<string | undefined>(
+    hasMultipleSizes ? undefined : (sizeVariants[0]?.key || product.variants?.[0]?.key)
+  );
   const [inventory, setInventory] = useState<InventoryData | null>(null);
   const [added, setAdded] = useState(false);
   const { addItem } = useCart();
@@ -91,53 +98,50 @@ export default function ProductPurchase({ product }: { product: Product }) {
       {/* Stock Status */}
       <StockStatus productId={product.id} />
 
-      {product.variants && product.variants.length > 0 && (
-        <div>
-          <label className="block text-sm mb-1">Variant</label>
-          <select className="border p-2" value={variantKey || ''} onChange={(e) => setVariantKey(e.target.value)}>
-            <option value="">Välj variant</option>
-            {product.variants.map(v => {
-              // Build human-readable label: show ONLY size OR color (not both, not article number)
-              // IMPORTANT: Never show SKU/article number - only size or color
-              let displayLabel: string;
-              if (v.size) {
-                displayLabel = v.size;
-              } else if (v.color) {
-                displayLabel = v.color;
-              } else {
-                // If neither size nor color is available, this is a data issue
-                // Log warning and show a placeholder - never show SKU/article number
-                console.warn(`Variant ${v.key} missing both size and color`, {
-                  variantKey: v.key,
-                  variantSku: v.sku,
-                  stripePriceId: v.stripePriceId
-                });
-                displayLabel = 'Variant'; // Don't show SKU/article number
-              }
-              
-              // Check availability using variant's own stock/status
-              const stockCount = v.stock ?? 0;
-              const isOutOfStock = v.outOfStock || stockCount <= 0 || v.status === 'out_of_stock' || v.inStock === false;
-              
-              // Stock display logic:
-              // - Only show stock if low stock (< 10) with "snart slutsåld"
-              // - If sold out, show "Slutsåld" and disable
-              let stockText = '';
-              if (isOutOfStock) {
-                stockText = ' — Slutsåld';
-              } else if (stockCount > 0 && stockCount < 10) {
-                stockText = ' — Snart slutsåld';
-              }
-              
-              return (
-                <option key={v.key} value={v.key} disabled={isOutOfStock}>
-                  {displayLabel}{stockText}
-                </option>
-              );
-            })}
-          </select>
-        </div>
-      )}
+      {/* Size Selector - Only show if multiple sizes exist */}
+      {(() => {
+        const sizeVariants = product.variants?.filter(v => v.size) || [];
+        const hasMultipleSizes = sizeVariants.length > 1;
+        
+        if (!hasMultipleSizes) {
+          return null; // Don't show selector if only one or no size variants
+        }
+        
+        return (
+          <div>
+            <label className="block text-sm mb-1">
+              {sizeVariants.length > 1 ? 'Storlekar' : 'Storlek'}
+            </label>
+            <select className="border p-2" value={variantKey || ''} onChange={(e) => setVariantKey(e.target.value)}>
+              <option value="">Välj storlek</option>
+              {sizeVariants.map(v => {
+                // Display label: show size (should always exist since we filtered for size variants)
+                const displayLabel = v.size || v.key;
+                
+                // Check availability using variant's own stock/status
+                const stockCount = v.stock ?? 0;
+                const isOutOfStock = v.outOfStock || stockCount <= 0 || v.status === 'out_of_stock' || v.inStock === false;
+                
+                // Stock display logic:
+                // - Only show stock if low stock (< 10) with "snart slutsåld"
+                // - If sold out, show "Slutsåld" and disable (but still visible)
+                let stockText = '';
+                if (isOutOfStock) {
+                  stockText = ' — Slutsåld';
+                } else if (stockCount > 0 && stockCount < 10) {
+                  stockText = ' — Snart slutsåld';
+                }
+                
+                return (
+                  <option key={v.key} value={v.key} disabled={isOutOfStock}>
+                    {displayLabel}{stockText}
+                  </option>
+                );
+              })}
+            </select>
+          </div>
+        );
+      })()}
       <button 
         className="bg-ochreRed text-white px-4 py-2 disabled:opacity-50 disabled:cursor-not-allowed" 
         onClick={addToCart} 

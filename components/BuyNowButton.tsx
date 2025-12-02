@@ -19,8 +19,13 @@ type InventoryData = {
 };
 
 export default function BuyNowButton({ product, onVariantChange }: BuyNowButtonProps) {
+  // Filter variants to only those with sizes
+  const sizeVariants = product.variants?.filter(v => v.size) || [];
+  const hasMultipleSizes = sizeVariants.length > 1;
+  
+  // Auto-select the only variant if there's only one size, otherwise start with null
   const [selectedVariant, setSelectedVariant] = useState<string | null>(
-    product.variants?.[0]?.key || null
+    hasMultipleSizes ? null : (sizeVariants[0]?.key || product.variants?.[0]?.key || null)
   );
   const [inventory, setInventory] = useState<InventoryData | null>(null);
   const [variantInventories, setVariantInventories] = useState<Map<string, InventoryData>>(new Map());
@@ -153,9 +158,16 @@ export default function BuyNowButton({ product, onVariantChange }: BuyNowButtonP
       return;
     }
 
-    if (product.variants && !selectedVariant) {
+    // Only require variant selection if there are multiple sizes
+    const sizeVariants = product.variants?.filter(v => v.size) || [];
+    if (sizeVariants.length > 1 && !selectedVariant) {
       alert('Vänligen välj en storlek.');
       return;
+    }
+    
+    // If only one size variant, auto-select it
+    if (sizeVariants.length === 1 && !selectedVariant) {
+      setSelectedVariant(sizeVariants[0].key);
     }
 
     // Check if out of stock - prioritize variant-level stock over product-level
@@ -203,13 +215,14 @@ export default function BuyNowButton({ product, onVariantChange }: BuyNowButtonP
       })
     : false;
   
-  const isDisabled = checkingStock || isOutOfStock || allVariantsOutOfStock || variantOutOfStock || (product.variants && !selectedVariant);
-
-  // Determine if variants have sizes or colors to show correct label
-  const hasSizes = product.variants?.some(v => v.size) ?? false;
-  const hasColors = product.variants?.some(v => v.color) ?? false;
-  const variantLabel = hasSizes ? 'Storlek' : hasColors ? 'Färg' : 'Variant';
-  const placeholderText = hasSizes ? 'Välj storlek' : hasColors ? 'Välj färg' : 'Välj variant';
+  // Filter variants to only those with sizes (for size selector)
+  const sizeVariants = product.variants?.filter(v => v.size) || [];
+  const hasMultipleSizes = sizeVariants.length > 1;
+  
+  // Only require variant selection if there are multiple sizes
+  const requiresVariantSelection = hasMultipleSizes;
+  
+  const isDisabled = checkingStock || isOutOfStock || allVariantsOutOfStock || variantOutOfStock || (requiresVariantSelection && !selectedVariant);
 
   return (
     <div className="space-y-4">
@@ -233,11 +246,11 @@ export default function BuyNowButton({ product, onVariantChange }: BuyNowButtonP
         </div>
       )}
 
-      {/* Variant Selector */}
-      {product.variants && product.variants.length > 0 && (
+      {/* Size Selector - Only show if multiple sizes exist */}
+      {hasMultipleSizes && (
         <div>
           <label className="block text-sm font-medium text-deepIndigo mb-2">
-            {variantLabel}
+            {sizeVariants.length > 1 ? 'Storlekar' : 'Storlek'}
           </label>
           <select
             value={selectedVariant || ''}
@@ -250,8 +263,8 @@ export default function BuyNowButton({ product, onVariantChange }: BuyNowButtonP
             }}
             className="w-full px-4 py-3 border border-warmOchre/20 bg-ivory text-deepIndigo focus:border-warmOchre focus:outline-none transition-colors"
           >
-            <option value="">{placeholderText}</option>
-            {product.variants.map((variant) => {
+            <option value="">Välj storlek</option>
+            {sizeVariants.map((variant) => {
               const variantInventory = variantInventories.get(variant.key);
               // Check availability: use variant's own stock/status, or inventory data, or variant properties
               const stockCount = variantInventory?.stock ?? variant.stock ?? 0;
@@ -259,27 +272,12 @@ export default function BuyNowButton({ product, onVariantChange }: BuyNowButtonP
                 ? (variantInventory.outOfStock || (variantInventory.stock !== null && variantInventory.stock <= 0) || variantInventory.status === 'out_of_stock')
                 : (variant.outOfStock || variant.stock <= 0 || variant.status === 'out_of_stock' || variant.inStock === false);
               
-              // Build human-readable label: show ONLY size OR color (not both, not article number)
-              // IMPORTANT: Never show SKU/article number - only size or color
-              let displayLabel: string;
-              if (variant.size) {
-                displayLabel = variant.size;
-              } else if (variant.color) {
-                displayLabel = variant.color;
-              } else {
-                // If neither size nor color is available, this is a data issue
-                // Log warning and show a placeholder - never show SKU/article number
-                console.warn(`Variant ${variant.key} missing both size and color`, {
-                  variantKey: variant.key,
-                  variantSku: variant.sku,
-                  stripePriceId: variant.stripePriceId
-                });
-                displayLabel = 'Variant'; // Don't show SKU/article number
-              }
+              // Display label: show size (should always exist since we filtered for size variants)
+              const displayLabel = variant.size || variant.key;
               
               // Stock display logic:
               // - Only show stock if low stock (< 10) with "snart slutsåld"
-              // - If sold out, show "Slutsåld" and disable
+              // - If sold out, show "Slutsåld" and disable (but still visible)
               let stockText = '';
               if (isOutOfStock) {
                 stockText = ' — Slutsåld';
