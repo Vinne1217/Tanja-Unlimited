@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getInventoryFromSource } from '@/lib/inventory-source';
+import { getInventoryFromSource, type InventoryData } from '@/lib/inventory-source';
 // Keep in-memory as fallback
 import { getInventoryStatus, getInventoryByStripePriceId } from '@/lib/inventory';
 import { getProduct } from '@/lib/catalog';
