@@ -5,10 +5,11 @@ import { getProductById } from '@/lib/products';
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const productId = searchParams.get('productId');
+  const stripePriceId = searchParams.get('stripePriceId'); // Optional: fetch specific price ID
 
-  if (!productId) {
+  if (!productId && !stripePriceId) {
     return NextResponse.json(
-      { error: 'productId is required' },
+      { error: 'productId or stripePriceId is required' },
       { status: 400 }
     );
   }
@@ -18,6 +19,33 @@ export async function GET(req: NextRequest) {
   }
 
   try {
+    // If stripePriceId is provided, fetch that specific price
+    if (stripePriceId) {
+      const stripe = new (await import('stripe')).default(process.env.STRIPE_SECRET_KEY, { 
+        apiVersion: '2025-02-24.acacia' 
+      });
+      
+      const price = await stripe.prices.retrieve(stripePriceId);
+      
+      return NextResponse.json({
+        found: true,
+        productId: productId || undefined,
+        priceId: price.id,
+        amount: price.unit_amount || 0,
+        currency: price.currency,
+        isCampaign: false, // Can't determine if campaign without comparing to other prices
+        campaignInfo: undefined
+      });
+    }
+
+    // Otherwise, use the existing logic to get latest active price
+    if (!productId) {
+      return NextResponse.json(
+        { error: 'productId is required when stripePriceId is not provided' },
+        { status: 400 }
+      );
+    }
+
     console.log(`📊 Campaign price lookup requested for product: ${productId}`);
     
     const priceInfo = await getLatestActivePriceForProduct(

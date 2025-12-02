@@ -28,6 +28,13 @@ export default function ProductDetailPageClient({
   slug: string;
 }) {
   const [campaignPrice, setCampaignPrice] = useState<number | null>(null);
+  const [selectedVariant, setSelectedVariant] = useState<string | null>(
+    product.variants?.[0]?.key || null
+  );
+  
+  // Get selected variant's price ID for campaign badge
+  const selectedVariantData = product.variants?.find(v => v.key === selectedVariant);
+  const variantPriceId = selectedVariantData?.stripePriceId;
 
   return (
     <div className="min-h-screen bg-ivory">
@@ -114,6 +121,7 @@ export default function ProductDetailPageClient({
                   defaultPrice={product.price}
                   currency={product.currency || 'SEK'}
                   onCampaignFound={setCampaignPrice}
+                  variantPriceId={variantPriceId}
                 />
                 
                 {/* Regular Price Display (if no campaign) */}
@@ -182,7 +190,10 @@ export default function ProductDetailPageClient({
               <div className="border-t border-ochre/20 pt-6 space-y-4">
                 {product.stripePriceId || (product.variants && product.variants.length > 0) ? (
                   <>
-                    <BuyNowButton product={product} />
+                    <BuyNowButton 
+                      product={product} 
+                      onVariantChange={setSelectedVariant}
+                    />
                     <p className="text-xs text-graphite/60 text-center">
                       Secure checkout powered by Stripe
                     </p>

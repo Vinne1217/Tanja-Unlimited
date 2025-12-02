@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getCampaignPriceForProduct } from '@/lib/campaign-price-service';
+import { sourceFetch } from '@/lib/source';
 
 const TENANT_ID = 'tanjaunlimited';
+const SOURCE_BASE = process.env.SOURCE_DATABASE_URL ?? 'https://source-database-809785351172.europe-north1.run.app';
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const productId = searchParams.get('productId');
+  const originalPriceId = searchParams.get('originalPriceId'); // For variant-specific campaign prices
 
   if (!productId) {
     return NextResponse.json(
@@ -15,29 +17,76 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const campaignPrice = await getCampaignPriceForProduct(TENANT_ID, productId);
+    // Build URL with optional originalPriceId for variant-specific campaigns
+    let url = `${SOURCE_BASE}/api/campaigns/price/${productId}?tenant=${TENANT_ID}`;
+    if (originalPriceId) {
+      url += `&originalPriceId=${encodeURIComponent(originalPriceId)}`;
+    }
 
-    if (!campaignPrice || !campaignPrice.hasCampaignPrice) {
+    console.log(`🔍 Checking campaign price for product: ${productId}${originalPriceId ? ` (variant: ${originalPriceId})` : ''}`);
+
+    const response = await fetch(url, {
+      headers: {
+        'X-Tenant': TENANT_ID,
+        'Content-Type': 'application/json'
+      },
+      cache: 'no-store'
+    });
+
+    if (!response.ok) {
+      // 404 or other error = no campaign found
+      if (response.status === 404) {
+        console.log(`ℹ️  No campaign found for product: ${productId}`);
+        return NextResponse.json({
+          success: true,
+          hasCampaignPrice: false,
+          productId
+        });
+      }
+      
+      console.warn(`⚠️ Campaign API returned ${response.status} for product: ${productId}`);
       return NextResponse.json({
+        success: true,
         hasCampaignPrice: false,
         productId
       });
     }
 
+    const data = await response.json();
+
+    if (!data.hasCampaignPrice) {
+      return NextResponse.json({
+        success: true,
+        hasCampaignPrice: false,
+        productId
+      });
+    }
+
+    console.log(`🎯 Campaign price found for ${productId}:`, {
+      priceId: data.priceId,
+      campaignName: data.campaignName,
+      originalPriceId: data.originalPriceId
+    });
+
     return NextResponse.json({
+      success: true,
       hasCampaignPrice: true,
-      stripePriceId: campaignPrice.stripePriceId,
-      campaignId: campaignPrice.campaignId,
-      campaignName: campaignPrice.campaignName,
-      metadata: campaignPrice.metadata,
+      priceId: data.priceId,
+      campaignId: data.campaignId,
+      campaignName: data.campaignName,
+      originalPriceId: data.originalPriceId,
+      metadata: data.metadata,
       productId
     });
   } catch (error) {
     console.error('Error fetching campaign price:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch campaign price', hasCampaignPrice: false },
-      { status: 500 }
-    );
+    // Fail gracefully - return no campaign if API is down
+    return NextResponse.json({
+      success: false,
+      hasCampaignPrice: false,
+      productId,
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
   }
 }
 

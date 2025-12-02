@@ -68,8 +68,54 @@ export async function POST(req: NextRequest) {
       let priceId = item.stripePriceId; // fallback to provided price
       let isCampaign = false;
 
-      // If productId provided, query Stripe for latest active price
-      if (item.productId) {
+      // If productId and variant price ID provided, check Source Portal for campaign price
+      if (item.productId && item.stripePriceId) {
+        try {
+          // Check Source Portal API for variant-specific campaign price
+          const SOURCE_BASE = process.env.SOURCE_DATABASE_URL ?? 'https://source-database-809785351172.europe-north1.run.app';
+          const TENANT_ID = process.env.SOURCE_TENANT_ID ?? 'tanjaunlimited';
+          
+          const campaignUrl = `${SOURCE_BASE}/api/campaigns/price/${item.productId}?originalPriceId=${encodeURIComponent(item.stripePriceId)}&tenant=${TENANT_ID}`;
+          
+          console.log(`🔍 Checking campaign price for ${item.productId} (variant: ${item.stripePriceId})`);
+          
+          const campaignResponse = await fetch(campaignUrl, {
+            headers: {
+              'X-Tenant': TENANT_ID,
+              'Content-Type': 'application/json'
+            },
+            cache: 'no-store'
+          });
+
+          if (campaignResponse.ok) {
+            const campaignData_response = await campaignResponse.json();
+            
+            if (campaignData_response.hasCampaignPrice && campaignData_response.priceId) {
+              // Use campaign price
+              priceId = campaignData_response.priceId;
+              isCampaign = true;
+              
+              console.log(`🎯 Using campaign price for ${item.productId}:`);
+              console.log(`   Campaign: ${campaignData_response.campaignName || 'Unknown'}`);
+              console.log(`   Price ID: ${priceId}`);
+              
+              campaignData[`product_${index}_campaign`] = 'active';
+              campaignData[`product_${index}_campaign_id`] = campaignData_response.campaignId || '';
+              campaignData[`product_${index}_campaign_name`] = campaignData_response.campaignName || '';
+            } else {
+              // No campaign, use regular variant price
+              console.log(`💰 Using standard price for ${item.productId} (variant: ${item.stripePriceId})`);
+            }
+          } else {
+            // API call failed, fall back to regular price
+            console.warn(`⚠️ Campaign API returned ${campaignResponse.status}, using regular price`);
+          }
+        } catch (error) {
+          // Campaign API failed - use fallback price
+          console.warn(`⚠️ Campaign price lookup failed for ${item.productId}, using regular price:`, error instanceof Error ? error.message : 'Unknown error');
+        }
+      } else if (item.productId) {
+        // No variant price ID, try product-level campaign check (for products without variants)
         try {
           const priceInfo = await getLatestActivePriceForProduct(
             item.productId,

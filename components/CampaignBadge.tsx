@@ -9,6 +9,7 @@ type CampaignBadgeProps = {
   currency?: string;
   onCampaignFound?: (campaignPrice: number) => void;
   hasVariants?: boolean; // Deprecated: API now handles variant detection automatically
+  variantPriceId?: string; // For variant-specific campaign prices (original Stripe price ID)
 };
 
 type PriceInfo = {
@@ -29,20 +30,26 @@ export default function CampaignBadge({
   defaultPrice,
   currency = 'SEK',
   onCampaignFound,
-  hasVariants = false
+  hasVariants = false,
+  variantPriceId
 }: CampaignBadgeProps) {
   const [priceInfo, setPriceInfo] = useState<PriceInfo | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // API now handles variant detection automatically - no need to skip
-    async function fetchPrice() {
+    async function fetchCampaignPrice() {
       try {
-        // Query Stripe directly for latest price (Kraftverk approach)
+        // Use Source Portal API for campaign prices (supports variant-specific prices)
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 3000);
 
-        const res = await fetch(`/api/products/price?productId=${productId}`, {
+        // Build URL with optional originalPriceId for variant-specific campaigns
+        let url = `/api/campaigns/price?productId=${encodeURIComponent(productId)}`;
+        if (variantPriceId) {
+          url += `&originalPriceId=${encodeURIComponent(variantPriceId)}`;
+        }
+
+        const res = await fetch(url, {
           signal: controller.signal
         });
         
@@ -53,16 +60,47 @@ export default function CampaignBadge({
           return;
         }
 
-        const data: PriceInfo = await res.json();
+        const data = await res.json();
 
-        // Only show campaign if there's an actual discount (discountPercent > 0)
-        if (data.found && data.isCampaign && data.amount && data.campaignInfo && data.campaignInfo.discountPercent && data.campaignInfo.discountPercent > 0) {
-          setPriceInfo(data);
-          const campaignPrice = data.amount / 100; // Convert cents to SEK
-          
-          // Notify parent component
-          if (onCampaignFound) {
-            onCampaignFound(campaignPrice);
+        // If campaign price found, fetch the actual price amount from Stripe
+        if (data.hasCampaignPrice && data.priceId) {
+          try {
+            // Fetch campaign price details from Stripe to get amount
+            const priceRes = await fetch(`/api/products/price?productId=${productId}&stripePriceId=${encodeURIComponent(data.priceId)}`);
+            if (priceRes.ok) {
+              const priceData = await priceRes.json();
+              if (priceData.found && priceData.amount) {
+                // Calculate discount percentage
+                const campaignAmount = priceData.amount;
+                const originalAmount = defaultPrice * 100; // Convert SEK to cents
+                const discountPercent = Math.round(((originalAmount - campaignAmount) / originalAmount) * 100);
+
+                if (discountPercent > 0) {
+                  const campaignInfo: PriceInfo = {
+                    found: true,
+                    priceId: data.priceId,
+                    amount: campaignAmount,
+                    currency: priceData.currency || currency,
+                    isCampaign: true,
+                    campaignInfo: {
+                      originalAmount,
+                      discountPercent,
+                      description: data.campaignName
+                    }
+                  };
+
+                  setPriceInfo(campaignInfo);
+                  const campaignPrice = campaignAmount / 100; // Convert cents to SEK
+                  
+                  // Notify parent component
+                  if (onCampaignFound) {
+                    onCampaignFound(campaignPrice);
+                  }
+                }
+              }
+            }
+          } catch (error) {
+            console.warn('Failed to fetch campaign price details from Stripe:', error);
           }
         }
       } catch (error) {
@@ -73,8 +111,8 @@ export default function CampaignBadge({
       }
     }
 
-    fetchPrice();
-  }, [productId, onCampaignFound]);
+    fetchCampaignPrice();
+  }, [productId, variantPriceId, defaultPrice, currency, onCampaignFound]);
 
   if (loading || !priceInfo?.isCampaign || !priceInfo.campaignInfo) {
     return null;
