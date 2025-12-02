@@ -36,16 +36,26 @@ export default function CampaignBadge({
   const [priceInfo, setPriceInfo] = useState<PriceInfo | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // Log component mount and props
+  console.log(`🎨 CampaignBadge: Component rendered for product: ${productId}`, {
+    defaultPrice,
+    currency,
+    variantPriceId: variantPriceId || 'none',
+    hasVariants
+  });
+
   useEffect(() => {
     async function fetchCampaignPrice() {
-      console.log(`🔍 CampaignBadge: Checking campaign price for product: ${productId}${variantPriceId ? ` (variant: ${variantPriceId})` : ' (no variant)'}`);
+      console.log(`🔍 CampaignBadge: useEffect triggered for product: ${productId}${variantPriceId ? ` (variant: ${variantPriceId})` : ' (no variant)'}`);
       
       try {
         // Use Source Portal API for campaign prices (supports variant-specific prices)
+        // IMPORTANT: productId should be Stripe Product ID (prod_...), not baseSku
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 3000);
 
         // Build URL with optional originalPriceId for variant-specific campaigns
+        // productId should already be Stripe Product ID from product.stripeProductId
         let url = `/api/campaigns/price?productId=${encodeURIComponent(productId)}`;
         if (variantPriceId) {
           url += `&originalPriceId=${encodeURIComponent(variantPriceId)}`;

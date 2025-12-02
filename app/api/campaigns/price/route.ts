@@ -19,20 +19,30 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    // Convert customer portal product ID (e.g., "VALJ", "NJCilW") to Stripe Product ID
-    // Source Portal campaign API expects Stripe Product IDs
-    const tanjaProductId = mapProductId(productId);
-    const stripeProductId = STRIPE_PRODUCT_MAPPING[tanjaProductId];
+    // Check if productId is already a Stripe Product ID (starts with "prod_")
+    const isStripeProductId = productId.startsWith('prod_');
     
-    // Use Stripe Product ID if available, otherwise try customer portal ID
-    const apiProductId = stripeProductId || productId;
-    
-    console.log(`🔍 Campaign API: Product ID conversion:`, {
-      customerPortalId: productId,
-      tanjaProductId,
-      stripeProductId: stripeProductId || 'not found',
-      usingProductId: apiProductId
-    });
+    let apiProductId: string;
+    if (isStripeProductId) {
+      // Already a Stripe Product ID, use directly
+      apiProductId = productId;
+      console.log(`✅ Campaign API: Using Stripe Product ID directly: ${productId}`);
+    } else {
+      // Convert customer portal product ID (e.g., "VALJ", "NJCilW") to Stripe Product ID
+      // Source Portal campaign API expects Stripe Product IDs
+      const tanjaProductId = mapProductId(productId);
+      const stripeProductId = STRIPE_PRODUCT_MAPPING[tanjaProductId];
+      
+      // Use Stripe Product ID if available, otherwise try customer portal ID
+      apiProductId = stripeProductId || productId;
+      
+      console.log(`🔍 Campaign API: Product ID conversion:`, {
+        customerPortalId: productId,
+        tanjaProductId,
+        stripeProductId: stripeProductId || 'not found',
+        usingProductId: apiProductId
+      });
+    }
 
     // Build URL with optional originalPriceId for variant-specific campaigns
     let url = `${SOURCE_BASE}/api/campaigns/price/${apiProductId}?tenant=${TENANT_ID}`;
@@ -74,16 +84,22 @@ export async function GET(req: NextRequest) {
 
     const data = await response.json();
 
-    // Log full response for debugging
-    console.log(`📊 Campaign API: Source Portal full response:`, JSON.stringify(data, null, 2));
-    console.log(`📊 Campaign API: Source Portal response summary:`, {
-      hasCampaignPrice: data.hasCampaignPrice,
-      priceId: data.priceId,
-      campaignId: data.campaignId,
-      campaignName: data.campaignName,
-      success: data.success,
-      responseKeys: Object.keys(data)
-    });
+    // Log response in smaller chunks to avoid truncation
+    console.log(`📊 Campaign API: Source Portal response keys:`, Object.keys(data));
+    console.log(`📊 Campaign API: hasCampaignPrice =`, data.hasCampaignPrice);
+    console.log(`📊 Campaign API: success =`, data.success);
+    console.log(`📊 Campaign API: priceId =`, data.priceId);
+    console.log(`📊 Campaign API: campaignId =`, data.campaignId);
+    console.log(`📊 Campaign API: campaignName =`, data.campaignName);
+    console.log(`📊 Campaign API: originalPriceId =`, data.originalPriceId);
+    
+    // Log full response as string (might be truncated but better than object)
+    try {
+      const responseStr = JSON.stringify(data);
+      console.log(`📊 Campaign API: Full response (first 500 chars):`, responseStr.substring(0, 500));
+    } catch (e) {
+      console.log(`📊 Campaign API: Could not stringify response`);
+    }
 
     if (!data.hasCampaignPrice) {
       console.log(`ℹ️ Campaign API: No campaign found for ${productId}`);

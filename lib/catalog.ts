@@ -133,6 +133,7 @@ export async function getProducts(params: { locale?: string; category?: string; 
       images: p.images || [],
       price: p.priceRange?.min || (p.variants?.[0]?.priceSEK),
       currency: 'SEK',
+      stripeProductId: p.stripeProductId || p.stripe_product_id, // Use Stripe Product ID from Source API
       variants: p.variants?.map((v: any) => {
         const articleNumber = v.articleNumber || v.sku || v.id || v.key;
         const parsed = parseVariantAttributes(articleNumber, v.size, v.color, v.key);
@@ -211,6 +212,7 @@ export async function getProduct(productId: string, locale = 'sv'): Promise<Prod
       images: p.images || [],
       price: p.priceRange?.min || (p.variants?.[0]?.priceSEK),
       currency: 'SEK',
+      stripeProductId: p.stripeProductId || p.stripe_product_id, // Use Stripe Product ID from Source API
       variants: p.variants?.map((v: any) => {
         const articleNumber = v.articleNumber || v.sku || v.id || v.key;
         const parsed = parseVariantAttributes(articleNumber, v.size, v.color, v.key);

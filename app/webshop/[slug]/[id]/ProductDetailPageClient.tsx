@@ -35,6 +35,15 @@ export default function ProductDetailPageClient({
   // Get selected variant's price ID for campaign badge
   const selectedVariantData = product.variants?.find(v => v.key === selectedVariant);
   const variantPriceId = selectedVariantData?.stripePriceId;
+  
+  // Debug logging
+  console.log(`📦 ProductDetailPageClient: Product ${product.id}`, {
+    hasVariants: !!product.variants,
+    variantCount: product.variants?.length || 0,
+    selectedVariant,
+    variantPriceId: variantPriceId || 'none',
+    productPrice: product.price
+  });
 
   return (
     <div className="min-h-screen bg-ivory">
@@ -116,8 +125,9 @@ export default function ProductDetailPageClient({
                 </h1>
                 
                 {/* Campaign Badge & Price (if campaign exists) */}
+                {/* IMPORTANT: Use stripeProductId instead of id (baseSku) for campaign API */}
                 <CampaignBadge 
-                  productId={product.id}
+                  productId={product.stripeProductId || product.id}
                   defaultPrice={product.price}
                   currency={product.currency || 'SEK'}
                   onCampaignFound={setCampaignPrice}

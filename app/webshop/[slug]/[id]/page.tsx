@@ -69,7 +69,7 @@ export default async function ProductDetailPage({
     category: category.id,
     image: sourceProduct.images?.[0],
     inStock: true,
-    stripeProductId: undefined,
+    stripeProductId: sourceProduct.stripeProductId, // Use Stripe Product ID from Source API
     stripePriceId: sourceProduct.variants?.[0]?.stripePriceId || undefined,
   };
   
