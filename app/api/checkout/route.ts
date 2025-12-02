@@ -29,41 +29,45 @@ export async function POST(req: NextRequest) {
   // Get latest prices from Stripe (campaigns are newer prices on same product)
   const campaignData: Record<string, string> = {};
   
-  // Guide: Check inventory before allowing checkout
-  // "Products are not available for purchase when outOfStock: true"
-  const { getInventoryStatus, isStripePriceOutOfStock } = await import('@/lib/inventory');
+  // Check inventory using Storefront API - simpler and more reliable
+  const { getVariantByPriceId, getProductFromStorefront } = await import('@/lib/inventory-storefront');
   
   // Check inventory for all items before processing
   // CRITICAL: Block checkout if inventory is missing or out of stock
   for (const item of items) {
-    // Check by productId first
-    if (item.productId) {
-      const inventory = getInventoryStatus(item.productId);
-      // CRITICAL: Treat missing inventory as out of stock (prevents overselling)
-      if (!inventory || inventory.outOfStock) {
-        console.error(`❌ Checkout blocked: Product ${item.productId} ${!inventory ? 'has no inventory data (treating as out of stock)' : 'is out of stock'}`, {
-          inventory: inventory ? {
-            stock: inventory.stock,
-            status: inventory.status,
-            outOfStock: inventory.outOfStock
-          } : null
-        });
+    // Check by stripePriceId (for variants) - this is the most reliable check
+    if (item.stripePriceId) {
+      const variant = await getVariantByPriceId(item.stripePriceId, item.productId);
+      
+      if (!variant) {
+        console.error(`❌ Checkout blocked: Variant not found for price ${item.stripePriceId}`);
+        return NextResponse.json(
+          { error: `This item is not available` },
+          { status: 400 }
+        );
+      }
+      
+      // Check stock
+      if (variant.stock <= 0 || variant.outOfStock) {
+        console.error(`❌ Checkout blocked: Variant ${variant.size || 'N/A'} ${variant.color || 'N/A'} is out of stock (stock: ${variant.stock})`);
+        return NextResponse.json(
+          { error: `${variant.size || 'This size'} ${variant.color || ''} is out of stock`.trim() },
+          { status: 400 }
+        );
+      }
+      
+      console.log(`✅ Stock check passed for ${item.stripePriceId}: ${variant.stock} in stock`);
+    } else if (item.productId) {
+      // Fallback: Check product-level inventory if no variant price ID
+      const product = await getProductFromStorefront(item.productId, { revalidate: 0 });
+      
+      if (!product || !product.inStock) {
+        console.error(`❌ Checkout blocked: Product ${item.productId} is out of stock`);
         return NextResponse.json(
           { error: `Product ${item.productId} is out of stock` },
           { status: 400 }
         );
       }
-    }
-    
-    // Also check by stripePriceId if provided (for variants and campaign prices)
-    // Guide: "Match products by stripePriceId to update campaign price inventory"
-    // CRITICAL: isStripePriceOutOfStock now returns true if inventory is missing
-    if (item.stripePriceId && isStripePriceOutOfStock(item.stripePriceId)) {
-      console.error(`❌ Checkout blocked: Price ${item.stripePriceId} is out of stock or has no inventory data`);
-      return NextResponse.json(
-        { error: `This item is out of stock` },
-        { status: 400 }
-      );
     }
   }
 

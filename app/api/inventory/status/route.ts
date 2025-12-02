@@ -1,7 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getInventoryFromSource, type InventoryData } from '@/lib/inventory-source';
-// Keep in-memory as fallback
-import { getInventoryStatus, getInventoryByStripePriceId } from '@/lib/inventory';
+import { getProductFromStorefront, getVariantByPriceId } from '@/lib/inventory-storefront';
 import { getProduct } from '@/lib/catalog';
 
 export async function GET(req: NextRequest) {
@@ -12,41 +10,39 @@ export async function GET(req: NextRequest) {
 
     // Support querying by stripePriceId (for variants)
     if (stripePriceId) {
-      // CRITICAL: Stripe Price IDs already start with "price_", don't duplicate the prefix
-      const inventoryId = stripePriceId.startsWith('price_') ? stripePriceId : `price_${stripePriceId}`;
       console.log(`📊 Variant inventory requested:`, {
         productId,
-        stripePriceId,
-        inventoryId
+        stripePriceId
       });
       
-      const variantInventory = getInventoryByStripePriceId(stripePriceId);
+      // Fetch variant from Storefront API
+      const variant = await getVariantByPriceId(stripePriceId, productId || undefined);
       
-      if (variantInventory) {
+      if (variant) {
         console.log(`✅ Found variant inventory for ${stripePriceId}:`, {
-          stock: variantInventory.stock,
-          status: variantInventory.status,
-          outOfStock: variantInventory.outOfStock,
-          sku: variantInventory.sku,
-          source: 'in_memory'
+          stock: variant.stock,
+          status: variant.status,
+          outOfStock: variant.outOfStock,
+          size: variant.size,
+          color: variant.color,
+          source: 'storefront_api'
         });
         return NextResponse.json({
-          productId: productId || undefined,
+          productId: variant.productId,
           stripePriceId,
-          stock: variantInventory.stock,
-          status: variantInventory.status,
-          lowStock: variantInventory.lowStock,
-          outOfStock: variantInventory.outOfStock,
-          name: variantInventory.name,
-          sku: variantInventory.sku,
-          lastUpdated: variantInventory.lastUpdated,
+          stock: variant.stock,
+          status: variant.status || (variant.outOfStock ? 'out_of_stock' : variant.lowStock ? 'low_stock' : 'in_stock'),
+          lowStock: variant.lowStock || variant.stock < 10,
+          outOfStock: variant.outOfStock || variant.stock <= 0,
+          sku: variant.sku || variant.articleNumber,
+          name: variant.productName,
           hasData: true,
-          source: 'in_memory'
+          source: 'storefront_api'
         });
       } else {
-        // CRITICAL: No variant inventory data = treat as OUT OF STOCK (not in stock)
-        // This prevents overselling when inventory sync hasn't happened yet
-        console.warn(`⚠️ No variant inventory found for ${stripePriceId}, treating as OUT OF STOCK`);
+        // CRITICAL: No variant found = treat as OUT OF STOCK (not in stock)
+        // This prevents overselling when variant doesn't exist
+        console.warn(`⚠️ No variant found for ${stripePriceId}, treating as OUT OF STOCK`);
         return NextResponse.json({
           productId: productId || undefined,
           stripePriceId,
@@ -69,73 +65,43 @@ export async function GET(req: NextRequest) {
 
     console.log(`📊 Inventory status requested for product: ${productId}`);
 
-    // PRIORITY: Use webhook data FIRST (fast, variant-level), then fall back to Source API
-    let inventory: InventoryData | null = null;
+    // Use Storefront API directly - simpler and more reliable than webhook system
+    const product = await getProductFromStorefront(productId);
+    let inventory: {
+      productId: string;
+      stock: number | null;
+      status: 'in_stock' | 'low_stock' | 'out_of_stock';
+      lowStock: boolean;
+      outOfStock: boolean;
+      name?: string;
+      sku?: string;
+      lastUpdated?: string;
+    } | null = null;
     let source = 'none';
 
-    // 1. FIRST: Check in-memory webhook data (fastest, has variant-level stock)
-    const memoryStatus = getInventoryStatus(productId);
-    if (memoryStatus) {
-      source = 'in_memory';
-      console.log(`📦 Using inventory from in-memory storage (webhook) for ${productId}`);
+    if (product) {
+      source = 'storefront_api';
+      console.log(`📦 Using inventory from Storefront API for ${productId}`);
+      
+      // Calculate product-level inventory from variants
+      const totalStock = product.variants?.reduce((sum, v) => sum + (v.stock || 0), 0) || 0;
+      const hasInStockVariants = product.variants?.some(v => v.stock > 0 && !v.outOfStock) || false;
+      const allOutOfStock = product.variants?.every(v => v.outOfStock || v.stock <= 0) || false;
+      
       inventory = {
-        productId,
-        stock: memoryStatus.stock,
-        status: memoryStatus.status,
-        lowStock: memoryStatus.lowStock,
-        outOfStock: memoryStatus.outOfStock,
-        name: memoryStatus.name,
-        sku: memoryStatus.sku,
-        lastUpdated: memoryStatus.lastUpdated
+        productId: product.baseSku || product.id,
+        stock: totalStock > 0 ? totalStock : null,
+        status: allOutOfStock ? 'out_of_stock' : (hasInStockVariants ? 'in_stock' : 'out_of_stock'),
+        lowStock: product.variants?.some(v => v.lowStock || (v.stock > 0 && v.stock < 10)) || false,
+        outOfStock: allOutOfStock || !hasInStockVariants,
+        name: product.title,
+        sku: product.baseSku || product.id,
+        lastUpdated: new Date().toISOString()
       };
-    } else {
-      // 2. FALLBACK: Only call Source API if webhook data doesn't exist
-      console.log(`📦 No webhook data found for ${productId}, checking Source API...`);
-      inventory = await getInventoryFromSource(productId);
-      if (inventory) {
-        source = 'source_api';
-        console.log(`📦 Using inventory from Source API for ${productId} (fallback)`);
-      }
     }
 
-    // Check if product has variants and if all variants are out of stock
-    if (inventory && !inventory.outOfStock) {
-      try {
-        const product = await getProduct(productId);
-        if (product?.variants && product.variants.length > 0) {
-          // Check if all variants are out of stock
-          const allVariantsOutOfStock = product.variants.every(variant => {
-            // Check variant inventory from in-memory store
-            const variantInventory = variant.stripePriceId 
-              ? getInventoryByStripePriceId(variant.stripePriceId)
-              : null;
-            
-            // Determine if variant is out of stock
-            if (variantInventory) {
-              return variantInventory.outOfStock || 
-                     (variantInventory.stock !== null && variantInventory.stock <= 0) || 
-                     variantInventory.status === 'out_of_stock';
-            } else {
-              // Use variant's own properties from product data
-              return variant.outOfStock || 
-                     variant.stock <= 0 || 
-                     variant.status === 'out_of_stock' || 
-                     variant.inStock === false;
-            }
-          });
-
-          if (allVariantsOutOfStock) {
-            console.log(`⚠️ All variants out of stock for product ${productId}, marking product as out of stock`);
-            inventory.outOfStock = true;
-            inventory.status = 'out_of_stock';
-            inventory.stock = 0;
-          }
-        }
-      } catch (error) {
-        console.warn(`Failed to check variant stock for product ${productId}:`, error);
-        // Continue with product-level inventory if variant check fails
-      }
-    }
+    // Variant-level stock is already calculated from Storefront API product data above
+    // No need for additional checks
 
     if (!inventory) {
       // CRITICAL: No inventory data = treat as OUT OF STOCK (not in stock)
