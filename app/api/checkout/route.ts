@@ -146,7 +146,6 @@ export async function POST(req: NextRequest) {
           
           // Check Source Portal API for campaign price
           const SOURCE_BASE = process.env.SOURCE_DATABASE_URL ?? 'https://source-database-809785351172.europe-north1.run.app';
-          const TENANT_ID = 'tanjaunlimited';
           
           let campaignUrl = `${SOURCE_BASE}/api/campaigns/price/${apiProductId}?tenant=${TENANT_ID}`;
           // If stripePriceId is provided, use it as originalPriceId (for products without variants)
