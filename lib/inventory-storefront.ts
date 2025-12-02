@@ -93,22 +93,51 @@ export async function getProductFromStorefront(
 
 /**
  * Get variant by Stripe Price ID
- * Searches through product variants to find matching price
+ * Uses the dedicated variant endpoint for faster lookups
+ * Falls back to product search if endpoint is unavailable
  */
 export async function getVariantByPriceId(
   stripePriceId: string,
   productId?: string
 ): Promise<(StorefrontVariant & { productId: string; productName: string }) | null> {
   try {
-    // If we know the product ID, fetch it directly
-    if (productId) {
-      const product = await getProductFromStorefront(productId, { revalidate: 0 }); // Fresh data for checkout
+    // ✅ USE DEDICATED VARIANT ENDPOINT (faster than searching all products)
+    // This is the recommended approach per Storefront API documentation
+    const response = await sourceFetch(
+      `/storefront/${TENANT_ID}/variant/${stripePriceId}`,
+      {
+        headers: { 'X-Tenant': TENANT_ID },
+        next: { revalidate: 0 } // Fresh data for checkout (no cache)
+      }
+    );
 
+    if (response.ok) {
+      const data = await response.json();
+      
+      if (data.success && data.variant && data.product) {
+        console.log(`✅ Found variant via dedicated endpoint: ${data.variant.size || 'N/A'} ${data.variant.color || 'N/A'} (stock: ${data.variant.stock})`);
+        return {
+          ...data.variant,
+          productId: data.product.baseSku || data.product.id,
+          productName: data.product.title
+        };
+      }
+    }
+
+    // Fallback: If dedicated endpoint doesn't work (404 or other error), use product search
+    if (response.status === 404) {
+      console.log(`ℹ️ Variant endpoint returned 404, falling back to product search for ${stripePriceId}`);
+    } else {
+      console.warn(`⚠️ Variant endpoint returned ${response.status}, falling back to product search`);
+    }
+    
+    // Fallback method 1: If we know the product ID, fetch it directly
+    if (productId) {
+      const product = await getProductFromStorefront(productId, { revalidate: 0 });
       if (product && product.variants) {
         const variant = product.variants.find(v => v.stripePriceId === stripePriceId);
-
         if (variant) {
-          console.log(`✅ Found variant: ${variant.size || 'N/A'} ${variant.color || 'N/A'} (stock: ${variant.stock})`);
+          console.log(`✅ Found variant via product lookup: ${variant.size || 'N/A'} ${variant.color || 'N/A'} (stock: ${variant.stock})`);
           return {
             ...variant,
             productId: product.baseSku || product.id,
@@ -118,14 +147,14 @@ export async function getVariantByPriceId(
       }
     }
 
-    // If product ID unknown, fetch all products (slower but works)
-    console.log(`🔍 Product ID unknown, searching all products for price ${stripePriceId}...`);
+    // Fallback method 2: Last resort - search all products (slower but works)
+    console.log(`🔍 Searching all products for price ${stripePriceId}...`);
     const allProducts = await getAllProductsFromStorefront({ revalidate: 0 });
-
     for (const product of allProducts) {
       if (product.variants) {
         const variant = product.variants.find(v => v.stripePriceId === stripePriceId);
         if (variant) {
+          console.log(`✅ Found variant via product search: ${variant.size || 'N/A'} ${variant.color || 'N/A'} (stock: ${variant.stock})`);
           return {
             ...variant,
             productId: product.baseSku || product.id,
@@ -139,6 +168,24 @@ export async function getVariantByPriceId(
     return null;
   } catch (error) {
     console.error('❌ Error getting variant:', error);
+    // Try fallback even on error
+    if (productId) {
+      try {
+        const product = await getProductFromStorefront(productId, { revalidate: 0 });
+        if (product && product.variants) {
+          const variant = product.variants.find(v => v.stripePriceId === stripePriceId);
+          if (variant) {
+            return {
+              ...variant,
+              productId: product.baseSku || product.id,
+              productName: product.title
+            };
+          }
+        }
+      } catch (fallbackError) {
+        console.error('❌ Fallback also failed:', fallbackError);
+      }
+    }
     return null;
   }
 }
