@@ -1,10 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
-import { getLatestActivePriceForProduct } from '@/lib/stripe-products';
+import { getLatestActivePriceForProduct, STRIPE_PRODUCT_MAPPING } from '@/lib/stripe-products';
 import { mapProductId } from '@/lib/inventory-mapping';
-import { STRIPE_PRODUCT_MAPPING } from '@/lib/stripe-products';
-import { mapProductId } from '@/lib/inventory-mapping';
-import { STRIPE_PRODUCT_MAPPING } from '@/lib/stripe-products';
 
 const TENANT_ID = 'tanjaunlimited';
 
