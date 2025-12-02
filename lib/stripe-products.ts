@@ -52,12 +52,17 @@ export async function getLatestActivePriceForProduct(
   // Map customer portal product ID (e.g., "LJCfilG") to Tanja product ID (e.g., "ljcfilg-001")
   // This allows the function to work with both formats
   const tanjaProductId = mapProductId(productId);
+  console.log(`🔍 Looking up Stripe price for product: ${productId} → ${tanjaProductId}`);
+  
   const stripeProductId = STRIPE_PRODUCT_MAPPING[tanjaProductId];
   
   if (!stripeProductId) {
     console.warn(`⚠️ No Stripe Product ID mapped for: ${productId} (mapped to: ${tanjaProductId})`);
+    console.warn(`   Available mappings:`, Object.keys(STRIPE_PRODUCT_MAPPING));
     return null;
   }
+  
+  console.log(`✅ Found Stripe Product ID: ${stripeProductId} for ${productId} (${tanjaProductId})`);
 
   try {
     const stripe = new Stripe(stripeSecretKey, { 
@@ -72,6 +77,8 @@ export async function getLatestActivePriceForProduct(
       expand: ['data.product']
     });
 
+    console.log(`📋 Found ${prices.data.length} active prices for ${productId} (${stripeProductId})`);
+
     if (prices.data.length === 0) {
       console.warn(`⚠️ No active prices found for product: ${productId} (${stripeProductId})`);
       return null;
@@ -80,6 +87,16 @@ export async function getLatestActivePriceForProduct(
     // Sort by creation date (newest first)
     const sorted = prices.data.sort((a, b) => {
       return (b.created || 0) - (a.created || 0);
+    });
+
+    console.log(`📊 Price details for ${productId}:`, {
+      totalPrices: sorted.length,
+      prices: sorted.map(p => ({
+        id: p.id,
+        amount: p.unit_amount ? p.unit_amount / 100 : 0,
+        created: new Date((p.created || 0) * 1000).toISOString(),
+        nickname: p.nickname
+      }))
     });
 
     const latestPrice = sorted[0];

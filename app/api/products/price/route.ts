@@ -18,17 +18,27 @@ export async function GET(req: NextRequest) {
   }
 
   try {
+    console.log(`📊 Campaign price lookup requested for product: ${productId}`);
+    
     const priceInfo = await getLatestActivePriceForProduct(
       productId,
       process.env.STRIPE_SECRET_KEY
     );
 
     if (!priceInfo) {
+      console.log(`ℹ️  No price info found for product: ${productId}`);
       return NextResponse.json({
         found: false,
         productId
       });
     }
+
+    console.log(`✅ Price info found for ${productId}:`, {
+      priceId: priceInfo.priceId,
+      amount: priceInfo.amount,
+      isCampaign: priceInfo.isCampaign,
+      discountPercent: priceInfo.campaignInfo?.discountPercent
+    });
 
     return NextResponse.json({
       found: true,
