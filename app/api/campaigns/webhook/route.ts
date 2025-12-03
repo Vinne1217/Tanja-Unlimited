@@ -29,7 +29,8 @@ export async function POST(req: NextRequest) {
   const action: string = body.action;
   const eventId: string | undefined = body.eventId;
 
-  console.log(`📥 Webhook received: ${action}`, eventId ? `(event: ${eventId})` : '');
+  console.log('📦 Campaign webhook received');
+  console.log('📦 Payload:', JSON.stringify(body, null, 2));
 
   // Check for duplicate events (idempotency)
   if (eventId && await isEventProcessed(TENANT_ID, eventId)) {
@@ -49,31 +50,137 @@ export async function POST(req: NextRequest) {
 
   // Handle price events (campaign pricing)
   if (action === 'price.created' || action === 'price.updated') {
-    const priceUpdate = body.priceUpdate;
-    
-    if (!priceUpdate?.stripePriceId || !priceUpdate?.originalProductId) {
-      console.error('❌ Missing required price fields:', priceUpdate);
+    try {
+      // Support both formats:
+      // 1. Source Portal format: fields directly on body (priceId, productId, campaignId, etc.)
+      // 2. Legacy format: nested in body.priceUpdate
+      let priceUpdate: {
+        stripePriceId: string;
+        originalProductId: string;
+        campaignId: string;
+        campaignName?: string;
+        metadata?: Record<string, any>;
+      };
+
+      if (body.priceUpdate) {
+        // Legacy format
+        priceUpdate = {
+          stripePriceId: body.priceUpdate.stripePriceId,
+          originalProductId: body.priceUpdate.originalProductId,
+          campaignId: body.priceUpdate.campaignId,
+          campaignName: body.priceUpdate.campaignName,
+          metadata: body.priceUpdate.metadata,
+        };
+      } else {
+        // Source Portal format: fields directly on body
+        const stripePriceId = body.priceId || (body.stripePriceIds && body.stripePriceIds[0]);
+        const productId = body.productId;
+        const campaignId = body.campaignId;
+
+        console.log('🔍 Parsed data:', {
+          action,
+          priceId: stripePriceId,
+          productId,
+          campaignId,
+          campaignName: body.campaignName,
+          discountPercent: body.discountPercent,
+          stripePriceIdsCount: body.stripePriceIds?.length,
+        });
+
+        // Validate required fields
+        if (!stripePriceId) {
+          console.error('❌ Missing priceId or stripePriceIds in webhook payload');
+          return NextResponse.json({ 
+            success: false, 
+            message: 'Missing required field: priceId or stripePriceIds',
+            error: 'No price ID found in payload'
+          }, { status: 400 });
+        }
+
+        if (!productId) {
+          console.error('❌ Missing productId in webhook payload');
+          return NextResponse.json({ 
+            success: false, 
+            message: 'Missing required field: productId',
+            error: 'No product ID found in payload'
+          }, { status: 400 });
+        }
+
+        if (!campaignId) {
+          console.error('❌ Missing campaignId in webhook payload');
+          return NextResponse.json({ 
+            success: false, 
+            message: 'Missing required field: campaignId',
+            error: 'No campaign ID found in payload'
+          }, { status: 400 });
+        }
+
+        // Check price ID format
+        console.log('🔍 Price ID format check:', {
+          priceId: stripePriceId,
+          startsWithPrice: stripePriceId?.startsWith('price_'),
+          length: stripePriceId?.length
+        });
+
+        priceUpdate = {
+          stripePriceId,
+          originalProductId: productId,
+          campaignId,
+          campaignName: body.campaignName,
+          metadata: {
+            discount_percent: body.discountPercent,
+            ...body.metadata,
+          },
+        };
+      }
+
+      // Validate priceUpdate object
+      if (!priceUpdate.stripePriceId || !priceUpdate.originalProductId || !priceUpdate.campaignId) {
+        console.error('❌ Missing required price fields:', priceUpdate);
+        return NextResponse.json({ 
+          success: false, 
+          message: 'Missing required fields',
+          error: `Missing: ${!priceUpdate.stripePriceId ? 'stripePriceId ' : ''}${!priceUpdate.originalProductId ? 'originalProductId ' : ''}${!priceUpdate.campaignId ? 'campaignId' : ''}`
+        }, { status: 400 });
+      }
+
+      console.log('✅ Validated priceUpdate:', {
+        stripePriceId: priceUpdate.stripePriceId,
+        productId: priceUpdate.originalProductId,
+        campaignId: priceUpdate.campaignId,
+        campaignName: priceUpdate.campaignName,
+      });
+
+      // Store campaign price
+      const result = await storeCampaignPrice(TENANT_ID, priceUpdate, eventId);
+      
+      if (result.success) {
+        console.log('✅ Successfully stored campaign');
+        // Revalidate pages to show new campaign prices
+        revalidatePath('/webshop');
+        revalidatePath('/collection');
+        revalidatePath('/');
+      } else {
+        console.error('❌ Failed to store campaign:', result.message);
+      }
+
+      return NextResponse.json({ 
+        success: result.success, 
+        message: result.message,
+        priceId: priceUpdate.stripePriceId,
+        productId: priceUpdate.originalProductId,
+        campaignId: priceUpdate.campaignId,
+        error: result.success ? undefined : result.message
+      });
+    } catch (error) {
+      console.error('❌ Campaign webhook error:', error);
+      console.error('❌ Error stack:', error instanceof Error ? error.stack : 'No stack trace');
       return NextResponse.json({ 
         success: false, 
-        message: 'Missing required fields' 
-      }, { status: 400 });
+        message: 'Failed to store campaign price',
+        error: error instanceof Error ? error.message : String(error)
+      }, { status: 500 });
     }
-
-    const result = await storeCampaignPrice(TENANT_ID, priceUpdate, eventId);
-    
-    if (result.success) {
-      // Revalidate pages to show new campaign prices
-      revalidatePath('/webshop');
-      revalidatePath('/collection');
-      revalidatePath('/');
-    }
-
-    return NextResponse.json({ 
-      success: result.success, 
-      message: result.message,
-      priceId: priceUpdate.stripePriceId,
-      productId: priceUpdate.originalProductId
-    });
   }
 
   // Handle inventory events (optional - only for cache revalidation)
@@ -119,27 +226,46 @@ export async function POST(req: NextRequest) {
   }
 
   if (action === 'price.deleted') {
-    const campaignId = body.priceUpdate?.campaignId;
-    
-    if (!campaignId) {
-      console.error('❌ Missing campaignId for price.deleted');
+    try {
+      // Support both formats
+      const campaignId = body.campaignId || body.priceUpdate?.campaignId;
+      
+      if (!campaignId) {
+        console.error('❌ Missing campaignId for price.deleted');
+        console.error('📦 Received body:', JSON.stringify(body, null, 2));
+        return NextResponse.json({ 
+          success: false, 
+          message: 'Missing campaignId',
+          error: 'No campaignId found in payload'
+        }, { status: 400 });
+      }
+
+      console.log(`🗑️  Expiring campaign: ${campaignId}`);
+      const result = await expireCampaignPrice(TENANT_ID, campaignId);
+      
+      if (result.success) {
+        console.log(`✅ Successfully expired campaign: ${campaignId}`);
+        revalidatePath('/webshop');
+        revalidatePath('/collection');
+      } else {
+        console.error(`❌ Failed to expire campaign: ${campaignId}`, result.message);
+      }
+
+      return NextResponse.json({ 
+        success: result.success, 
+        message: result.message,
+        campaignId,
+        error: result.success ? undefined : result.message
+      });
+    } catch (error) {
+      console.error('❌ Error expiring campaign:', error);
+      console.error('❌ Error stack:', error instanceof Error ? error.stack : 'No stack trace');
       return NextResponse.json({ 
         success: false, 
-        message: 'Missing campaignId' 
-      }, { status: 400 });
+        message: 'Failed to expire campaign',
+        error: error instanceof Error ? error.message : String(error)
+      }, { status: 500 });
     }
-
-    const result = await expireCampaignPrice(TENANT_ID, campaignId);
-    
-    if (result.success) {
-      revalidatePath('/webshop');
-      revalidatePath('/collection');
-    }
-
-    return NextResponse.json({ 
-      success: result.success, 
-      message: result.message 
-    });
   }
 
   // Handle campaign metadata events (legacy support)

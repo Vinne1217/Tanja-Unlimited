@@ -52,6 +52,13 @@ export async function storeCampaignPrice(
     };
 
     // Store in Source database via API
+    console.log(`💾 Storing campaign price to Source API:`, {
+      stripePriceId: priceUpdate.stripePriceId,
+      productId: priceUpdate.originalProductId,
+      campaignId: priceUpdate.campaignId,
+      tenantId,
+    });
+
     const res = await sourceFetch('/v1/campaign-prices', {
       method: 'POST',
       body: JSON.stringify({
@@ -61,17 +68,36 @@ export async function storeCampaignPrice(
     });
 
     if (!res.ok) {
-      console.error('Failed to store campaign price:', await res.text());
-      return { success: false, message: 'Failed to store campaign price' };
+      const errorText = await res.text();
+      console.error(`❌ Failed to store campaign price (${res.status}):`, errorText);
+      console.error(`   Request payload:`, JSON.stringify(campaignPrice, null, 2));
+      return { 
+        success: false, 
+        message: `Failed to store campaign price: ${res.status} ${errorText}` 
+      };
     }
 
+    const responseData = await res.json().catch(() => ({}));
     console.log(`✅ Successfully stored campaign price: ${priceUpdate.stripePriceId} for product: ${priceUpdate.originalProductId}`);
-    console.log(`   Campaign: ${priceUpdate.campaignName} (${priceUpdate.campaignId})`);
+    console.log(`   Campaign: ${priceUpdate.campaignName || 'N/A'} (${priceUpdate.campaignId})`);
+    console.log(`   Response:`, responseData);
 
     return { success: true, message: 'Price stored successfully' };
   } catch (error) {
-    console.error('Error storing campaign price:', error);
-    return { success: false, message: 'Error storing campaign price' };
+    console.error('❌ Error storing campaign price:', error);
+    console.error('❌ Error details:', {
+      message: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+      priceUpdate: {
+        stripePriceId: priceUpdate.stripePriceId,
+        productId: priceUpdate.originalProductId,
+        campaignId: priceUpdate.campaignId,
+      }
+    });
+    return { 
+      success: false, 
+      message: `Error storing campaign price: ${error instanceof Error ? error.message : String(error)}` 
+    };
   }
 }
 
