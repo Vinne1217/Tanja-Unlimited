@@ -45,27 +45,13 @@ export default function ProductDetailPageClient({
   const variantPriceId = selectedVariantData?.stripePriceId;
   
   // Get images array (fallback to single image for backward compatibility)
+  // ✅ Images from Storefront API are now public URLs at /storefront/images/ - no proxy needed
   const images = product.images && product.images.length > 0 
     ? product.images 
     : product.image 
       ? [product.image] 
       : [];
-  
-  // ✅ Proxy images through our API to bypass CORS issues
-  const getProxiedImageUrl = (url: string) => {
-    if (!url) return url;
-    // If it's already a proxy URL, return as-is
-    if (url.includes('/api/images/proxy')) return url;
-    // If it's from Source Portal, proxy it
-    if (url.includes('source-database-809785351172.europe-north1.run.app')) {
-      return `/api/images/proxy?url=${encodeURIComponent(url)}`;
-    }
-    // Otherwise return as-is
-    return url;
-  };
-  
-  const proxiedImages = images.map(getProxiedImageUrl);
-  const mainImage = proxiedImages[selectedImageIndex] || proxiedImages[0];
+  const mainImage = images[selectedImageIndex] || images[0];
   
   // ✅ Add image loading diagnostics
   useEffect(() => {
@@ -73,37 +59,32 @@ export default function ProductDetailPageClient({
       productImages: product.images,
       productImage: product.image,
       imagesArray: images,
-      proxiedImages,
       mainImage,
       imageCount: images.length,
       selectedImageIndex
     });
     
-    // Test if images are accessible (using proxied URL)
-    if (proxiedImages.length > 0 && proxiedImages[0]) {
-      console.log('🧪 Testing image accessibility:', {
-        original: images[0],
-        proxied: proxiedImages[0]
-      });
+    // Test if images are accessible (images are now public URLs from Storefront API)
+    if (images.length > 0 && images[0]) {
+      console.log('🧪 Testing image accessibility:', images[0]);
       const testImg = new Image();
       testImg.onload = () => {
-        console.log('✅ Image loaded successfully (test):', proxiedImages[0]);
+        console.log('✅ Image loaded successfully (test):', images[0]);
         console.log('   Image dimensions:', testImg.width, 'x', testImg.height);
       };
       testImg.onerror = (e) => {
-        console.error('❌ Image failed to load (test):', proxiedImages[0]);
-        console.error('   Original URL:', images[0]);
+        console.error('❌ Image failed to load (test):', images[0]);
         console.error('   Error event:', e);
         if (e instanceof Event) {
           console.error('   Error type:', e.type);
         }
-        console.error('   This might be a proxy issue or invalid URL');
+        console.error('   Check if URL is correct and image exists');
       };
-      testImg.src = proxiedImages[0];
+      testImg.src = images[0];
       
       // Also check if image element exists in DOM after a short delay
       setTimeout(() => {
-        const imgElements = document.querySelectorAll(`img[src="${proxiedImages[0]}"]`);
+        const imgElements = document.querySelectorAll(`img[src="${images[0]}"]`);
         console.log('🔍 Image elements in DOM:', imgElements.length);
         if (imgElements.length > 0) {
           const img = imgElements[0] as HTMLImageElement;
@@ -118,7 +99,7 @@ export default function ProductDetailPageClient({
     } else {
       console.warn('⚠️ No images found in product:', product.id);
     }
-  }, [product.images, product.image, product.id, images, proxiedImages, mainImage, selectedImageIndex]); // Include proxied images
+  }, [product.images, product.image, product.id, images, mainImage, selectedImageIndex]);
   
   // Debug logging
   console.log(`📦 ProductDetailPageClient: Product ${product.id}`, {
@@ -186,7 +167,7 @@ export default function ProductDetailPageClient({
                       className="w-full h-full object-cover"
                       width={600}
                       height={600}
-                      onError={async (e) => {
+                      onError={(e) => {
                         console.error('❌ Image render error:', {
                           src: mainImage,
                           error: e,
@@ -194,22 +175,6 @@ export default function ProductDetailPageClient({
                           productId: product.id,
                           timestamp: new Date().toISOString()
                         });
-                        
-                        // Try to fetch the proxy URL directly to see what error we get
-                        if (mainImage.startsWith('/api/images/proxy')) {
-                          try {
-                            const response = await fetch(mainImage);
-                            const text = await response.text();
-                            console.error('🔍 Proxy response:', {
-                              status: response.status,
-                              statusText: response.statusText,
-                              contentType: response.headers.get('content-type'),
-                              body: text.substring(0, 500)
-                            });
-                          } catch (fetchError) {
-                            console.error('🔍 Failed to fetch proxy URL:', fetchError);
-                          }
-                        }
                       }}
                       onLoad={(e) => {
                         const img = e.currentTarget;
@@ -245,28 +210,25 @@ export default function ProductDetailPageClient({
               {/* Thumbnail Images (if more than 1 image) */}
               {images.length > 1 && (
                 <div className="flex gap-3 mt-4 overflow-x-auto pb-2">
-                  {images.map((img, index) => {
-                    const proxiedImg = getProxiedImageUrl(img);
-                    return (
-                      <button
-                        key={index}
-                        onClick={() => setSelectedImageIndex(index)}
-                        className={`flex-shrink-0 w-20 h-20 border-2 overflow-hidden transition-all ${
-                          selectedImageIndex === index
-                            ? 'border-warmOchre'
-                            : 'border-ochre/20 hover:border-ochre/40'
-                        }`}
-                      >
-                        <img 
-                          src={proxiedImg}
-                          alt={`${product.name} - bild ${index + 1}`}
-                          className="w-full h-full object-cover"
-                          width={80}
-                          height={80}
-                        />
-                      </button>
-                    );
-                  })}
+                  {images.map((img, index) => (
+                    <button
+                      key={index}
+                      onClick={() => setSelectedImageIndex(index)}
+                      className={`flex-shrink-0 w-20 h-20 border-2 overflow-hidden transition-all ${
+                        selectedImageIndex === index
+                          ? 'border-warmOchre'
+                          : 'border-ochre/20 hover:border-ochre/40'
+                      }`}
+                    >
+                      <img 
+                        src={img}
+                        alt={`${product.name} - bild ${index + 1}`}
+                        className="w-full h-full object-cover"
+                        width={80}
+                        height={80}
+                      />
+                    </button>
+                  ))}
                 </div>
               )}
             </motion.div>
