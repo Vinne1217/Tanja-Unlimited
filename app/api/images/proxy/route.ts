@@ -50,10 +50,12 @@ export async function GET(req: NextRequest) {
 
   try {
     console.log('🔄 Image proxy: Fetching image from Source Portal...');
-    // Fetch the image from Source Portal
+    // Fetch the image from Source Portal with X-Tenant header (required for authentication)
+    const TENANT_ID = 'tanjaunlimited';
     const imageResponse = await fetch(imageUrl, {
       headers: {
         'User-Agent': 'Tanja-Unlimited-Image-Proxy/1.0',
+        'X-Tenant': TENANT_ID, // ✅ Required for Source Portal authentication
       },
     });
 
