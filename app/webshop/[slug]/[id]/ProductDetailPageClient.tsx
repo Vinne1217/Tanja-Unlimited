@@ -186,7 +186,7 @@ export default function ProductDetailPageClient({
                       className="w-full h-full object-cover"
                       width={600}
                       height={600}
-                      onError={(e) => {
+                      onError={async (e) => {
                         console.error('❌ Image render error:', {
                           src: mainImage,
                           error: e,
@@ -194,6 +194,22 @@ export default function ProductDetailPageClient({
                           productId: product.id,
                           timestamp: new Date().toISOString()
                         });
+                        
+                        // Try to fetch the proxy URL directly to see what error we get
+                        if (mainImage.startsWith('/api/images/proxy')) {
+                          try {
+                            const response = await fetch(mainImage);
+                            const text = await response.text();
+                            console.error('🔍 Proxy response:', {
+                              status: response.status,
+                              statusText: response.statusText,
+                              contentType: response.headers.get('content-type'),
+                              body: text.substring(0, 500)
+                            });
+                          } catch (fetchError) {
+                            console.error('🔍 Failed to fetch proxy URL:', fetchError);
+                          }
+                        }
                       }}
                       onLoad={(e) => {
                         const img = e.currentTarget;
