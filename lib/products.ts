@@ -25,6 +25,7 @@ export type Product = {
   category: string;
   description?: string;
   image?: string;
+  images?: string[]; // Array of image URLs from Source Portal
   inStock: boolean;
   stripeProductId?: string;
   stripePriceId?: string;

@@ -28,6 +28,7 @@ export default function ProductDetailPageClient({
   slug: string;
 }) {
   const [campaignPrice, setCampaignPrice] = useState<number | null>(null);
+  const [selectedImageIndex, setSelectedImageIndex] = useState(0); // ✅ Add state for selected image
   
   // Filter variants to only those with sizes (matching BuyNowButton logic)
   const sizeVariants = product.variants?.filter(v => v.size) || [];
@@ -43,13 +44,23 @@ export default function ProductDetailPageClient({
   const selectedVariantData = product.variants?.find(v => v.key === selectedVariant);
   const variantPriceId = selectedVariantData?.stripePriceId;
   
+  // Get images array (fallback to single image for backward compatibility)
+  const images = product.images && product.images.length > 0 
+    ? product.images 
+    : product.image 
+      ? [product.image] 
+      : [];
+  const mainImage = images[selectedImageIndex] || images[0];
+  
   // Debug logging
   console.log(`📦 ProductDetailPageClient: Product ${product.id}`, {
     hasVariants: !!product.variants,
     variantCount: product.variants?.length || 0,
     selectedVariant,
     variantPriceId: variantPriceId || 'none',
-    productPrice: product.price
+    productPrice: product.price,
+    imageCount: images.length,
+    hasImages: images.length > 0
   });
 
   return (
@@ -83,7 +94,7 @@ export default function ProductDetailPageClient({
           </Link>
 
           <div className="grid lg:grid-cols-2 gap-16">
-            {/* Product Image */}
+            {/* Product Images */}
             <motion.div
               initial={{ opacity: 0, x: -30 }}
               animate={{ opacity: 1, x: 0 }}
@@ -97,12 +108,14 @@ export default function ProductDetailPageClient({
                   </div>
                 )}
                 
-                {/* Product Image or Placeholder */}
-                {product.image ? (
+                {/* Main Product Image */}
+                {mainImage ? (
                   <img 
-                    src={product.image} 
+                    src={mainImage} 
                     alt={product.name}
                     className="w-full h-full object-cover"
+                    width={600}
+                    height={600}
                   />
                 ) : (
                   <div className="w-full h-full bg-gradient-textile pattern-quilted flex items-center justify-center">
@@ -116,6 +129,31 @@ export default function ProductDetailPageClient({
                   </div>
                 )}
               </div>
+
+              {/* Thumbnail Images (if more than 1 image) */}
+              {images.length > 1 && (
+                <div className="flex gap-3 mt-4 overflow-x-auto pb-2">
+                  {images.map((img, index) => (
+                    <button
+                      key={index}
+                      onClick={() => setSelectedImageIndex(index)}
+                      className={`flex-shrink-0 w-20 h-20 border-2 overflow-hidden transition-all ${
+                        selectedImageIndex === index
+                          ? 'border-warmOchre'
+                          : 'border-ochre/20 hover:border-ochre/40'
+                      }`}
+                    >
+                      <img 
+                        src={img}
+                        alt={`${product.name} - bild ${index + 1}`}
+                        className="w-full h-full object-cover"
+                        width={80}
+                        height={80}
+                      />
+                    </button>
+                  ))}
+                </div>
+              )}
             </motion.div>
 
             {/* Product Info */}

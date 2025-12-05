@@ -101,6 +101,13 @@ export default async function ProductDetailPage({
       price = sourceProduct.price > 10000 ? sourceProduct.price / 100 : sourceProduct.price;
     }
     
+    // Log images for debugging
+    console.log(`📸 Product images for ${id}:`, {
+      imageCount: sourceProduct.images?.length || 0,
+      images: sourceProduct.images || [],
+      hasImages: !!(sourceProduct.images && sourceProduct.images.length > 0)
+    });
+
     const product: any = {
       id: sourceProduct.id,
       name: sourceProduct.name,
@@ -108,7 +115,8 @@ export default async function ProductDetailPage({
       price: price,
       currency: sourceProduct.currency || 'SEK',
       category: category.id,
-      image: sourceProduct.images?.[0],
+      image: sourceProduct.images?.[0], // Keep for backward compatibility
+      images: sourceProduct.images || [], // ✅ Add full images array
       inStock: true,
       stripeProductId: sourceProduct.stripeProductId, // Use Stripe Product ID from Source API
       stripePriceId: sourceProduct.variants?.[0]?.stripePriceId || undefined,
