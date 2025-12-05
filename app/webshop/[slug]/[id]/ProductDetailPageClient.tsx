@@ -74,7 +74,9 @@ export default function ProductDetailPageClient({
       testImg.onerror = (e) => {
         console.error('❌ Image failed to load (test):', images[0]);
         console.error('   Error event:', e);
-        console.error('   Error type:', e.type);
+        if (e instanceof Event) {
+          console.error('   Error type:', e.type);
+        }
         console.error('   This might be a CORS issue or invalid URL');
       };
       testImg.src = images[0];
