@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { ArrowLeft, ShoppingCart, Heart, Share2, CheckCircle } from 'lucide-react';
 import Link from 'next/link';
@@ -52,6 +52,33 @@ export default function ProductDetailPageClient({
       : [];
   const mainImage = images[selectedImageIndex] || images[0];
   
+  // ✅ Add image loading diagnostics
+  useEffect(() => {
+    console.log('🖼️ ProductDetailPageClient: Images state', {
+      productImages: product.images,
+      productImage: product.image,
+      imagesArray: images,
+      mainImage,
+      imageCount: images.length
+    });
+    
+    // Test if images are accessible
+    if (images.length > 0) {
+      const testImg = new Image();
+      testImg.onload = () => {
+        console.log('✅ Image loaded successfully:', images[0]);
+      };
+      testImg.onerror = (e) => {
+        console.error('❌ Image failed to load:', images[0], e);
+        console.error('   Image URL:', images[0]);
+        console.error('   Error details:', e);
+      };
+      testImg.src = images[0];
+    } else {
+      console.warn('⚠️ No images found in product:', product.id);
+    }
+  }, [product.images, product.image, images, mainImage, product.id]);
+  
   // Debug logging
   console.log(`📦 ProductDetailPageClient: Product ${product.id}`, {
     hasVariants: !!product.variants,
@@ -60,7 +87,8 @@ export default function ProductDetailPageClient({
     variantPriceId: variantPriceId || 'none',
     productPrice: product.price,
     imageCount: images.length,
-    hasImages: images.length > 0
+    hasImages: images.length > 0,
+    mainImageUrl: mainImage || 'none'
   });
 
   return (
@@ -116,6 +144,16 @@ export default function ProductDetailPageClient({
                     className="w-full h-full object-cover"
                     width={600}
                     height={600}
+                    onError={(e) => {
+                      console.error('❌ Image render error:', {
+                        src: mainImage,
+                        error: e,
+                        productId: product.id
+                      });
+                    }}
+                    onLoad={() => {
+                      console.log('✅ Image rendered successfully:', mainImage);
+                    }}
                   />
                 ) : (
                   <div className="w-full h-full bg-gradient-textile pattern-quilted flex items-center justify-center">

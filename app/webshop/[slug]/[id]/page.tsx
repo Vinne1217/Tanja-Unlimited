@@ -40,18 +40,18 @@ export default async function ProductDetailPage({
     
     if (!sourceProduct) {
       console.warn(`⚠️ Product ${id} not found`);
-      return (
-        <div className="min-h-screen bg-ivory flex items-center justify-center">
-          <div className="text-center">
-            <h1 className="text-4xl font-serif text-deepIndigo mb-4">Product Not Found</h1>
-            <Link href="/webshop" className="text-warmOchre hover:text-deepIndigo">
-              ← Back to Webshop
-            </Link>
-          </div>
+    return (
+      <div className="min-h-screen bg-ivory flex items-center justify-center">
+        <div className="text-center">
+          <h1 className="text-4xl font-serif text-deepIndigo mb-4">Product Not Found</h1>
+          <Link href="/webshop" className="text-warmOchre hover:text-deepIndigo">
+            ← Back to Webshop
+          </Link>
         </div>
-      );
-    }
-    
+      </div>
+    );
+  }
+
     // Fetch categories from Source API to find matching category
     let sourceCategories: any[] = [];
     try {
@@ -78,7 +78,7 @@ export default async function ProductDetailPage({
     
     if (!category) {
       console.warn(`⚠️ Category ${slug} not found for product ${id}`);
-      return (
+  return (
         <div className="min-h-screen bg-ivory flex items-center justify-center">
           <div className="text-center">
             <h1 className="text-4xl font-serif text-deepIndigo mb-4">Category Not Found</h1>
@@ -105,7 +105,8 @@ export default async function ProductDetailPage({
     console.log(`📸 Product images for ${id}:`, {
       imageCount: sourceProduct.images?.length || 0,
       images: sourceProduct.images || [],
-      hasImages: !!(sourceProduct.images && sourceProduct.images.length > 0)
+      hasImages: !!(sourceProduct.images && sourceProduct.images.length > 0),
+      firstImageUrl: sourceProduct.images?.[0] || 'none'
     });
 
     const product: any = {
@@ -155,6 +156,14 @@ export default async function ProductDetailPage({
       }
     }
 
+    // ✅ Add final check before passing to client
+    console.log(`📤 Passing product to client component:`, {
+      productId: product.id,
+      imagesArray: product.images,
+      imageCount: product.images?.length || 0,
+      firstImage: product.image || 'none'
+    });
+
     console.log(`✅ ProductDetailPage: Successfully loaded product ${id}`, {
       hasVariants: !!product.variants,
       variantCount: product.variants?.length || 0,
@@ -179,8 +188,8 @@ export default async function ProductDetailPage({
             ← Back to Webshop
           </Link>
         </div>
-      </div>
-    );
+    </div>
+  );
   }
 }
 
