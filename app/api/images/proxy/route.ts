@@ -50,14 +50,25 @@ export async function GET(req: NextRequest) {
 
   try {
     console.log('🔄 Image proxy: Fetching image from Source Portal...');
-    // Fetch the image from Source Portal with X-Tenant header (required for authentication)
+    // Check if this is a /storefront/images/ endpoint (public, no auth needed)
+    // or /uploads/ endpoint (requires X-Tenant header)
+    const isStorefrontImage = imageUrl.includes('/storefront/images/');
     const TENANT_ID = 'tanjaunlimited';
-    const imageResponse = await fetch(imageUrl, {
-      headers: {
-        'User-Agent': 'Tanja-Unlimited-Image-Proxy/1.0',
-        'X-Tenant': TENANT_ID, // ✅ Required for Source Portal authentication
-      },
-    });
+    
+    const headers: HeadersInit = {
+      'User-Agent': 'Tanja-Unlimited-Image-Proxy/1.0',
+    };
+    
+    // Only add X-Tenant header for /uploads/ endpoints (legacy, requires auth)
+    // /storefront/images/ is public and doesn't need X-Tenant
+    if (!isStorefrontImage) {
+      headers['X-Tenant'] = TENANT_ID;
+      console.log('🔐 Using X-Tenant header for authenticated endpoint');
+    } else {
+      console.log('🌐 Using public /storefront/images/ endpoint (no auth needed)');
+    }
+    
+    const imageResponse = await fetch(imageUrl, { headers });
 
     console.log('📦 Image proxy: Response status:', imageResponse.status, imageResponse.statusText);
     console.log('📦 Image proxy: Content-Type:', imageResponse.headers.get('content-type'));
