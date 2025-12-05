@@ -54,30 +54,49 @@ export default function ProductDetailPageClient({
   
   // ✅ Add image loading diagnostics
   useEffect(() => {
-    console.log('🖼️ ProductDetailPageClient: Images state', {
+    console.log('🖼️ ProductDetailPageClient: useEffect triggered', {
       productImages: product.images,
       productImage: product.image,
       imagesArray: images,
       mainImage,
-      imageCount: images.length
+      imageCount: images.length,
+      selectedImageIndex
     });
     
     // Test if images are accessible
-    if (images.length > 0) {
+    if (images.length > 0 && images[0]) {
+      console.log('🧪 Testing image accessibility:', images[0]);
       const testImg = new Image();
       testImg.onload = () => {
-        console.log('✅ Image loaded successfully:', images[0]);
+        console.log('✅ Image loaded successfully (test):', images[0]);
+        console.log('   Image dimensions:', testImg.width, 'x', testImg.height);
       };
       testImg.onerror = (e) => {
-        console.error('❌ Image failed to load:', images[0], e);
-        console.error('   Image URL:', images[0]);
-        console.error('   Error details:', e);
+        console.error('❌ Image failed to load (test):', images[0]);
+        console.error('   Error event:', e);
+        console.error('   Error type:', e.type);
+        console.error('   This might be a CORS issue or invalid URL');
       };
       testImg.src = images[0];
+      
+      // Also check if image element exists in DOM after a short delay
+      setTimeout(() => {
+        const imgElements = document.querySelectorAll(`img[src="${images[0]}"]`);
+        console.log('🔍 Image elements in DOM:', imgElements.length);
+        if (imgElements.length > 0) {
+          const img = imgElements[0] as HTMLImageElement;
+          console.log('   Image element found:', {
+            complete: img.complete,
+            naturalWidth: img.naturalWidth,
+            naturalHeight: img.naturalHeight,
+            src: img.src
+          });
+        }
+      }, 1000);
     } else {
       console.warn('⚠️ No images found in product:', product.id);
     }
-  }, [product.images, product.image, images, mainImage, product.id]);
+  }, [product.images, product.image, product.id]); // Simplified dependencies
   
   // Debug logging
   console.log(`📦 ProductDetailPageClient: Product ${product.id}`, {
@@ -138,23 +157,40 @@ export default function ProductDetailPageClient({
                 
                 {/* Main Product Image */}
                 {mainImage ? (
-                  <img 
-                    src={mainImage} 
-                    alt={product.name}
-                    className="w-full h-full object-cover"
-                    width={600}
-                    height={600}
-                    onError={(e) => {
-                      console.error('❌ Image render error:', {
-                        src: mainImage,
-                        error: e,
-                        productId: product.id
-                      });
-                    }}
-                    onLoad={() => {
-                      console.log('✅ Image rendered successfully:', mainImage);
-                    }}
-                  />
+                  <>
+                    <img 
+                      src={mainImage} 
+                      alt={product.name}
+                      className="w-full h-full object-cover"
+                      width={600}
+                      height={600}
+                      onError={(e) => {
+                        console.error('❌ Image render error:', {
+                          src: mainImage,
+                          error: e,
+                          errorType: e.type,
+                          productId: product.id,
+                          timestamp: new Date().toISOString()
+                        });
+                      }}
+                      onLoad={(e) => {
+                        const img = e.currentTarget;
+                        console.log('✅ Image rendered successfully:', {
+                          src: mainImage,
+                          naturalWidth: img.naturalWidth,
+                          naturalHeight: img.naturalHeight,
+                          productId: product.id
+                        });
+                      }}
+                      style={{ display: 'block' }} // Ensure image is visible
+                    />
+                    {/* Debug indicator in development */}
+                    {process.env.NODE_ENV === 'development' && (
+                      <div className="absolute bottom-0 left-0 right-0 bg-black/50 text-white text-xs p-2 break-all">
+                        Image: {mainImage}
+                      </div>
+                    )}
+                  </>
                 ) : (
                   <div className="w-full h-full bg-gradient-textile pattern-quilted flex items-center justify-center">
                     <div className="text-ochre/20">
