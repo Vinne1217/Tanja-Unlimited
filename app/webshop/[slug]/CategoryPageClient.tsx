@@ -5,6 +5,20 @@ import { ArrowLeft, ShoppingCart } from 'lucide-react';
 import Link from 'next/link';
 import { formatPrice } from '@/lib/products';
 
+// ✅ Proxy images through our API to bypass CORS issues
+// Source Portal's /storefront/images/ endpoint exists but doesn't send CORS headers yet
+const getProxiedImageUrl = (url: string) => {
+  if (!url) return url;
+  // If it's already a proxy URL, return as-is
+  if (url.includes('/api/images/proxy')) return url;
+  // If it's from Source Portal, proxy it to bypass CORS
+  if (url.includes('source-database-809785351172.europe-north1.run.app')) {
+    return `/api/images/proxy?url=${encodeURIComponent(url)}`;
+  }
+  // Otherwise return as-is
+  return url;
+};
+
 type Category = {
   id: string;
   name: string;
@@ -99,9 +113,16 @@ export default function CategoryPageClient({
                     <div className="relative h-80 bg-warmIvory overflow-hidden">
                       {product.image ? (
                         <img 
-                          src={product.image} 
+                          src={getProxiedImageUrl(product.image)} 
                           alt={product.name}
                           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                          onError={(e) => {
+                            console.error('❌ Category page image error:', {
+                              src: product.image,
+                              proxied: getProxiedImageUrl(product.image),
+                              productId: product.id
+                            });
+                          }}
                         />
                       ) : (
                         <div className="w-full h-full bg-gradient-textile pattern-quilted flex items-center justify-center group-hover:bg-ochre/5 transition-all duration-500">
