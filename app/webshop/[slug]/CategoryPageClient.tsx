@@ -119,7 +119,7 @@ export default function CategoryPageClient({
                           onError={(e) => {
                             console.error('❌ Category page image error:', {
                               src: product.image,
-                              proxied: getProxiedImageUrl(product.image),
+                              proxied: product.image ? getProxiedImageUrl(product.image) : 'no image',
                               productId: product.id
                             });
                           }}
