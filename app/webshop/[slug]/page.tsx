@@ -44,6 +44,13 @@ export default async function CategoryPage({ params }: { params: Promise<{ slug:
   try {
     // Try fetching with category filter first
     const categoryParam = sourceCategory?.id || sourceCategory?.slug || slug;
+    console.log(`🔍 Category filter params:`, {
+      sourceCategoryId: sourceCategory?.id,
+      sourceCategorySlug: sourceCategory?.slug,
+      slug,
+      categoryParam
+    });
+    
     let result = await getProducts({ 
       locale: 'sv', 
       category: categoryParam,
@@ -60,6 +67,16 @@ export default async function CategoryPage({ params }: { params: Promise<{ slug:
       });
       const allProducts = allProductsResult.items || [];
       console.log(`✅ Fetched ${allProducts.length} total products from Source API`);
+      
+      // Log sample product categoryIds to see what we're working with
+      if (allProducts.length > 0) {
+        console.log(`📦 Sample product categoryIds:`, allProducts.slice(0, 5).map(p => ({
+          productId: p.id,
+          productName: p.name,
+          categoryId: p.categoryId,
+          category: p.category
+        })));
+      }
       
       // Build list of category IDs to match (parent + all subcategories)
       const categoryIdsToMatch: string[] = [];
@@ -79,16 +96,34 @@ export default async function CategoryPage({ params }: { params: Promise<{ slug:
       // Also add slug as fallback
       categoryIdsToMatch.push(slug);
       
+      console.log(`🔍 Category IDs to match:`, categoryIdsToMatch);
+      
       // Filter products that match any of the category IDs
       products = allProducts.filter(p => {
         const productCategoryId = p.categoryId;
-        if (!productCategoryId) return false;
+        if (!productCategoryId) {
+          // Log products without categoryId for debugging
+          if (allProducts.indexOf(p) < 3) {
+            console.log(`⚠️ Product ${p.id} (${p.name}) has no categoryId`);
+          }
+          return false;
+        }
         
         // Check if product's categoryId matches any of our category IDs
-        return categoryIdsToMatch.some(catId => 
-          productCategoryId === catId || 
-          productCategoryId.toString() === catId.toString()
-        );
+        const matches = categoryIdsToMatch.some(catId => {
+          const match = productCategoryId === catId || 
+                       productCategoryId.toString() === catId.toString();
+          if (match && allProducts.indexOf(p) < 3) {
+            console.log(`✅ Product ${p.id} matches category ${catId} (product.categoryId: ${productCategoryId})`);
+          }
+          return match;
+        });
+        
+        if (!matches && allProducts.indexOf(p) < 3) {
+          console.log(`❌ Product ${p.id} (${p.name}) categoryId "${productCategoryId}" doesn't match any of:`, categoryIdsToMatch);
+        }
+        
+        return matches;
       });
       
       console.log(`✅ Filtered to ${products.length} products matching categories:`, categoryIdsToMatch);
