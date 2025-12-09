@@ -1,8 +1,9 @@
 import Link from 'next/link';
 import { getCategoryBySlug } from '@/lib/products';
-import { getProduct, getCategories } from '@/lib/catalog';
+import { getProduct, getCategories, getProducts } from '@/lib/catalog';
 import ProductDetailPageClient from './ProductDetailPageClient';
 import CategoryNavigation from '@/components/CategoryNavigation';
+import CategoryPageClient from '../CategoryPageClient';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 300;
@@ -15,10 +16,112 @@ export default async function ProductDetailPage({
   try {
     const { slug, id } = await params;
     
-    console.log(`📦 ProductDetailPage: Loading product ${id} in category ${slug}`);
+    console.log(`📦 ProductDetailPage: Loading ${id} in category ${slug}`);
     
     // Get static category info for display
     const staticCategory = getCategoryBySlug(slug);
+    
+    // Fetch categories from Source API to check if this is a subcategory
+    let sourceCategories: any[] = [];
+    try {
+      sourceCategories = await getCategories('sv');
+    } catch (error) {
+      console.warn(`⚠️ Error fetching categories:`, error);
+    }
+    
+    if (!Array.isArray(sourceCategories)) {
+      sourceCategories = [];
+    }
+    
+    const sourceCategory = sourceCategories.find(c => c.slug === slug);
+    const sourceSubcategory = sourceCategory?.subcategories?.find((s: any) => s.slug === id);
+    
+    // If this is a subcategory, render subcategory page instead
+    if (sourceSubcategory) {
+      console.log(`📦 Detected subcategory: ${id}, rendering subcategory page`);
+      
+      // Fetch products filtered by subcategory
+      let products: any[] = [];
+      try {
+        const result = await getProducts({ 
+          locale: 'sv', 
+          category: id,
+          limit: 100 
+        });
+        products = result.items || [];
+        
+        if (products.length === 0) {
+          const allProductsResult = await getProducts({ 
+            locale: 'sv', 
+            limit: 100 
+          });
+          const allProducts = allProductsResult.items || [];
+          
+          products = allProducts.filter(p => {
+            const productCategory = p.categoryId;
+            return productCategory === id || 
+                   productCategory === sourceSubcategory?.id ||
+                   productCategory === sourceSubcategory?.slug;
+          });
+        }
+      } catch (error) {
+        console.error(`❌ Error fetching products:`, error);
+        products = [];
+      }
+      
+      const category = staticCategory || (sourceCategory ? {
+        id: sourceCategory.id,
+        name: sourceCategory.name,
+        slug: sourceCategory.slug,
+        description: '',
+        icon: 'sparkles'
+      } : null);
+      
+      if (!category) {
+        return (
+          <div className="min-h-screen bg-ivory flex items-center justify-center">
+            <div className="text-center">
+              <h1 className="text-4xl font-serif text-deepIndigo mb-4">Category Not Found</h1>
+              <Link href="/webshop" className="text-warmOchre hover:text-deepIndigo">
+                ← Back to Webshop
+              </Link>
+            </div>
+          </div>
+        );
+      }
+      
+      const displayCategory = {
+        ...category,
+        name: sourceSubcategory.name || id,
+        description: sourceSubcategory.description || category.description
+      };
+      
+      const formattedProducts = products.map((p: any) => ({
+        id: p.id,
+        name: p.name,
+        description: p.description,
+        image: p.images?.[0],
+        price: p.price || 0,
+        currency: p.currency || 'SEK',
+        salePrice: undefined,
+        inStock: p.variants?.some((v: any) => v.inStock !== false) ?? true,
+        category: p.categoryId || slug,
+      }));
+      
+      return (
+        <>
+          <CategoryNavigation />
+          <CategoryPageClient 
+            category={displayCategory}
+            products={formattedProducts}
+            slug={slug}
+          />
+        </>
+      );
+    }
+    
+    // Otherwise, treat as product ID
+    console.log(`📦 Treating ${id} as product ID`);
     
     // Fetch product from Source API
     let sourceProduct;
@@ -53,26 +156,14 @@ export default async function ProductDetailPage({
     );
   }
 
-    // Fetch categories from Source API to find matching category
-    let sourceCategories: any[] = [];
-    try {
-      const categoriesResult = await getCategories('sv');
-      // Ensure we have an array (getCategories might return different formats)
-      sourceCategories = Array.isArray(categoriesResult) ? categoriesResult : [];
-      console.log(`✅ Fetched ${sourceCategories.length} categories from Source API`);
-    } catch (error) {
-      console.warn(`⚠️ Error fetching categories, using static category only:`, error);
-      sourceCategories = [];
-    }
-    
-    // Ensure sourceCategories is an array before calling .find()
-    const sourceCategory = Array.isArray(sourceCategories) ? sourceCategories.find(c => c.slug === slug) : undefined;
+    // Use already fetched categories (from subcategory check above)
+    const sourceCategoryFromList = sourceCategories.find(c => c.slug === slug);
     
     // Use static category for display info, or fallback to Source API category
-    const category = staticCategory || (sourceCategory ? {
-      id: sourceCategory.id,
-      name: sourceCategory.name,
-      slug: sourceCategory.slug,
+    const category = staticCategory || (sourceCategoryFromList ? {
+      id: sourceCategoryFromList.id,
+      name: sourceCategoryFromList.name,
+      slug: sourceCategoryFromList.slug,
       description: '',
       icon: 'sparkles'
     } : null);
