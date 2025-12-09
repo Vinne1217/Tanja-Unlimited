@@ -1,6 +1,12 @@
 import { sourceFetch, SOURCE_BASE } from './source';
 
-export type Category = { id: string; slug: string; name: string };
+export type Category = { 
+  id: string; 
+  slug: string; 
+  name: string;
+  subcategories?: Category[];
+  productCount?: number;
+};
 
 /**
  * Extract size and color from articleNumber if not provided directly

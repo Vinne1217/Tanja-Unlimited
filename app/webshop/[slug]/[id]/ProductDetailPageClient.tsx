@@ -2,8 +2,9 @@
 
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { ArrowLeft, ShoppingCart, Heart, Share2, CheckCircle } from 'lucide-react';
+import { ArrowLeft, ShoppingCart, Heart, Share2, CheckCircle, Loader2 } from 'lucide-react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import type { Product } from '@/lib/products';
 import { formatPrice } from '@/lib/products';
 import BuyNowButton from '@/components/BuyNowButton';
@@ -359,6 +360,13 @@ export default function ProductDetailPageClient({
                       product={product} 
                       onVariantChange={setSelectedVariant}
                     />
+                    {/* Direct Checkout Button (as shown in template) */}
+                    {selectedVariant && (
+                      <DirectCheckoutButton 
+                        product={product}
+                        variantKey={selectedVariant}
+                      />
+                    )}
                     <p className="text-xs text-graphite/60 text-center">
                       Secure checkout powered by Stripe
                     </p>
@@ -439,6 +447,94 @@ export default function ProductDetailPageClient({
         </div>
       </section>
     </div>
+  );
+}
+
+// Direct Checkout Button Component (as shown in template)
+function DirectCheckoutButton({ 
+  product, 
+  variantKey 
+}: { 
+  product: Product; 
+  variantKey: string;
+}) {
+  const [loading, setLoading] = useState(false);
+  const router = useRouter();
+  
+  const selectedVariant = product.variants?.find(v => v.key === variantKey);
+  
+  const handleDirectCheckout = async () => {
+    if (!selectedVariant || !selectedVariant.stripePriceId) {
+      alert('Välj en variant först');
+      return;
+    }
+    
+    setLoading(true);
+    
+    try {
+      const response = await fetch('/api/checkout', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          items: [{
+            variantId: selectedVariant.key,
+            quantity: 1,
+            stripePriceId: selectedVariant.stripePriceId,
+            productId: product.id,
+            variantKey: selectedVariant.key,
+          }],
+          successUrl: `${window.location.origin}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
+          cancelUrl: window.location.href,
+        }),
+      });
+      
+      const data = await response.json();
+      
+      if (!response.ok) {
+        const errorMessage = data.error || 'Unknown error occurred';
+        alert(`Kunde inte skapa kassasession: ${errorMessage}`);
+        setLoading(false);
+        return;
+      }
+      
+      if (data.url) {
+        // Redirect to Stripe Checkout
+        window.location.href = data.url;
+      } else {
+        throw new Error('No checkout URL returned');
+      }
+    } catch (error) {
+      console.error('Checkout error:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      alert(`Fel vid skapande av kassasession. Försök igen.`);
+      setLoading(false);
+    }
+  };
+  
+  if (!selectedVariant || !selectedVariant.stripePriceId) {
+    return null;
+  }
+  
+  return (
+    <button
+      onClick={handleDirectCheckout}
+      disabled={loading}
+      className="flex items-center justify-center gap-3 w-full px-8 py-4 bg-sage text-deepIndigo hover:bg-sage/90 transition-all duration-300 font-medium tracking-wider disabled:opacity-50 disabled:cursor-not-allowed"
+    >
+      {loading ? (
+        <>
+          <Loader2 className="w-5 h-5 animate-spin" />
+          <span>Skapar kassasession...</span>
+        </>
+      ) : (
+        <>
+          <ShoppingCart className="w-5 h-5" />
+          <span>Gå till Kassan</span>
+        </>
+      )}
+    </button>
   );
 }
 

@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { getCategoryBySlug } from '@/lib/products';
 import { getProducts, getCategories } from '@/lib/catalog';
 import CategoryPageClient from './CategoryPageClient';
+import CategoryNavigation from '@/components/CategoryNavigation';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 300;
@@ -121,11 +122,14 @@ export default async function CategoryPage({ params }: { params: Promise<{ slug:
   console.log(`✅ CategoryPage: Prepared ${formattedProducts.length} products for display`);
 
   return (
-    <CategoryPageClient 
-      category={category}
-      products={formattedProducts}
-      slug={slug}
-    />
+    <>
+      <CategoryNavigation />
+      <CategoryPageClient 
+        category={category}
+        products={formattedProducts}
+        slug={slug}
+      />
+    </>
   );
 }
 

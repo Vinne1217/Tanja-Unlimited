@@ -5,6 +5,7 @@ import { ShoppingBag, ArrowRight } from 'lucide-react';
 import Link from 'next/link';
 import { categories } from '@/lib/products';
 import { useTranslation } from '@/lib/useTranslation';
+import CategoryNavigation from '@/components/CategoryNavigation';
 
 // Mark as dynamic to support useSearchParams
 export const dynamic = 'force-dynamic';
@@ -60,6 +61,7 @@ export default function WebshopPage() {
 
   return (
     <div className="min-h-screen">
+      <CategoryNavigation />
       {/* Hero */}
       <section className="relative py-24 bg-gradient-editorial overflow-hidden">
         <div className="absolute inset-0 pattern-block-print"></div>

@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { getCategoryBySlug } from '@/lib/products';
 import { getProduct, getCategories } from '@/lib/catalog';
 import ProductDetailPageClient from './ProductDetailPageClient';
+import CategoryNavigation from '@/components/CategoryNavigation';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 300;
@@ -171,11 +172,14 @@ export default async function ProductDetailPage({
     });
 
     return (
-      <ProductDetailPageClient 
-        product={product}
-        category={category}
-        slug={slug}
-      />
+      <>
+        <CategoryNavigation />
+        <ProductDetailPageClient 
+          product={product}
+          category={category}
+          slug={slug}
+        />
+      </>
     );
   } catch (error) {
     console.error(`❌ Fatal error in ProductDetailPage:`, error);
