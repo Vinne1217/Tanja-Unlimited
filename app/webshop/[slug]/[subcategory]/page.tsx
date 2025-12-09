@@ -66,7 +66,7 @@ export default async function SubcategoryPage({
       
       // Filter products that match subcategory
       products = allProducts.filter(p => {
-        const productCategory = p.categoryId || p.category;
+        const productCategory = p.categoryId;
         return productCategory === subcategory || 
                productCategory === sourceSubcategory?.id ||
                productCategory === sourceSubcategory?.slug;
@@ -117,7 +117,7 @@ export default async function SubcategoryPage({
     currency: p.currency || 'SEK',
     salePrice: undefined,
     inStock: p.variants?.some((v: any) => v.inStock !== false) ?? true,
-    category: p.categoryId || p.category || slug,
+    category: p.categoryId || slug,
   }));
   
   return (
