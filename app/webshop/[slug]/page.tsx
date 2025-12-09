@@ -73,8 +73,7 @@ export default async function CategoryPage({ params }: { params: Promise<{ slug:
         console.log(`📦 Sample product categoryIds:`, allProducts.slice(0, 5).map(p => ({
           productId: p.id,
           productName: p.name,
-          categoryId: p.categoryId,
-          category: p.category
+          categoryId: p.categoryId
         })));
       }
       
