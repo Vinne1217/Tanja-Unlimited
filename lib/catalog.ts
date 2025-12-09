@@ -107,17 +107,89 @@ export async function getCategories(locale = 'sv'): Promise<Category[]> {
   
   try {
     const data = await res.json();
+    
+    // Log the actual response structure for debugging
+    console.log(`📦 Raw categories response type:`, typeof data);
+    if (Array.isArray(data) && data.length > 0) {
+      console.log(`📦 First category raw structure:`, JSON.stringify(data[0], null, 2));
+    } else if (data.categories && Array.isArray(data.categories) && data.categories.length > 0) {
+      console.log(`📦 First category raw structure:`, JSON.stringify(data.categories[0], null, 2));
+    }
+    
+    let categoriesArray: any[] = [];
+    
     // Handle different response formats
     if (Array.isArray(data)) {
-      return data;
+      categoriesArray = data;
     } else if (data.categories && Array.isArray(data.categories)) {
-      return data.categories;
+      categoriesArray = data.categories;
     } else if (data.success && Array.isArray(data.categories)) {
-      return data.categories;
+      categoriesArray = data.categories;
     } else {
       console.warn(`⚠️ Unexpected categories response format:`, typeof data, Object.keys(data || {}));
       return [];
     }
+    
+    // Map categories to expected format (handle different field names from customer portal)
+    const mappedCategories: Category[] = categoriesArray.map((cat: any) => {
+      // Helper function to generate slug from name if not provided
+      const generateSlug = (name: string, id?: string) => {
+        if (!name) return id?.toLowerCase().replace(/\s+/g, '-') || '';
+        return name.toLowerCase()
+          .replace(/å/g, 'a')
+          .replace(/ä/g, 'a')
+          .replace(/ö/g, 'o')
+          .replace(/[^a-z0-9]+/g, '-')
+          .replace(/^-+|-+$/g, '');
+      };
+      
+      // Try different possible field names for id
+      const categoryId = cat.id || cat._id || cat.categoryId || cat.category_id || cat.id;
+      const categoryName = cat.name || cat.title || cat.categoryName || cat.category_name || '';
+      const categorySlug = cat.slug || cat.slugName || generateSlug(categoryName, categoryId);
+      
+      // Map subcategories if they exist
+      const mappedSubcategories = cat.subcategories && Array.isArray(cat.subcategories) 
+        ? cat.subcategories.map((sub: any) => {
+            const subId = sub.id || sub._id || sub.categoryId || String(sub.id || sub._id || '');
+            const subName = sub.name || sub.title || sub.categoryName || '';
+            const subSlug = sub.slug || sub.slugName || generateSlug(subName, subId);
+            
+            return {
+              id: subId,
+              slug: subSlug,
+              name: subName,
+              description: sub.description || sub.desc || '',
+              icon: sub.icon || 'sparkles',
+              productCount: sub.productCount || sub.product_count || sub.count || undefined
+            };
+          })
+        : undefined;
+      
+      return {
+        id: categoryId || String(cat.id || cat._id || ''),
+        slug: categorySlug,
+        name: categoryName,
+        description: cat.description || cat.desc || '',
+        icon: cat.icon || cat.iconName || 'sparkles',
+        parentId: cat.parentId || cat.parent_id || cat.parentCategoryId || undefined,
+        subcategories: mappedSubcategories,
+        productCount: cat.productCount || cat.product_count || cat.count || undefined
+      };
+    });
+    
+    // Filter out invalid categories (must have at least id, name, and slug)
+    const validCategories = mappedCategories.filter(cat => {
+      const isValid = !!(cat.id && cat.name && cat.slug);
+      if (!isValid) {
+        console.warn(`⚠️ Filtered out invalid category:`, cat);
+      }
+      return isValid;
+    });
+    
+    console.log(`📦 Mapped ${validCategories.length} valid categories from ${categoriesArray.length} raw categories`);
+    
+    return validCategories;
   } catch (error) {
     console.error(`❌ Error parsing categories response:`, error);
     return [];

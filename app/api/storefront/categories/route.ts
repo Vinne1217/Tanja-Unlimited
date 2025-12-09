@@ -11,7 +11,8 @@ export async function GET() {
     // Log category structure for debugging
     console.log(`📦 Categories API: Fetched ${categories.length} categories`);
     if (categories.length > 0) {
-      console.log(`📦 Sample category structure:`, {
+      console.log(`📦 Sample category structure:`, JSON.stringify(categories[0], null, 2));
+      console.log(`📦 Sample category fields:`, {
         id: categories[0].id,
         name: categories[0].name,
         slug: categories[0].slug,
@@ -19,6 +20,8 @@ export async function GET() {
         subcategoryCount: categories[0].subcategories?.length || 0,
         productCount: categories[0].productCount
       });
+    } else {
+      console.warn(`⚠️ No categories returned from getCategories`);
     }
     
     return NextResponse.json({ 
