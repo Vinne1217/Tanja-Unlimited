@@ -45,12 +45,20 @@ export default async function ProductDetailPage({
       try {
         // Try fetching with subcategory filter first
         const subcategoryParam = sourceSubcategory?.id || sourceSubcategory?.slug || id;
+        console.log(`🔍 Subcategory filter params:`, {
+          sourceSubcategoryId: sourceSubcategory?.id,
+          sourceSubcategorySlug: sourceSubcategory?.slug,
+          id,
+          subcategoryParam
+        });
+        
         let result = await getProducts({ 
           locale: 'sv', 
           category: subcategoryParam,
           limit: 100 
         });
         products = result.items || [];
+        console.log(`✅ Fetched ${products.length} products with subcategory filter: ${subcategoryParam}`);
         
         // If no products found with filter, fetch all and filter manually
         if (products.length === 0) {
@@ -59,6 +67,16 @@ export default async function ProductDetailPage({
             limit: 100 
           });
           const allProducts = allProductsResult.items || [];
+          console.log(`✅ Fetched ${allProducts.length} total products from Source API`);
+          
+          // Log sample product categoryIds to see what we're working with
+          if (allProducts.length > 0) {
+            console.log(`📦 Sample product categoryIds (subcategory page):`, allProducts.slice(0, 5).map(p => ({
+              productId: p.id,
+              productName: p.name,
+              categoryId: p.categoryId
+            })));
+          }
           
           // Build list of category IDs to match (subcategory ID and slug)
           const categoryIdsToMatch: string[] = [];
@@ -68,15 +86,32 @@ export default async function ProductDetailPage({
           }
           categoryIdsToMatch.push(id); // Add the slug from URL
           
+          console.log(`🔍 Subcategory IDs to match:`, categoryIdsToMatch);
+          
           // Filter products that match the subcategory
           products = allProducts.filter(p => {
             const productCategoryId = p.categoryId;
-            if (!productCategoryId) return false;
+            if (!productCategoryId) {
+              if (allProducts.indexOf(p) < 3) {
+                console.log(`⚠️ Product ${p.id} (${p.name}) has no categoryId`);
+              }
+              return false;
+            }
             
-            return categoryIdsToMatch.some(catId => 
-              productCategoryId === catId || 
-              productCategoryId.toString() === catId.toString()
-            );
+            const matches = categoryIdsToMatch.some(catId => {
+              const match = productCategoryId === catId || 
+                           productCategoryId.toString() === catId.toString();
+              if (match && allProducts.indexOf(p) < 3) {
+                console.log(`✅ Product ${p.id} matches subcategory ${catId} (product.categoryId: ${productCategoryId})`);
+              }
+              return match;
+            });
+            
+            if (!matches && allProducts.indexOf(p) < 3) {
+              console.log(`❌ Product ${p.id} (${p.name}) categoryId "${productCategoryId}" doesn't match any of:`, categoryIdsToMatch);
+            }
+            
+            return matches;
           });
           
           console.log(`✅ Filtered to ${products.length} products for subcategory ${subcategoryParam}`);

@@ -227,6 +227,21 @@ export async function getProducts(params: { locale?: string; category?: string; 
   // Handle different response formats
   if (data.success && data.products) {
     // Storefront format: { success: true, products: [...] }
+    // Log first product structure to see category field
+    if (data.products.length > 0) {
+      const firstProduct = data.products[0];
+      console.log(`📦 First product raw structure (category field):`, {
+        baseSku: firstProduct.baseSku,
+        name: firstProduct.name,
+        title: firstProduct.title,
+        category: firstProduct.category,
+        categoryId: firstProduct.categoryId,
+        category_id: firstProduct.category_id,
+        categoryName: firstProduct.categoryName,
+        allCategoryKeys: Object.keys(firstProduct).filter(k => k.toLowerCase().includes('categor'))
+      });
+    }
+    
     // Map storefront products to our Product format
     const mappedProducts: Product[] = data.products.map((p: any) => ({
       id: p.baseSku || p.id,
@@ -282,9 +297,19 @@ export async function getProducts(params: { locale?: string; category?: string; 
           price: variantPrice, // Price in SEK (converted)
           priceFormatted: v.priceFormatted || (variantPrice ? `${variantPrice.toFixed(2)} kr` : undefined) // Formatted price string
         };
-      }),
-      categoryId: p.category
+        }),
+      // Try multiple possible field names for categoryId
+      categoryId: p.categoryId || p.category || p.category_id || p.categoryName || undefined
     }));
+    
+    // Log sample mapped products to verify categoryId mapping
+    if (mappedProducts.length > 0) {
+      console.log(`📦 Sample mapped products categoryIds:`, mappedProducts.slice(0, 3).map(p => ({
+        productId: p.id,
+        productName: p.name,
+        categoryId: p.categoryId
+      })));
+    }
     return { items: mappedProducts };
   } else if (data.items) {
     // Catalog format: { items: [...], nextCursor?: string }
