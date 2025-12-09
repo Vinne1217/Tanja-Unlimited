@@ -40,46 +40,72 @@ export default async function CategoryPage({ params }: { params: Promise<{ slug:
   });
   
   // Fetch products from Source API
-  // NOTE: Storefront API might not support category filtering, so try without category first
   let products: any[] = [];
   try {
-    // First try without category filter (Storefront API might return all products)
-    const result = await getProducts({ 
+    // Try fetching with category filter first
+    const categoryParam = sourceCategory?.id || sourceCategory?.slug || slug;
+    let result = await getProducts({ 
       locale: 'sv', 
+      category: categoryParam,
       limit: 100 
     });
     products = result.items || [];
-    console.log(`✅ Fetched ${products.length} products from Source API (no category filter)`);
+    console.log(`✅ Fetched ${products.length} products with category filter: ${categoryParam}`);
     
-    // If we have products, filter by category if sourceCategory exists
-    if (products.length > 0 && sourceCategory) {
-      const categoryParam = sourceCategory.id || sourceCategory.slug;
-      // Filter products by category (check if product.category matches)
-      const filteredProducts = products.filter(p => {
-        const productCategory = p.categoryId || p.category;
-        return productCategory === categoryParam || productCategory === slug;
+    // If no products found with filter, fetch all and filter manually
+    if (products.length === 0) {
+      const allProductsResult = await getProducts({ 
+        locale: 'sv', 
+        limit: 100 
+      });
+      const allProducts = allProductsResult.items || [];
+      console.log(`✅ Fetched ${allProducts.length} total products from Source API`);
+      
+      // Build list of category IDs to match (parent + all subcategories)
+      const categoryIdsToMatch: string[] = [];
+      if (sourceCategory) {
+        // Add parent category ID
+        if (sourceCategory.id) categoryIdsToMatch.push(sourceCategory.id);
+        if (sourceCategory.slug) categoryIdsToMatch.push(sourceCategory.slug);
+        
+        // Add all subcategory IDs
+        if (sourceCategory.subcategories && sourceCategory.subcategories.length > 0) {
+          sourceCategory.subcategories.forEach((sub: any) => {
+            if (sub.id) categoryIdsToMatch.push(sub.id);
+            if (sub.slug) categoryIdsToMatch.push(sub.slug);
+          });
+        }
+      }
+      // Also add slug as fallback
+      categoryIdsToMatch.push(slug);
+      
+      // Filter products that match any of the category IDs
+      products = allProducts.filter(p => {
+        const productCategoryId = p.categoryId;
+        if (!productCategoryId) return false;
+        
+        // Check if product's categoryId matches any of our category IDs
+        return categoryIdsToMatch.some(catId => 
+          productCategoryId === catId || 
+          productCategoryId.toString() === catId.toString()
+        );
       });
       
-      if (filteredProducts.length > 0) {
-        products = filteredProducts;
-        console.log(`✅ Filtered to ${products.length} products in category ${categoryParam}`);
-      } else {
-        console.warn(`⚠️ No products found after filtering by category ${categoryParam}, showing all products`);
-      }
+      console.log(`✅ Filtered to ${products.length} products matching categories:`, categoryIdsToMatch);
     }
   } catch (error) {
     console.error(`❌ Error fetching products:`, error);
     products = [];
   }
   
-  // Use static category for display info, or fallback to Source API category
-  const category = staticCategory || (sourceCategory ? {
+  // Use Source API category for display info (preferred), or fallback to static category
+  const category = (sourceCategory ? {
     id: sourceCategory.id,
     name: sourceCategory.name,
     slug: sourceCategory.slug,
-    description: '',
-    icon: 'sparkles'
-  } : null);
+    description: sourceCategory.description || staticCategory?.description || '',
+    icon: sourceCategory.icon || staticCategory?.icon || 'sparkles'
+  } : staticCategory) || null;
 
   if (!category) {
     return (

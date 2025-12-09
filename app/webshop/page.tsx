@@ -1,17 +1,48 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { ShoppingBag, ArrowRight } from 'lucide-react';
 import Link from 'next/link';
-import { categories } from '@/lib/products';
 import { useTranslation } from '@/lib/useTranslation';
 import CategoryNavigation from '@/components/CategoryNavigation';
 
 // Mark as dynamic to support useSearchParams
 export const dynamic = 'force-dynamic';
 
+type Category = {
+  id: string;
+  name: string;
+  slug: string;
+  description?: string;
+  icon?: string;
+  subcategories?: Category[];
+  productCount?: number;
+};
+
 export default function WebshopPage() {
   const { t } = useTranslation();
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [loading, setLoading] = useState(true);
+  useEffect(() => {
+    async function loadCategories() {
+      try {
+        const response = await fetch('/api/storefront/categories', {
+          cache: 'no-store'
+        });
+        const data = await response.json();
+        if (data.success && data.categories) {
+          setCategories(data.categories);
+        }
+      } catch (error) {
+        console.error('Error loading categories:', error);
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadCategories();
+  }, []);
+
   const categoryIcons: Record<string, React.ReactNode> = {
     jacket: (
       <svg className="w-12 h-12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -99,8 +130,17 @@ export default function WebshopPage() {
             <div className="w-24 h-1 bg-ochre mx-auto"></div>
           </div>
 
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
-            {categories.map((category, idx) => (
+          {loading ? (
+            <div className="text-center py-16">
+              <div className="text-softCharcoal">Laddar kategorier...</div>
+            </div>
+          ) : categories.length === 0 ? (
+            <div className="text-center py-16">
+              <div className="text-softCharcoal">Inga kategorier tillgängliga.</div>
+            </div>
+          ) : (
+            <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
+              {categories.map((category, idx) => (
               <motion.div
                 key={category.id}
                 initial={{ opacity: 0, y: 30 }}
@@ -116,7 +156,7 @@ export default function WebshopPage() {
                     {/* Icon Section */}
                     <div className="relative h-64 flex items-center justify-center pattern-quilted bg-gradient-textile group-hover:bg-warmOchre/5 transition-all duration-500">
                       <div className="text-warmOchre group-hover:text-deepIndigo group-hover:scale-110 transition-all duration-500">
-                        {categoryIcons[category.icon]}
+                        {categoryIcons[category.icon || 'sparkles']}
                       </div>
                     </div>
                     
@@ -124,10 +164,17 @@ export default function WebshopPage() {
                     <div className="p-6 bg-cream">
                       <h3 className="text-xl font-serif text-deepIndigo mb-3 group-hover:text-warmOchre transition-colors">
                         {category.name}
+                        {category.productCount !== undefined && category.productCount > 0 && (
+                          <span className="ml-2 text-sm font-normal opacity-70">
+                            ({category.productCount})
+                          </span>
+                        )}
                       </h3>
-                      <p className="text-sm text-softCharcoal leading-relaxed mb-4">
-                        {category.description}
-                      </p>
+                      {category.description && (
+                        <p className="text-sm text-softCharcoal leading-relaxed mb-4">
+                          {category.description}
+                        </p>
+                      )}
                       <div className="flex items-center gap-2 text-deepIndigo group-hover:text-warmOchre transition-colors text-sm">
                         <span className="uppercase tracking-widest font-medium">Shop Now</span>
                         <ArrowRight className="w-4 h-4 group-hover:translate-x-2 transition-transform" />
@@ -136,8 +183,9 @@ export default function WebshopPage() {
                   </div>
                 </Link>
               </motion.div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
       </section>
 

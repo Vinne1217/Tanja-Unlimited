@@ -43,13 +43,16 @@ export default async function ProductDetailPage({
       // Fetch products filtered by subcategory
       let products: any[] = [];
       try {
-        const result = await getProducts({ 
+        // Try fetching with subcategory filter first
+        const subcategoryParam = sourceSubcategory?.id || sourceSubcategory?.slug || id;
+        let result = await getProducts({ 
           locale: 'sv', 
-          category: id,
+          category: subcategoryParam,
           limit: 100 
         });
         products = result.items || [];
         
+        // If no products found with filter, fetch all and filter manually
         if (products.length === 0) {
           const allProductsResult = await getProducts({ 
             locale: 'sv', 
@@ -57,12 +60,26 @@ export default async function ProductDetailPage({
           });
           const allProducts = allProductsResult.items || [];
           
+          // Build list of category IDs to match (subcategory ID and slug)
+          const categoryIdsToMatch: string[] = [];
+          if (sourceSubcategory) {
+            if (sourceSubcategory.id) categoryIdsToMatch.push(sourceSubcategory.id);
+            if (sourceSubcategory.slug) categoryIdsToMatch.push(sourceSubcategory.slug);
+          }
+          categoryIdsToMatch.push(id); // Add the slug from URL
+          
+          // Filter products that match the subcategory
           products = allProducts.filter(p => {
-            const productCategory = p.categoryId;
-            return productCategory === id || 
-                   productCategory === sourceSubcategory?.id ||
-                   productCategory === sourceSubcategory?.slug;
+            const productCategoryId = p.categoryId;
+            if (!productCategoryId) return false;
+            
+            return categoryIdsToMatch.some(catId => 
+              productCategoryId === catId || 
+              productCategoryId.toString() === catId.toString()
+            );
           });
+          
+          console.log(`✅ Filtered to ${products.length} products for subcategory ${subcategoryParam}`);
         }
       } catch (error) {
         console.error(`❌ Error fetching products:`, error);

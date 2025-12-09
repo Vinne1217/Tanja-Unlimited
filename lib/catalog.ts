@@ -4,6 +4,9 @@ export type Category = {
   id: string; 
   slug: string; 
   name: string;
+  description?: string;
+  icon?: string;
+  parentId?: string; // For subcategories
   subcategories?: Category[];
   productCount?: number;
 };
