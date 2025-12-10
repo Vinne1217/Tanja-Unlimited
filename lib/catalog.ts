@@ -354,12 +354,18 @@ export async function getProduct(productId: string, locale = 'sv'): Promise<Prod
   if (data.success && data.product) {
     // Storefront format: { success: true, product: {...} }
     const p = data.product;
+    
+    // priceRange.min and priceSEK are ALWAYS in cents from Storefront API
+    // Convert to SEK by dividing by 100
+    const priceInCents = p.priceRange?.min || (p.variants?.[0]?.priceSEK);
+    const priceInSEK = priceInCents ? priceInCents / 100 : undefined;
+    
     return {
       id: p.baseSku || p.id,
       name: p.title || p.name,
       description: p.description,
       images: p.images || [],
-      price: p.priceRange?.min || (p.variants?.[0]?.priceSEK),
+      price: priceInSEK, // Store price in SEK, not cents
       currency: 'SEK',
       stripeProductId: p.stripeProductId || p.stripe_product_id, // Use Stripe Product ID from Source API
       variants: p.variants?.map((v: any) => {
@@ -389,9 +395,9 @@ export async function getProduct(productId: string, locale = 'sv'): Promise<Prod
         }
         
         // ✅ Include variant-specific price data from Storefront API
-        // priceSEK is in cents (e.g., 29900 = 299 SEK), priceFormatted is already formatted
+        // priceSEK is in cents (e.g., 29900 = 299 SEK), always convert to SEK
         const variantPriceSEK = v.priceSEK ?? v.price ?? null;
-        const variantPrice = variantPriceSEK ? (variantPriceSEK > 10000 ? variantPriceSEK / 100 : variantPriceSEK) : null;
+        const variantPrice = variantPriceSEK ? variantPriceSEK / 100 : null;
         
         return {
           key: articleNumber,
@@ -409,7 +415,7 @@ export async function getProduct(productId: string, locale = 'sv'): Promise<Prod
           priceFormatted: v.priceFormatted || (variantPrice ? `${variantPrice.toFixed(2)} kr` : undefined) // Formatted price string
         };
       }),
-      categoryId: p.category
+      categoryId: p.category || p.categoryId || p.category_id || undefined
     };
   } else if (data.id) {
     // Direct product object (catalog format)
