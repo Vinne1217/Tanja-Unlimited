@@ -156,20 +156,13 @@ export default async function CategoryPage({ params }: { params: Promise<{ slug:
 
   // Convert Source API products to format expected by client component
   const formattedProducts = products.map(p => {
-    // Handle price conversion (might be in cents or SEK)
-    let price = 0;
-    if (p.price) {
-      // If price is very large (> 10000), assume it's in cents (e.g., 500000 = 5000 SEK)
-      // Otherwise assume it's already in SEK
-      price = p.price > 10000 ? p.price / 100 : p.price;
-    }
-    
+    // Price is already in SEK from getProducts (converted from cents in lib/catalog.ts)
     return {
       id: p.id,
       name: p.name,
       description: p.description,
       image: p.images?.[0],
-      price: price,
+      price: p.price || 0, // Already in SEK
       currency: p.currency || 'SEK',
       salePrice: undefined, // Will be handled by campaign pricing
       inStock: true,

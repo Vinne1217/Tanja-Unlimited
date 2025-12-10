@@ -243,64 +243,71 @@ export async function getProducts(params: { locale?: string; category?: string; 
     }
     
     // Map storefront products to our Product format
-    const mappedProducts: Product[] = data.products.map((p: any) => ({
-      id: p.baseSku || p.id,
-      name: p.title || p.name,
-      description: p.description,
-      images: p.images || [],
-      price: p.priceRange?.min || (p.variants?.[0]?.priceSEK),
-      currency: 'SEK',
-      stripeProductId: p.stripeProductId || p.stripe_product_id, // Use Stripe Product ID from Source API
-      variants: p.variants?.map((v: any) => {
-        const articleNumber = v.articleNumber || v.sku || v.id || v.key;
-        
-        // ✅ Use size and color fields directly from API (Source Portal provides these)
-        // Only fall back to parsing if not provided
-        let size = v.size;
-        let color = v.color;
-        
-        // Fallback to parsing only if size/color not provided directly
-        if (!size && !color) {
-          const parsed = parseVariantAttributes(articleNumber, v.size, v.color, v.key);
-          size = parsed.size;
-          color = parsed.color;
-        }
-        
-        // Log if we still don't have size/color after parsing
-        if (!size && !color && articleNumber) {
-          console.log(`⚠️ Variant missing size/color:`, {
-            articleNumber,
-            providedSize: v.size,
-            providedColor: v.color,
-            providedKey: v.key,
-            productId: p.baseSku || p.id
-          });
-        }
-        
-        // ✅ Include variant-specific price data from Storefront API
-        // priceSEK is in cents (e.g., 29900 = 299 SEK), priceFormatted is already formatted
-        const variantPriceSEK = v.priceSEK ?? v.price ?? null;
-        const variantPrice = variantPriceSEK ? (variantPriceSEK > 10000 ? variantPriceSEK / 100 : variantPriceSEK) : null;
-        
-        return {
-          key: articleNumber,
-          sku: articleNumber,
-          stock: v.stock ?? 0,
-          stripePriceId: v.stripePriceId,
-          size: size, // ✅ Use direct field, fallback to parsed
-          color: color, // ✅ Use direct field, fallback to parsed
-          status: v.status || (v.inStock === false ? 'out_of_stock' : v.lowStock ? 'low_stock' : 'in_stock'),
-          outOfStock: v.outOfStock ?? (v.stock === 0 || v.stock <= 0 || v.inStock === false),
-          lowStock: v.lowStock ?? false,
-          inStock: v.inStock ?? (v.stock > 0),
-          priceSEK: variantPriceSEK, // Price in cents from API
-          price: variantPrice, // Price in SEK (converted)
-          priceFormatted: v.priceFormatted || (variantPrice ? `${variantPrice.toFixed(2)} kr` : undefined) // Formatted price string
-        };
+    const mappedProducts: Product[] = data.products.map((p: any) => {
+      // priceRange.min and priceSEK are ALWAYS in cents from Storefront API
+      // Convert to SEK by dividing by 100
+      const priceInCents = p.priceRange?.min || (p.variants?.[0]?.priceSEK);
+      const priceInSEK = priceInCents ? priceInCents / 100 : undefined;
+      
+      return {
+        id: p.baseSku || p.id,
+        name: p.title || p.name,
+        description: p.description,
+        images: p.images || [],
+        price: priceInSEK, // Store price in SEK, not cents
+        currency: 'SEK',
+        stripeProductId: p.stripeProductId || p.stripe_product_id, // Use Stripe Product ID from Source API
+        variants: p.variants?.map((v: any) => {
+          const articleNumber = v.articleNumber || v.sku || v.id || v.key;
+          
+          // ✅ Use size and color fields directly from API (Source Portal provides these)
+          // Only fall back to parsing if not provided
+          let size = v.size;
+          let color = v.color;
+          
+          // Fallback to parsing only if size/color not provided directly
+          if (!size && !color) {
+            const parsed = parseVariantAttributes(articleNumber, v.size, v.color, v.key);
+            size = parsed.size;
+            color = parsed.color;
+          }
+          
+          // Log if we still don't have size/color after parsing
+          if (!size && !color && articleNumber) {
+            console.log(`⚠️ Variant missing size/color:`, {
+              articleNumber,
+              providedSize: v.size,
+              providedColor: v.color,
+              providedKey: v.key,
+              productId: p.baseSku || p.id
+            });
+          }
+          
+          // ✅ Include variant-specific price data from Storefront API
+          // priceSEK is in cents (e.g., 29900 = 299 SEK), always convert to SEK
+          const variantPriceSEK = v.priceSEK ?? v.price ?? null;
+          const variantPrice = variantPriceSEK ? variantPriceSEK / 100 : null;
+          
+          return {
+            key: articleNumber,
+            sku: articleNumber,
+            stock: v.stock ?? 0,
+            stripePriceId: v.stripePriceId,
+            size: size, // ✅ Use direct field, fallback to parsed
+            color: color, // ✅ Use direct field, fallback to parsed
+            status: v.status || (v.inStock === false ? 'out_of_stock' : v.lowStock ? 'low_stock' : 'in_stock'),
+            outOfStock: v.outOfStock ?? (v.stock === 0 || v.stock <= 0 || v.inStock === false),
+            lowStock: v.lowStock ?? false,
+            inStock: v.inStock ?? (v.stock > 0),
+            priceSEK: variantPriceSEK, // Price in cents from API
+            price: variantPrice, // Price in SEK (converted)
+            priceFormatted: v.priceFormatted || (variantPrice ? `${variantPrice.toFixed(2)} kr` : undefined) // Formatted price string
+          };
         }),
-      // Try multiple possible field names for categoryId
-      categoryId: p.categoryId || p.category || p.category_id || p.categoryName || undefined
-    }));
+        // Try multiple possible field names for categoryId
+        categoryId: p.categoryId || p.category || p.category_id || p.categoryName || undefined
+      };
+    });
     
     // Log sample mapped products to verify categoryId mapping
     if (mappedProducts.length > 0) {

@@ -237,13 +237,8 @@ export default async function ProductDetailPage({
     
     // Convert Source API product to format expected by BuyNowButton
     // BuyNowButton expects Product from @/lib/products but also uses variants
-    // Handle price conversion safely (price might already be in SEK, not cents)
-    let price = 0;
-    if (sourceProduct.price) {
-      // If price is very large (> 10000), assume it's in cents (e.g., 500000 = 5000 SEK)
-      // Otherwise assume it's already in SEK
-      price = sourceProduct.price > 10000 ? sourceProduct.price / 100 : sourceProduct.price;
-    }
+    // Price is already in SEK from getProduct (converted from cents in lib/catalog.ts)
+    const price = sourceProduct.price || 0;
     
     // Log images for debugging
     console.log(`📸 Product images for ${id}:`, {
@@ -273,9 +268,9 @@ export default async function ProductDetailPage({
       try {
         product.variants = sourceProduct.variants.map((v: any) => {
           // ✅ Include variant-specific price data from Storefront API
-          // priceSEK is in cents (e.g., 29900 = 299 SEK), priceFormatted is already formatted
+          // priceSEK is in cents (e.g., 29900 = 299 SEK), always convert to SEK
           const variantPriceSEK = v.priceSEK ?? v.price ?? null;
-          const variantPrice = variantPriceSEK ? (variantPriceSEK > 10000 ? variantPriceSEK / 100 : variantPriceSEK) : null;
+          const variantPrice = variantPriceSEK ? variantPriceSEK / 100 : null;
           
           return {
             key: v.key,
