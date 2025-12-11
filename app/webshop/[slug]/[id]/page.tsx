@@ -282,7 +282,17 @@ export default async function ProductDetailPage({
           // ✅ Include variant-specific price data from Storefront API
           // priceSEK is in cents (e.g., 29900 = 299 SEK), always convert to SEK
           const variantPriceSEK = v.priceSEK ?? v.price ?? null;
-          const variantPrice = variantPriceSEK ? variantPriceSEK / 100 : null;
+          let variantPrice = variantPriceSEK ? variantPriceSEK / 100 : null;
+          
+          // Log variant price for debugging (first 2 variants only)
+          if (sourceProduct.variants.indexOf(v) < 2) {
+            console.log(`💰 Variant price for ${v.key}:`, {
+              rawPriceSEK: variantPriceSEK,
+              rawPrice: v.price,
+              convertedPrice: variantPrice,
+              priceFormatted: v.priceFormatted
+            });
+          }
           
           return {
             key: v.key,
