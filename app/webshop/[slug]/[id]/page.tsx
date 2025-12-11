@@ -278,14 +278,14 @@ export default async function ProductDetailPage({
     // IMPORTANT: Include size and color fields directly from Source API
     if (sourceProduct.variants && sourceProduct.variants.length > 0) {
       try {
-        product.variants = sourceProduct.variants.map((v: any) => {
+        product.variants = sourceProduct.variants.map((v: any, index: number) => {
           // ✅ Include variant-specific price data from Storefront API
           // priceSEK is in cents (e.g., 29900 = 299 SEK), always convert to SEK
           const variantPriceSEK = v.priceSEK ?? v.price ?? null;
           let variantPrice = variantPriceSEK ? variantPriceSEK / 100 : null;
           
           // Log variant price for debugging (first 2 variants only)
-          if (sourceProduct.variants.indexOf(v) < 2) {
+          if (index < 2) {
             console.log(`💰 Variant price for ${v.key}:`, {
               rawPriceSEK: variantPriceSEK,
               rawPrice: v.price,
