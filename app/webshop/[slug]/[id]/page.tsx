@@ -237,8 +237,20 @@ export default async function ProductDetailPage({
     
     // Convert Source API product to format expected by BuyNowButton
     // BuyNowButton expects Product from @/lib/products but also uses variants
-    // Price is already in SEK from getProduct (converted from cents in lib/catalog.ts)
-    const price = sourceProduct.price || 0;
+    // Price should already be in SEK from getProduct (converted from cents in lib/catalog.ts)
+    // But add safety check: if price is very large (> 10000), it's likely still in cents
+    let price = sourceProduct.price || 0;
+    if (price > 10000) {
+      console.warn(`⚠️ Product ${id} price seems to be in cents (${price}), converting to SEK`);
+      price = price / 100;
+    }
+    
+    // Log price for debugging
+    console.log(`💰 Product price for ${id}:`, {
+      rawPrice: sourceProduct.price,
+      convertedPrice: price,
+      currency: sourceProduct.currency
+    });
     
     // Log images for debugging
     console.log(`📸 Product images for ${id}:`, {
