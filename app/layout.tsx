@@ -5,6 +5,8 @@ import Footer from '@/components/Footer';
 import AIAssistant from '@/components/AIAssistant';
 import AnalyticsProvider from '@/components/AnalyticsProvider';
 import { CartProvider } from '@/lib/cart-context';
+import NewsBanner from '@/components/NewsBanner';
+import { fetchNews } from '@/lib/news';
 
 export const metadata = {
   title: 'Tanja Unlimited – Art-Forward Textiles & Calligraphy',
@@ -14,12 +16,17 @@ export const metadata = {
 // Force all pages to be dynamic to support useSearchParams throughout the app
 export const dynamic = 'force-dynamic';
 
-export default function RootLayout({ children }: { children: ReactNode }) {
+export default async function RootLayout({ children }: { children: ReactNode }) {
+  // Hämta senaste nyheten på serversidan
+  const allNews = await fetchNews();
+  const latestNews = allNews.length > 0 ? allNews[0] : null;
+
   return (
     <html lang="en">
       <body className="min-h-screen">
         <AnalyticsProvider>
           <CartProvider>
+            <NewsBanner news={latestNews} />
             <Header />
             <main className="min-h-screen">
               {children}
