@@ -19,9 +19,11 @@ The implementation uses the existing `FRONTEND_API_KEY` environment variable tha
 
 The components fetch news from:
 ```
-GET https://source-database.onrender.com/public/news
-Authorization: Bearer <NEXT_PUBLIC_FRONTEND_API_KEY>
+GET https://source-database-809785351172.europe-north1.run.app/public/news
+Authorization: Bearer <FRONTEND_API_KEY>
 ```
+
+**Note:** The endpoint uses the same `SOURCE_BASE` URL as other API calls (Google Cloud Run), configured via `SOURCE_DATABASE_URL` environment variable.
 
 The API automatically filters:
 - By tenant (configured in backend)
@@ -98,9 +100,16 @@ To test the implementation:
 ## Troubleshooting
 
 - **Banner/Section not showing**: Check server logs for errors. Verify `FRONTEND_API_KEY` environment variable is set correctly in your Google Cloud environment.
-- **401 Unauthorized**: Verify `FRONTEND_API_KEY` matches the frontend API key configured in Source portal.
+- **401 Unauthorized**: Verify `FRONTEND_API_KEY` matches the frontend API key configured in Source portal. The correct API key is: `ek_live_e25c47c3ec2762a517213bb8feb51c2463367701bec73e89078a45d4f61247f0`
 - **No news displayed**: Ensure news items are published and within valid date range in Source portal.
 - **API key not found**: Ensure `FRONTEND_API_KEY` is set in your Google Cloud environment variables (not `NEXT_PUBLIC_FRONTEND_API_KEY`).
+
+## ✅ Endpoint Status
+
+**Confirmed:** The `/public/news` endpoint is working and available on Google Cloud Run:
+- **URL:** `https://source-database-809785351172.europe-north1.run.app/public/news`
+- **Status:** ✅ Tested and confirmed working
+- **API Key:** Configured and verified
 
 ## Architecture
 

@@ -1,6 +1,6 @@
 import { NewsItem, NewsApiResponse } from './news-types';
+import { SOURCE_BASE } from './source';
 
-const PUBLIC_NEWS_API_URL = 'https://source-database.onrender.com/public/news';
 const FETCH_TIMEOUT = 5000; // 5 sekunder timeout för att undvika att blockera renderingen
 
 export async function fetchNews(): Promise<NewsItem[]> {
@@ -12,6 +12,9 @@ export async function fetchNews(): Promise<NewsItem[]> {
   }
 
   try {
+    // Använd samma SOURCE_BASE som resten av koden (Google Cloud Run)
+    const PUBLIC_NEWS_API_URL = `${SOURCE_BASE}/public/news`;
+    
     // Skapa en AbortController för timeout
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT);
@@ -40,7 +43,7 @@ export async function fetchNews(): Promise<NewsItem[]> {
   } catch (err) {
     // Ignorera timeout-fel tyst (det är ok om news inte laddas)
     if (err instanceof Error && (err.name === 'AbortError' || err.message.includes('timeout') || err.message.includes('HeadersTimeoutError'))) {
-      console.warn('News fetch timeout from Render.com - continuing without news');
+      console.warn('News fetch timeout from Google Cloud Run - continuing without news');
     } else {
       console.error('Failed to fetch news:', err);
     }
