@@ -4,10 +4,10 @@ import { SOURCE_BASE } from './source';
 const FETCH_TIMEOUT = 5000; // 5 sekunder timeout för att undvika att blockera renderingen
 
 export async function fetchNews(): Promise<NewsItem[]> {
-  const apiKey = process.env.FRONTEND_API_KEY;
+  const apiKey = process.env.TANJA_NYHETER_API_KEY;
   
   if (!apiKey) {
-    console.warn('FRONTEND_API_KEY is not set');
+    console.warn('TANJA_NYHETER_API_KEY is not set');
     return [];
   }
 
@@ -29,7 +29,15 @@ export async function fetchNews(): Promise<NewsItem[]> {
     clearTimeout(timeoutId);
 
     if (!res.ok) {
-      console.warn('News API returned HTTP', res.status);
+      // Log detailed error information including response body
+      const error = await res.json().catch(() => ({}));
+      console.error('News API error details:', {
+        status: res.status,
+        statusText: res.statusText,
+        error: error,
+        code: error.code,  // This will tell us: API_KEY_REQUIRED, INVALID_API_KEY_FORMAT, etc.
+        message: error.message
+      });
       return [];
     }
 
