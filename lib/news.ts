@@ -60,7 +60,7 @@ export async function fetchNews(): Promise<NewsItem[]> {
     if (!res.ok) {
       // Log full error response including headers and body
       const errorText = await res.text();
-      let errorJson = {};
+      let errorJson: any = {};
       try {
         errorJson = JSON.parse(errorText);
       } catch (e) {
