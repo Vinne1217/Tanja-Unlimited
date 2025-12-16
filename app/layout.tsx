@@ -22,7 +22,16 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
   let latestNews = null;
   try {
     const allNews = await fetchNews();
+    console.log('Layout: Fetched news:', {
+      count: allNews.length,
+      items: allNews.map(n => ({ id: n.id, title: n.title, type: n.type, startAt: n.startAt, endAt: n.endAt }))
+    });
     latestNews = allNews.length > 0 ? allNews[0] : null;
+    console.log('Layout: Latest news for banner:', latestNews ? {
+      id: latestNews.id,
+      title: latestNews.title,
+      type: latestNews.type
+    } : 'null');
   } catch (error) {
     // Ignorera fel - fortsätt utan news
     console.warn('Failed to load news in layout:', error);

@@ -29,7 +29,15 @@ interface NewsBannerProps {
 }
 
 export default function NewsBanner({ news }: NewsBannerProps) {
+  // Debug logging
+  console.log('NewsBanner: Received news:', news ? {
+    id: news.id,
+    title: news.title,
+    type: news.type
+  } : 'null');
+  
   if (!news) {
+    console.log('NewsBanner: No news, returning null');
     return null;
   }
 

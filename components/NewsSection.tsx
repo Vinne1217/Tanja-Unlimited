@@ -29,7 +29,14 @@ interface NewsSectionProps {
 }
 
 export default function NewsSection({ newsItems }: NewsSectionProps) {
+  // Debug logging
+  console.log('NewsSection: Received items:', {
+    count: newsItems.length,
+    items: newsItems.map(n => ({ id: n.id, title: n.title, type: n.type }))
+  });
+  
   if (newsItems.length === 0) {
+    console.log('NewsSection: No items, returning null');
     return null;
   }
 
