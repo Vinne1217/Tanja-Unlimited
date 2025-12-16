@@ -6,6 +6,7 @@ export type Category = {
   name: string;
   description?: string;
   icon?: string;
+  imageUrl?: string;
   parentId?: string; // For subcategories
   subcategories?: Category[];
   productCount?: number;
@@ -161,6 +162,7 @@ export async function getCategories(locale = 'sv'): Promise<Category[]> {
               name: subName,
               description: sub.description || sub.desc || '',
               icon: sub.icon || 'sparkles',
+              imageUrl: sub.imageUrl || sub.image_url || sub.image || undefined,
               productCount: sub.productCount || sub.product_count || sub.count || undefined
             };
           })
@@ -172,6 +174,7 @@ export async function getCategories(locale = 'sv'): Promise<Category[]> {
         name: categoryName,
         description: cat.description || cat.desc || '',
         icon: cat.icon || cat.iconName || 'sparkles',
+        imageUrl: cat.imageUrl || cat.image_url || cat.image || undefined,
         parentId: cat.parentId || cat.parent_id || cat.parentCategoryId || undefined,
         subcategories: mappedSubcategories,
         productCount: cat.productCount || cat.product_count || cat.count || undefined

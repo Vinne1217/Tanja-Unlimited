@@ -16,6 +16,7 @@ type Category = {
   slug: string;
   description?: string;
   icon?: string;
+  imageUrl?: string;
   subcategories?: Category[];
   productCount?: number;
 };
@@ -153,11 +154,20 @@ export default function WebshopPage() {
                   className="group block"
                 >
                   <div className="relative bg-warmIvory border border-warmOchre/20 hover:border-warmOchre transition-all duration-500 overflow-hidden">
-                    {/* Icon Section */}
-                    <div className="relative h-64 flex items-center justify-center pattern-quilted bg-gradient-textile group-hover:bg-warmOchre/5 transition-all duration-500">
-                      <div className="text-warmOchre group-hover:text-deepIndigo group-hover:scale-110 transition-all duration-500">
-                        {categoryIcons[category.icon || 'sparkles']}
-                      </div>
+                    {/* Image/Icon Section */}
+                    <div className="relative h-64 flex items-center justify-center pattern-quilted bg-gradient-textile group-hover:bg-warmOchre/5 transition-all duration-500 overflow-hidden">
+                      {category.imageUrl ? (
+                        <img 
+                          src={category.imageUrl} 
+                          alt={category.name || 'Kategori'} 
+                          className="w-full h-full object-cover"
+                          loading="lazy"
+                        />
+                      ) : (
+                        <div className="text-warmOchre group-hover:text-deepIndigo group-hover:scale-110 transition-all duration-500">
+                          {categoryIcons[category.icon || 'sparkles']}
+                        </div>
+                      )}
                     </div>
                     
                     {/* Content */}

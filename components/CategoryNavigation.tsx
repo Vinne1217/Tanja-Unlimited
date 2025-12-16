@@ -9,6 +9,7 @@ export type Category = {
   id: string; 
   slug: string; 
   name: string;
+  imageUrl?: string;
   subcategories?: Category[];
   productCount?: number;
 };
@@ -131,18 +132,28 @@ export default function CategoryNavigation() {
                         <Link
                           key={subcategory.id || subcategory.slug}
                           href={`/webshop/${category.slug}/${subcategory.slug}`}
-                          className={`block px-4 py-2 text-sm transition-colors ${
+                          className={`flex items-center gap-2 px-4 py-2 text-sm transition-colors ${
                             isSubActive
                               ? 'bg-warmOchre/20 text-deepIndigo font-medium'
                               : 'text-softCharcoal hover:bg-warmIvory hover:text-deepIndigo'
                           }`}
                         >
-                          {subcategory.name}
-                          {subcategory.productCount !== undefined && subcategory.productCount > 0 && (
-                            <span className="ml-2 text-xs opacity-70">
-                              ({subcategory.productCount})
-                            </span>
+                          {subcategory.imageUrl && (
+                            <img 
+                              src={subcategory.imageUrl} 
+                              alt={subcategory.name || 'Underkategori'} 
+                              className="w-6 h-6 rounded object-cover flex-shrink-0"
+                              loading="lazy"
+                            />
                           )}
+                          <span>
+                            {subcategory.name}
+                            {subcategory.productCount !== undefined && subcategory.productCount > 0 && (
+                              <span className="ml-2 text-xs opacity-70">
+                                ({subcategory.productCount})
+                              </span>
+                            )}
+                          </span>
                         </Link>
                       );
                     })}
