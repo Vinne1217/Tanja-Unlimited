@@ -83,11 +83,26 @@ export async function fetchNews(): Promise<NewsItem[]> {
     
     // Log successful response body for debugging
     console.log('Test Response Body:', json);
+    console.log('News data received:', {
+      success: json.success,
+      dataLength: json.data?.length || 0,
+      data: json.data?.map(n => ({
+        id: n.id,
+        title: n.title,
+        type: n.type,
+        published: n.published,
+        startAt: n.startAt,
+        endAt: n.endAt,
+        now: new Date().toISOString()
+      })) || []
+    });
 
     if (!json.success || !Array.isArray(json.data) || json.data.length === 0) {
+      console.log('No news data to return (success:', json.success, ', dataLength:', json.data?.length || 0, ')');
       return [];
     }
 
+    console.log('Returning news data:', json.data.length, 'items');
     return json.data;
   } catch (err) {
     // Ignorera timeout-fel tyst (det är ok om news inte laddas)
