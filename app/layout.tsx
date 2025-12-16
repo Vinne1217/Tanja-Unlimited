@@ -17,9 +17,16 @@ export const metadata = {
 export const dynamic = 'force-dynamic';
 
 export default async function RootLayout({ children }: { children: ReactNode }) {
-  // Hämta senaste nyheten på serversidan
-  const allNews = await fetchNews();
-  const latestNews = allNews.length > 0 ? allNews[0] : null;
+  // Hämta senaste nyheten på serversidan med timeout-hantering
+  // Om news-fetching timeoutar, fortsätt utan news (blockerar inte renderingen)
+  let latestNews = null;
+  try {
+    const allNews = await fetchNews();
+    latestNews = allNews.length > 0 ? allNews[0] : null;
+  } catch (error) {
+    // Ignorera fel - fortsätt utan news
+    console.warn('Failed to load news in layout:', error);
+  }
 
   return (
     <html lang="en">
