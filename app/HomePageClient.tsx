@@ -47,12 +47,9 @@ export default function HomePageClient({ newsItems, latestNews }: HomePageClient
               <p className="text-sm uppercase tracking-widest text-ochre mb-6">
                 {t.home.subtitle}
               </p>
-              {/* News announcement integrated into hero */}
-              {latestNews && (
-                <div className="mb-6">
-                  <p className="text-sm uppercase tracking-widest text-ochre mb-2">
-                    {latestNews.type === 'alert' ? 'Varning' : latestNews.type === 'campaign' ? 'Kampanj' : 'Info'}
-                  </p>
+              {/* News announcement integrated into hero - replaces main heading */}
+              {latestNews ? (
+                <>
                   <h1 className="text-6xl lg:text-7xl font-serif font-medium text-indigo mb-4 leading-tight">
                     {latestNews.title}
                   </h1>
@@ -61,10 +58,11 @@ export default function HomePageClient({ newsItems, latestNews }: HomePageClient
                       {latestNews.body}
                     </p>
                   )}
-                </div>
-              )}
-              {/* Original hero content - show if no news */}
-              {!latestNews && (
+                  <p className="text-xl text-graphite leading-relaxed mb-12 max-w-2xl font-light">
+                    {t.home.description}
+                  </p>
+                </>
+              ) : (
                 <>
                   <h1 className="text-6xl lg:text-7xl font-serif font-medium text-indigo mb-8 leading-tight">
                     {t.home.title}
@@ -73,12 +71,6 @@ export default function HomePageClient({ newsItems, latestNews }: HomePageClient
                     {t.home.description}
                   </p>
                 </>
-              )}
-              {/* Show description below news if news exists */}
-              {latestNews && (
-                <p className="text-xl text-graphite leading-relaxed mb-12 max-w-2xl font-light">
-                  {t.home.description}
-                </p>
               )}
               
               <div className="flex flex-wrap gap-4">
