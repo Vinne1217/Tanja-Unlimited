@@ -44,8 +44,9 @@ export async function fetchNews(): Promise<NewsItem[]> {
         'Content-Type': 'application/json'
       },
       signal: controller.signal,
-      // Next.js cache options - revalidera varje minut
-      next: { revalidate: 60 },
+      // Disable caching to ensure fresh data on every request
+      // This ensures unpublished news disappears immediately when avpublicerad
+      cache: 'no-store',
     });
 
     clearTimeout(timeoutId);
