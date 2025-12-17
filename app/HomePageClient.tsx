@@ -8,14 +8,16 @@ import { NewsItem } from '@/lib/news-types';
 
 interface HomePageClientProps {
   newsItems: NewsItem[];
+  latestNews: NewsItem | null;
 }
 
-export default function HomePageClient({ newsItems }: HomePageClientProps) {
+export default function HomePageClient({ newsItems, latestNews }: HomePageClientProps) {
   const { t } = useTranslation();
   
   // Debug logging in client component
-  console.log('HomePageClient: Received newsItems prop:', {
-    count: newsItems?.length || 0,
+  console.log('HomePageClient: Received props:', {
+    latestNews: latestNews ? { id: latestNews.id, title: latestNews.title } : null,
+    newsItemsCount: newsItems?.length || 0,
     items: newsItems?.map(n => ({ id: n.id, title: n.title, type: n.type })) || [],
     isArray: Array.isArray(newsItems),
     type: typeof newsItems
@@ -45,12 +47,39 @@ export default function HomePageClient({ newsItems }: HomePageClientProps) {
               <p className="text-sm uppercase tracking-widest text-ochre mb-6">
                 {t.home.subtitle}
               </p>
-              <h1 className="text-6xl lg:text-7xl font-serif font-medium text-indigo mb-8 leading-tight">
-                {t.home.title}
-              </h1>
-              <p className="text-xl text-graphite leading-relaxed mb-12 max-w-2xl font-light">
-                {t.home.description}
-              </p>
+              {/* News announcement integrated into hero */}
+              {latestNews && (
+                <div className="mb-6">
+                  <p className="text-sm uppercase tracking-widest text-ochre mb-2">
+                    {latestNews.type === 'alert' ? 'Varning' : latestNews.type === 'campaign' ? 'Kampanj' : 'Info'}
+                  </p>
+                  <h1 className="text-6xl lg:text-7xl font-serif font-medium text-indigo mb-4 leading-tight">
+                    {latestNews.title}
+                  </h1>
+                  {latestNews.body && (
+                    <p className="text-xl text-graphite leading-relaxed mb-8 max-w-2xl font-light">
+                      {latestNews.body}
+                    </p>
+                  )}
+                </div>
+              )}
+              {/* Original hero content - show if no news */}
+              {!latestNews && (
+                <>
+                  <h1 className="text-6xl lg:text-7xl font-serif font-medium text-indigo mb-8 leading-tight">
+                    {t.home.title}
+                  </h1>
+                  <p className="text-xl text-graphite leading-relaxed mb-12 max-w-2xl font-light">
+                    {t.home.description}
+                  </p>
+                </>
+              )}
+              {/* Show description below news if news exists */}
+              {latestNews && (
+                <p className="text-xl text-graphite leading-relaxed mb-12 max-w-2xl font-light">
+                  {t.home.description}
+                </p>
+              )}
               
               <div className="flex flex-wrap gap-4">
                 <a 
