@@ -13,6 +13,14 @@ interface HomePageClientProps {
 export default function HomePageClient({ newsItems }: HomePageClientProps) {
   const { t } = useTranslation();
   
+  // Debug logging in client component
+  console.log('HomePageClient: Received newsItems prop:', {
+    count: newsItems?.length || 0,
+    items: newsItems?.map(n => ({ id: n.id, title: n.title, type: n.type })) || [],
+    isArray: Array.isArray(newsItems),
+    type: typeof newsItems
+  });
+  
   return (
     <div className="space-y-0">
       {/* Hero Section */}

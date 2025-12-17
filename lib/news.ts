@@ -102,8 +102,23 @@ export async function fetchNews(): Promise<NewsItem[]> {
       return [];
     }
 
-    console.log('Returning news data:', json.data.length, 'items');
-    return json.data;
+    // Normalize data - ensure all required fields exist
+    // Backend already filters by published and date ranges, so we can trust the data
+    const normalizedData: NewsItem[] = json.data.map((item: any) => ({
+      id: item.id,
+      type: item.type || 'info',
+      title: item.title || '',
+      body: item.body || '',
+      startAt: item.startAt,
+      endAt: item.endAt,
+      published: item.published !== undefined ? item.published : true, // Default to true if not provided
+      createdAt: item.createdAt || new Date().toISOString(),
+      updatedAt: item.updatedAt || new Date().toISOString(),
+    }));
+
+    console.log('Returning normalized news data:', normalizedData.length, 'items');
+    console.log('Normalized data sample:', normalizedData[0]);
+    return normalizedData;
   } catch (err) {
     // Ignorera timeout-fel tyst (det är ok om news inte laddas)
     if (err instanceof Error && (err.name === 'AbortError' || err.message.includes('timeout') || err.message.includes('HeadersTimeoutError'))) {

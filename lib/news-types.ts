@@ -9,9 +9,9 @@ export interface NewsItem {
   body: string;
   startAt?: string;
   endAt?: string;
-  published: boolean;
-  createdAt: string;
-  updatedAt: string;
+  published?: boolean; // Optional - backend already filters by published
+  createdAt?: string; // Optional - not always in API response
+  updatedAt?: string; // Optional - not always in API response
 }
 
 export interface NewsApiResponse {

@@ -31,11 +31,17 @@ interface NewsSectionProps {
 export default function NewsSection({ newsItems }: NewsSectionProps) {
   // Debug logging
   console.log('NewsSection: Received items:', {
-    count: newsItems.length,
-    items: newsItems.map(n => ({ id: n.id, title: n.title, type: n.type }))
+    count: newsItems?.length || 0,
+    items: newsItems?.map(n => ({ id: n.id, title: n.title, type: n.type, endAt: n.endAt })) || [],
+    isArray: Array.isArray(newsItems),
+    newsItems: newsItems
   });
   
-  if (newsItems.length === 0) {
+  // Backend already filters by published and date ranges, so we trust the data
+  // No need for client-side date filtering - backend handles it
+  const validNewsItems = newsItems || [];
+  
+  if (validNewsItems.length === 0) {
     console.log('NewsSection: No items, returning null');
     return null;
   }
@@ -47,7 +53,8 @@ export default function NewsSection({ newsItems }: NewsSectionProps) {
           <h2 className="text-4xl font-serif font-medium text-indigo mb-4">Nyheter</h2>
         </div>
         <div className="news-section-list grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {newsItems.map((item) => {
+          {validNewsItems.map((item) => {
+            console.log('NewsSection: Rendering item', item.id, item.title);
             const typeStyle = getTypeStyle(item.type);
             return (
               <article
