@@ -269,6 +269,8 @@ export async function POST(req: NextRequest) {
     success_url: successUrl,
     cancel_url: cancelUrl,
     metadata: sessionMetadata,
+    // Set locale to Swedish for proper translations
+    locale: 'sv',
     // Enable shipping address collection
     shipping_address_collection: {
       allowed_countries: ['SE', 'NO', 'DK', 'FI', 'DE', 'GB', 'US', 'CA', 'FR', 'ES', 'IT', 'NL', 'BE', 'AT', 'CH', 'PL', 'CZ'],
