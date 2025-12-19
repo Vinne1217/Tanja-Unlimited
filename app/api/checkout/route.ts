@@ -277,6 +277,8 @@ export async function POST(req: NextRequest) {
     phone_number_collection: {
       enabled: true,
     },
+    // Allow customers to enter promotion codes in Stripe Checkout
+    allow_promotion_codes: true,
   });
 
   console.log(`✅ Checkout session created: ${session.id}`);
