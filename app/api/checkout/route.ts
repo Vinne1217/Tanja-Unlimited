@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { getLatestActivePriceForProduct, STRIPE_PRODUCT_MAPPING } from '@/lib/stripe-products';
 import { mapProductId } from '@/lib/inventory-mapping';
+import { getTenantConfig } from '@/lib/source';
 
 const TENANT_ID = 'tanjaunlimited';
 
@@ -9,6 +10,9 @@ type CartItem = {
   quantity: number;
   stripePriceId: string; // fallback price ID
   productId?: string; // To query Stripe for latest price
+  // Gift card fields (only when type === 'gift_card')
+  type?: 'gift_card' | 'product';
+  giftCardAmount?: number; // Amount in cents (e.g., 50000 = 500 SEK)
 };
 
 export async function POST(req: NextRequest) {
@@ -19,12 +23,42 @@ export async function POST(req: NextRequest) {
   
   const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, { apiVersion: '2025-02-24.acacia' });
 
+  // SAFETY CHECK: Ensure Stripe test mode only for gift cards
+  const isTestMode = process.env.STRIPE_SECRET_KEY?.startsWith('sk_test_');
+  const tenantId = process.env.SOURCE_TENANT_ID ?? TENANT_ID;
+
   const { items, customerEmail, successUrl, cancelUrl } = (await req.json()) as {
     items: CartItem[];
     customerEmail?: string;
     successUrl: string;
     cancelUrl: string;
   };
+
+  // Check if any items are gift cards
+  const hasGiftCard = items.some(item => item.type === 'gift_card');
+  
+  if (hasGiftCard) {
+    // SAFETY: Gift cards only work in test mode
+    if (!isTestMode) {
+      console.error('❌ Gift card purchase blocked: Stripe is not in test mode');
+      return NextResponse.json(
+        { error: 'Gift cards are only available in test mode' },
+        { status: 403 }
+      );
+    }
+
+    // Check tenant configuration for gift card feature flag
+    const tenantConfig = await getTenantConfig(tenantId);
+    if (!tenantConfig.giftCardsEnabled) {
+      console.error(`❌ Gift card purchase blocked: giftCardsEnabled is false for tenant ${tenantId}`);
+      return NextResponse.json(
+        { error: 'Gift cards are not enabled for this tenant' },
+        { status: 403 }
+      );
+    }
+
+    console.log(`✅ Gift card purchase allowed for tenant ${tenantId} (test mode)`);
+  }
 
   // Get latest prices from Stripe (campaigns are newer prices on same product)
   const campaignData: Record<string, string> = {};
@@ -34,7 +68,14 @@ export async function POST(req: NextRequest) {
   
   // Check inventory for all items before processing
   // CRITICAL: Block checkout if inventory is missing or out of stock
+  // SKIP inventory check for gift cards (they don't have inventory)
   for (const item of items) {
+    // Skip inventory check for gift cards
+    if (item.type === 'gift_card') {
+      console.log(`✅ Skipping inventory check for gift card`);
+      continue;
+    }
+
     // Check by stripePriceId (for variants) - this is the most reliable check
     if (item.stripePriceId) {
       const variant = await getVariantByPriceId(item.stripePriceId, item.productId);
@@ -73,6 +114,21 @@ export async function POST(req: NextRequest) {
 
   const line_items = await Promise.all(
     items.map(async (item, index) => {
+      // Handle gift cards differently - they use the provided stripePriceId directly
+      if (item.type === 'gift_card') {
+        if (!item.stripePriceId) {
+          throw new Error('Gift card items must include stripePriceId');
+        }
+        if (!item.giftCardAmount || item.giftCardAmount <= 0) {
+          throw new Error('Gift card items must include valid giftCardAmount');
+        }
+        console.log(`🎁 Processing gift card: amount=${item.giftCardAmount}, priceId=${item.stripePriceId}`);
+        return {
+          price: item.stripePriceId,
+          quantity: item.quantity || 1
+        };
+      }
+
       let priceId = item.stripePriceId; // fallback to provided price
       let isCampaign = false;
 
@@ -253,16 +309,33 @@ export async function POST(req: NextRequest) {
   const websiteUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://tanja-unlimited-809785351172.europe-north1.run.app';
   const websiteDomain = websiteUrl.replace(/^https?:\/\//, '').replace(/\/$/, '');
   
-  const sessionMetadata = {
-    tenant: process.env.SOURCE_TENANT_ID ?? TENANT_ID,
+  // Check if this checkout contains gift cards
+  const giftCardItem = items.find(item => item.type === 'gift_card');
+  const isGiftCardPurchase = !!giftCardItem;
+  
+  const sessionMetadata: Record<string, string> = {
+    tenant: tenantId,
     source: 'tanja_website',
     website: websiteDomain,
     ...campaignData
   };
 
+  // Add gift card metadata if this is a gift card purchase
+  if (isGiftCardPurchase && giftCardItem) {
+    sessionMetadata.type = 'gift_card';
+    sessionMetadata.tenantId = tenantId; // Explicit tenant ID for webhook
+    sessionMetadata.giftCardAmount = String(giftCardItem.giftCardAmount || 0);
+    console.log(`🎁 Adding gift card metadata to checkout session:`, {
+      type: 'gift_card',
+      tenantId,
+      giftCardAmount: giftCardItem.giftCardAmount
+    });
+  }
+
   console.log('📦 Creating checkout session with metadata:', sessionMetadata);
 
-  const session = await stripe.checkout.sessions.create({
+  // Gift cards don't require shipping (they're digital)
+  const checkoutSessionConfig: Stripe.Checkout.SessionCreateParams = {
     mode: 'payment',
     customer_email: customerEmail,
     line_items,
@@ -271,17 +344,21 @@ export async function POST(req: NextRequest) {
     metadata: sessionMetadata,
     // Set locale to Swedish for proper translations
     locale: 'sv',
-    // Enable shipping address collection
-    shipping_address_collection: {
-      allowed_countries: ['SE', 'NO', 'DK', 'FI', 'DE', 'GB', 'US', 'CA', 'FR', 'ES', 'IT', 'NL', 'BE', 'AT', 'CH', 'PL', 'CZ'],
-    },
+    // Enable shipping address collection (skip for gift cards)
+    ...(isGiftCardPurchase ? {} : {
+      shipping_address_collection: {
+        allowed_countries: ['SE', 'NO', 'DK', 'FI', 'DE', 'GB', 'US', 'CA', 'FR', 'ES', 'IT', 'NL', 'BE', 'AT', 'CH', 'PL', 'CZ'],
+      },
+    }),
     // Enable phone number collection
     phone_number_collection: {
       enabled: true,
     },
     // Allow customers to enter promotion codes in Stripe Checkout
     allow_promotion_codes: true,
-  });
+  };
+
+  const session = await stripe.checkout.sessions.create(checkoutSessionConfig);
 
   console.log(`✅ Checkout session created: ${session.id}`);
 
