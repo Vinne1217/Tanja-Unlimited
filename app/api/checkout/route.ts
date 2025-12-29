@@ -321,14 +321,29 @@ export async function POST(req: NextRequest) {
   };
 
   // Add gift card metadata if this is a gift card purchase
+  // Mandatory metadata fields per requirements:
+  // - product_type: "giftcard"
+  // - giftcard_amount: numeric value in major currency units (e.g. "500")
+  // - giftcard_currency: ISO code (e.g. "SEK")
+  // - tenant: tenant identifier (already exists)
+  // - source: "tenant_webshop"
   if (isGiftCardPurchase && giftCardItem) {
-    sessionMetadata.type = 'gift_card';
-    sessionMetadata.tenantId = tenantId; // Explicit tenant ID for webhook
-    sessionMetadata.giftCardAmount = String(giftCardItem.giftCardAmount || 0);
+    // Convert amount from cents to major currency units
+    const giftCardAmountInMajorUnits = giftCardItem.giftCardAmount 
+      ? Math.round(giftCardItem.giftCardAmount / 100).toString() 
+      : '0';
+    
+    sessionMetadata.product_type = 'giftcard';
+    sessionMetadata.giftcard_amount = giftCardAmountInMajorUnits;
+    sessionMetadata.giftcard_currency = 'SEK'; // Default currency, could be made configurable
+    sessionMetadata.source = 'tenant_webshop'; // Override source for gift cards per requirements
+    
     console.log(`🎁 Adding gift card metadata to checkout session:`, {
-      type: 'gift_card',
-      tenantId,
-      giftCardAmount: giftCardItem.giftCardAmount
+      product_type: 'giftcard',
+      giftcard_amount: giftCardAmountInMajorUnits,
+      giftcard_currency: 'SEK',
+      tenant: tenantId,
+      source: 'tenant_webshop'
     });
   }
 
