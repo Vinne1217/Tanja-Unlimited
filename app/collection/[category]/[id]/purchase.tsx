@@ -54,10 +54,11 @@ export default function ProductPurchase({ product }: { product: Product }) {
       return;
     }
 
-    // Check if selected variant is out of stock (prioritize variant-level stock)
+    // Check if selected variant is out of stock
+    // CRITICAL: Use API flags (outOfStock, inStock, status) instead of raw stock values
     const selectedVariant = product.variants?.find(v => v.key === variantKey);
     if (selectedVariant) {
-      const variantOutOfStock = selectedVariant.outOfStock || selectedVariant.stock <= 0 || selectedVariant.status === 'out_of_stock' || selectedVariant.inStock === false;
+      const variantOutOfStock = selectedVariant.outOfStock || selectedVariant.status === 'out_of_stock' || selectedVariant.inStock === false;
       if (variantOutOfStock) {
         alert('Denna variant är tyvärr slutsåld. Vänligen välj en annan variant eller kontakta oss för mer information.');
         return;
@@ -118,9 +119,9 @@ export default function ProductPurchase({ product }: { product: Product }) {
                 // Display label: show size (should always exist since we filtered for size variants)
                 const displayLabel = v.size || v.key;
                 
-                // Check availability using variant's own stock/status
-                const stockCount = v.stock ?? 0;
-                const isOutOfStock = v.outOfStock || stockCount <= 0 || v.status === 'out_of_stock' || v.inStock === false;
+                // Check availability using API flags (outOfStock, inStock, status) instead of raw stock values
+                const stockCount = v.stock ?? null;
+                const isOutOfStock = v.outOfStock || v.status === 'out_of_stock' || v.inStock === false;
                 
                 // Stock display logic:
                 // - Only show stock if low stock (< 10) with "snart slutsåld"

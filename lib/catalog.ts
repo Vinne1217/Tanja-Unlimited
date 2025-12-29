@@ -299,9 +299,11 @@ export async function getProducts(params: { locale?: string; category?: string; 
             size: size, // ✅ Use direct field, fallback to parsed
             color: color, // ✅ Use direct field, fallback to parsed
             status: v.status || (v.inStock === false ? 'out_of_stock' : v.lowStock ? 'low_stock' : 'in_stock'),
-            outOfStock: v.outOfStock ?? (v.stock === 0 || v.stock <= 0 || v.inStock === false),
-            lowStock: v.lowStock ?? false,
-            inStock: v.inStock ?? (v.stock > 0),
+            // CRITICAL: Use API flags instead of raw stock values (gift cards have stock: 0 but inStock: true)
+            // Prioritize explicit flags, then status, then infer from inStock
+            outOfStock: v.outOfStock ?? (v.status === 'out_of_stock' ? true : (v.inStock === false ? true : false)),
+            lowStock: v.lowStock ?? (v.status === 'low_stock' ? true : false),
+            inStock: v.inStock ?? (v.status === 'in_stock' || v.status === 'low_stock' ? true : (v.outOfStock === false ? true : false)),
             priceSEK: variantPriceSEK, // Price in cents from API
             price: variantPrice, // Price in SEK (converted)
             priceFormatted: v.priceFormatted || (variantPrice ? `${variantPrice.toFixed(2)} kr` : undefined) // Formatted price string
@@ -410,9 +412,11 @@ export async function getProduct(productId: string, locale = 'sv'): Promise<Prod
           size: size, // ✅ Use direct field, fallback to parsed
           color: color, // ✅ Use direct field, fallback to parsed
           status: v.status || (v.inStock === false ? 'out_of_stock' : v.lowStock ? 'low_stock' : 'in_stock'),
-          outOfStock: v.outOfStock ?? (v.stock === 0 || v.stock <= 0 || v.inStock === false),
-          lowStock: v.lowStock ?? false,
-          inStock: v.inStock ?? (v.stock > 0),
+          // CRITICAL: Use API flags instead of raw stock values (gift cards have stock: 0 but inStock: true)
+          // Prioritize explicit flags, then status, then infer from inStock
+          outOfStock: v.outOfStock ?? (v.status === 'out_of_stock' ? true : (v.inStock === false ? true : false)),
+          lowStock: v.lowStock ?? (v.status === 'low_stock' ? true : false),
+          inStock: v.inStock ?? (v.status === 'in_stock' || v.status === 'low_stock' ? true : (v.outOfStock === false ? true : false)),
           priceSEK: variantPriceSEK, // Price in cents from API
           price: variantPrice, // Price in SEK (converted)
           priceFormatted: v.priceFormatted || (variantPrice ? `${variantPrice.toFixed(2)} kr` : undefined) // Formatted price string
