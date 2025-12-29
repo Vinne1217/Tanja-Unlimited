@@ -149,11 +149,11 @@ export default function BuyNowButton({ product, onVariantChange }: BuyNowButtonP
   const priceId = selectedVariantData?.stripePriceId || product.stripePriceId;
   
   // Check variant inventory from synced data, or use variant's own stock/status properties
-  // CRITICAL: Use API flags (outOfStock, inStock, status) instead of raw stock values
+  // CRITICAL: Use API flags (outOfStock, status) instead of raw stock values
   // This ensures gift cards (which have stock: 0 or null) are handled correctly
   const selectedVariantInventory = selectedVariant ? variantInventories.get(selectedVariant) : null;
   const variantOutOfStock = selectedVariantInventory 
-    ? (selectedVariantInventory.outOfStock || selectedVariantInventory.status === 'out_of_stock' || selectedVariantInventory.inStock === false)
+    ? (selectedVariantInventory.outOfStock || selectedVariantInventory.status === 'out_of_stock')
     : (selectedVariantData 
       ? (selectedVariantData.outOfStock || selectedVariantData.status === 'out_of_stock' || selectedVariantData.inStock === false)
       : true); // CRITICAL: If no inventory data and no variant data, treat as OUT OF STOCK (not in stock)
@@ -212,12 +212,12 @@ export default function BuyNowButton({ product, onVariantChange }: BuyNowButtonP
   const isOutOfStock = inventory?.outOfStock ?? false;
   
   // Check if all variants are out of stock
-  // CRITICAL: Use API flags (outOfStock, inStock, status) instead of raw stock values
+  // CRITICAL: Use API flags (outOfStock, status) instead of raw stock values
   const allVariantsOutOfStock = product.variants && product.variants.length > 0 
     ? product.variants.every(variant => {
         const variantInventory = variantInventories.get(variant.key);
         return variantInventory 
-          ? (variantInventory.outOfStock || variantInventory.status === 'out_of_stock' || variantInventory.inStock === false)
+          ? (variantInventory.outOfStock || variantInventory.status === 'out_of_stock')
           : (variant.outOfStock || variant.status === 'out_of_stock' || variant.inStock === false);
       })
     : false;
@@ -269,10 +269,10 @@ export default function BuyNowButton({ product, onVariantChange }: BuyNowButtonP
             <option value="">Välj storlek</option>
             {sizeVariants.map((variant) => {
               const variantInventory = variantInventories.get(variant.key);
-              // Check availability: use API flags (outOfStock, inStock, status) instead of raw stock values
+              // Check availability: use API flags (outOfStock, status) instead of raw stock values
               const stockCount = variantInventory?.stock ?? variant.stock ?? null;
               const isOutOfStock = variantInventory 
-                ? (variantInventory.outOfStock || variantInventory.status === 'out_of_stock' || variantInventory.inStock === false)
+                ? (variantInventory.outOfStock || variantInventory.status === 'out_of_stock')
                 : (variant.outOfStock || variant.status === 'out_of_stock' || variant.inStock === false);
               
               // Display label: show size (should always exist since we filtered for size variants)
