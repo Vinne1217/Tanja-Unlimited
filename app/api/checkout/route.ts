@@ -3,6 +3,7 @@ import Stripe from 'stripe';
 import { getLatestActivePriceForProduct, STRIPE_PRODUCT_MAPPING } from '@/lib/stripe-products';
 import { mapProductId } from '@/lib/inventory-mapping';
 import { getTenantConfig } from '@/lib/source';
+import { verifyAndRedeemGiftCard, maskGiftCardCode } from '@/lib/gift-cards';
 
 const TENANT_ID = 'tanjaunlimited';
 
@@ -27,12 +28,28 @@ export async function POST(req: NextRequest) {
   const isTestMode = process.env.STRIPE_SECRET_KEY?.startsWith('sk_test_');
   const tenantId = process.env.SOURCE_TENANT_ID ?? TENANT_ID;
 
-  const { items, customerEmail, successUrl, cancelUrl } = (await req.json()) as {
+  const { items, customerEmail, successUrl, cancelUrl, giftCardCode } = (await req.json()) as {
     items: CartItem[];
     customerEmail?: string;
     successUrl: string;
     cancelUrl: string;
+    giftCardCode?: string; // Optional gift card code for redemption
   };
+
+  // Validate: Only one gift card code allowed
+  if (giftCardCode && typeof giftCardCode !== 'string') {
+    return NextResponse.json(
+      { error: 'Invalid gift card code format' },
+      { status: 400 }
+    );
+  }
+
+  // Block combination with promotions (per requirements)
+  if (giftCardCode) {
+    // Note: Stripe promotion codes are handled by Stripe Checkout
+    // We'll disable allow_promotion_codes when gift card is used
+    console.log(`🎁 Gift card code provided: ${maskGiftCardCode(giftCardCode)}`);
+  }
 
   // Check if any items are gift cards
   const hasGiftCard = items.some(item => item.type === 'gift_card');
@@ -305,6 +322,80 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  // Calculate total amount from line items (in cents)
+  // Fetch prices from Stripe to get accurate amounts
+  let totalAmountCents = 0;
+  try {
+    for (const lineItem of line_items) {
+      const price = await stripe.prices.retrieve(lineItem.price);
+      totalAmountCents += price.unit_amount! * lineItem.quantity;
+    }
+  } catch (error) {
+    console.error('❌ Error calculating total amount:', error);
+    return NextResponse.json(
+      { error: 'Failed to calculate order total' },
+      { status: 500 }
+    );
+  }
+
+  // Gift card redemption (before Stripe session creation)
+  let giftCardRedemption: { redemptionId: string; amountUsed: number; maskedCode: string } | null = null;
+  
+  if (giftCardCode) {
+    console.log(`🎁 Verifying and redeeming gift card: ${maskGiftCardCode(giftCardCode)}`);
+    
+    const verificationResult = await verifyAndRedeemGiftCard(
+      giftCardCode,
+      totalAmountCents, // Try to redeem full amount
+      tenantId
+    );
+
+    if (!verificationResult.success) {
+      console.error(`❌ Gift card verification failed:`, verificationResult.error);
+      return NextResponse.json(
+        { error: verificationResult.error || 'Invalid or expired gift card' },
+        { status: 400 }
+      );
+    }
+
+    if (!verificationResult.redemption || !verificationResult.giftCard) {
+      return NextResponse.json(
+        { error: 'Gift card redemption failed' },
+        { status: 500 }
+      );
+    }
+
+    // Check if gift card has sufficient balance
+    if (verificationResult.redemption.amountUsed <= 0) {
+      return NextResponse.json(
+        { error: 'Gift card has insufficient balance' },
+        { status: 400 }
+      );
+    }
+
+    giftCardRedemption = {
+      redemptionId: verificationResult.redemption._id,
+      amountUsed: verificationResult.redemption.amountUsed,
+      maskedCode: verificationResult.giftCard.maskedCode || maskGiftCardCode(giftCardCode)
+    };
+
+    console.log(`✅ Gift card redeemed:`, {
+      redemptionId: giftCardRedemption.redemptionId,
+      amountUsed: giftCardRedemption.amountUsed,
+      remainingBalance: verificationResult.redemption.remainingBalance
+    });
+  }
+
+  // Calculate adjusted Stripe charge amount
+  const giftCardAmountUsed = giftCardRedemption?.amountUsed || 0;
+  const stripeChargeAmount = Math.max(0, totalAmountCents - giftCardAmountUsed);
+
+  console.log(`💰 Payment breakdown:`, {
+    originalTotal: totalAmountCents,
+    giftCardAmountUsed,
+    stripeChargeAmount
+  });
+
   // Build comprehensive metadata for Source portal
   const websiteUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://tanja-unlimited-809785351172.europe-north1.run.app';
   const websiteDomain = websiteUrl.replace(/^https?:\/\//, '').replace(/\/$/, '');
@@ -319,6 +410,23 @@ export async function POST(req: NextRequest) {
     website: websiteDomain,
     ...campaignData
   };
+
+  // Add gift card redemption metadata if gift card was used
+  if (giftCardRedemption) {
+    sessionMetadata.giftCardCode = giftCardRedemption.maskedCode;
+    sessionMetadata.giftCardRedemptionId = giftCardRedemption.redemptionId;
+    sessionMetadata.giftCardAmountUsed = String(giftCardRedemption.amountUsed);
+    sessionMetadata.originalTotal = String(totalAmountCents);
+    sessionMetadata.stripeChargeAmount = String(stripeChargeAmount);
+    
+    console.log(`🎁 Adding gift card redemption metadata:`, {
+      giftCardCode: giftCardRedemption.maskedCode,
+      giftCardRedemptionId: giftCardRedemption.redemptionId,
+      giftCardAmountUsed: giftCardRedemption.amountUsed,
+      originalTotal: totalAmountCents,
+      stripeChargeAmount
+    });
+  }
 
   // Add gift card metadata if this is a gift card purchase
   // Mandatory metadata fields per requirements:
@@ -350,6 +458,7 @@ export async function POST(req: NextRequest) {
   console.log('📦 Creating checkout session with metadata:', sessionMetadata);
 
   // Gift cards don't require shipping (they're digital)
+  // If stripeChargeAmount is 0, we still create the session (per requirements)
   const checkoutSessionConfig: Stripe.Checkout.SessionCreateParams = {
     mode: 'payment',
     customer_email: customerEmail,
@@ -369,8 +478,10 @@ export async function POST(req: NextRequest) {
     phone_number_collection: {
       enabled: true,
     },
-    // Allow customers to enter promotion codes in Stripe Checkout
-    allow_promotion_codes: true,
+    // Disable promotion codes when gift card is used (per requirements)
+    allow_promotion_codes: !giftCardRedemption,
+    // If stripeChargeAmount is 0, Stripe will handle it (free checkout)
+    // Note: Stripe may require a minimum charge amount, but we create the session anyway per requirements
   };
 
   const session = await stripe.checkout.sessions.create(checkoutSessionConfig);
