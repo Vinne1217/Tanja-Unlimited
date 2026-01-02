@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { ShoppingCart, Trash2, Plus, Minus, ArrowLeft, Loader2 } from 'lucide-react';
+import { ShoppingCart, Trash2, Plus, Minus, ArrowLeft, Loader2, Gift, X } from 'lucide-react';
 import Link from 'next/link';
 import { useCart } from '../../lib/cart-context';
 import StockStatus from '../../components/StockStatus';
@@ -11,6 +11,7 @@ import { formatPrice } from '../../lib/products';
 export default function CartPage() {
   const { items, removeItem, updateQuantity, clearCart, getTotalPrice } = useCart();
   const [checkingOut, setCheckingOut] = useState(false);
+  const [giftCardCode, setGiftCardCode] = useState('');
 
   async function handleCheckout() {
     if (items.length === 0) return;
@@ -44,6 +45,7 @@ export default function CartPage() {
             productId: item.product.id,
             variantKey: item.product.variantKey, // Include variant key if present
           })),
+          giftCardCode: giftCardCode.trim() || undefined, // Include gift card code if provided
           successUrl: `${window.location.origin}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
           cancelUrl: window.location.href,
         }),
@@ -59,7 +61,14 @@ export default function CartPage() {
           error: errorMessage,
           data
         });
-        alert(`Kunde inte slutföra köpet: ${errorMessage}`);
+        
+        // If gift card error, clear it and show message
+        if (giftCardCode && (errorMessage.includes('gift card') || errorMessage.includes('Gift card'))) {
+          setGiftCardCode('');
+          alert(`Gift card error: ${errorMessage}`);
+        } else {
+          alert(`Kunde inte slutföra köpet: ${errorMessage}`);
+        }
         setCheckingOut(false);
         return;
       }
@@ -191,18 +200,64 @@ export default function CartPage() {
 
           {/* Order Summary */}
           <div className="lg:col-span-1">
-            <div className="bg-warmIvory border border-warmOchre/20 p-6 sticky top-24">
+            <div className="bg-warmIvory border border-warmOchre/20 p-6 sticky top-24 space-y-6">
               <h2 className="text-2xl font-serif text-deepIndigo mb-6">Order Summary</h2>
-              <div className="space-y-4 mb-6">
+              
+              {/* Gift Card Section */}
+              <div className="border-t border-warmOchre/20 pt-4">
+                <h3 className="text-sm font-medium text-deepIndigo mb-3 flex items-center gap-2">
+                  <Gift className="w-4 h-4" />
+                  Gift Card
+                </h3>
+                <div className="space-y-2">
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={giftCardCode}
+                      onChange={(e) => setGiftCardCode(e.target.value)}
+                      placeholder="Enter gift card code"
+                      className="flex-1 px-3 py-2 border border-warmOchre/20 bg-ivory text-deepIndigo focus:border-warmOchre focus:outline-none text-sm"
+                      disabled={checkingOut}
+                    />
+                    {giftCardCode && (
+                      <button
+                        onClick={() => setGiftCardCode('')}
+                        className="px-2 py-2 text-terracotta hover:text-terracotta/80 transition-colors"
+                        aria-label="Clear gift card code"
+                        disabled={checkingOut}
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
+                  <p className="text-xs text-softCharcoal/60">
+                    Enter your gift card code. It will be applied during checkout.
+                  </p>
+                </div>
+              </div>
+
+              {/* Order Totals */}
+              <div className="space-y-4 border-t border-warmOchre/20 pt-4">
                 <div className="flex justify-between text-softCharcoal">
                   <span>Subtotal ({items.reduce((sum, item) => sum + item.quantity, 0)} items)</span>
                   <span>{formatPrice(total, 'SEK')}</span>
                 </div>
+                {giftCardCode && (
+                  <div className="flex justify-between text-sm text-sage">
+                    <span>Gift card will be applied</span>
+                    <span>—</span>
+                  </div>
+                )}
                 <div className="border-t border-warmOchre/20 pt-4">
                   <div className="flex justify-between text-xl font-serif text-deepIndigo">
                     <span>Total</span>
                     <span>{formatPrice(total, 'SEK')}</span>
                   </div>
+                  {giftCardCode && (
+                    <p className="text-xs text-softCharcoal/60 mt-1">
+                      Final amount will be calculated at checkout
+                    </p>
+                  )}
                 </div>
               </div>
               <button
