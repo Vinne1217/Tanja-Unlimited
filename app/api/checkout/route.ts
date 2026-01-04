@@ -3,7 +3,7 @@ import Stripe from 'stripe';
 import { getLatestActivePriceForProduct, STRIPE_PRODUCT_MAPPING } from '@/lib/stripe-products';
 import { mapProductId } from '@/lib/inventory-mapping';
 import { getTenantConfig } from '@/lib/source';
-import { verifyAndRedeemGiftCard, maskGiftCardCode } from '@/lib/gift-cards';
+import { maskGiftCardCode } from '@/lib/gift-cards';
 
 const TENANT_ID = 'tanjaunlimited';
 
@@ -33,7 +33,7 @@ export async function POST(req: NextRequest) {
     customerEmail?: string;
     successUrl: string;
     cancelUrl: string;
-    giftCardCode?: string; // Optional gift card code for redemption
+    giftCardCode?: string; // Optional gift card code (forwarded to customer portal for redemption)
   };
 
   // Validate: Only one gift card code allowed
@@ -322,79 +322,13 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // Calculate total amount from line items (in cents)
-  // Fetch prices from Stripe to get accurate amounts
-  let totalAmountCents = 0;
-  try {
-    for (const lineItem of line_items) {
-      const price = await stripe.prices.retrieve(lineItem.price);
-      totalAmountCents += price.unit_amount! * lineItem.quantity;
-    }
-  } catch (error) {
-    console.error('❌ Error calculating total amount:', error);
-    return NextResponse.json(
-      { error: 'Failed to calculate order total' },
-      { status: 500 }
-    );
-  }
-
-  // Gift card redemption (before Stripe session creation)
-  let giftCardRedemption: { redemptionId: string; amountUsed: number; maskedCode: string } | null = null;
-  
+  // Gift card code forwarding (NO redemption - handled by customer portal)
+  // We only forward the code to Stripe metadata
+  // Customer portal backend handles all redemption logic server-side
   if (giftCardCode) {
-    console.log(`🎁 Verifying and redeeming gift card: ${maskGiftCardCode(giftCardCode)}`);
-    
-    const verificationResult = await verifyAndRedeemGiftCard(
-      giftCardCode,
-      totalAmountCents, // Try to redeem full amount
-      tenantId
-    );
-
-    if (!verificationResult.success) {
-      console.error(`❌ Gift card verification failed:`, verificationResult.error);
-      return NextResponse.json(
-        { error: verificationResult.error || 'Invalid or expired gift card' },
-        { status: 400 }
-      );
-    }
-
-    if (!verificationResult.redemption || !verificationResult.giftCard) {
-      return NextResponse.json(
-        { error: 'Gift card redemption failed' },
-        { status: 500 }
-      );
-    }
-
-    // Check if gift card has sufficient balance
-    if (verificationResult.redemption.amountUsed <= 0) {
-      return NextResponse.json(
-        { error: 'Gift card has insufficient balance' },
-        { status: 400 }
-      );
-    }
-
-    giftCardRedemption = {
-      redemptionId: verificationResult.redemption._id,
-      amountUsed: verificationResult.redemption.amountUsed,
-      maskedCode: verificationResult.giftCard.maskedCode || maskGiftCardCode(giftCardCode)
-    };
-
-    console.log(`✅ Gift card redeemed:`, {
-      redemptionId: giftCardRedemption.redemptionId,
-      amountUsed: giftCardRedemption.amountUsed,
-      remainingBalance: verificationResult.redemption.remainingBalance
-    });
+    console.log(`🎁 Forwarding gift card code to checkout: ${maskGiftCardCode(giftCardCode)}`);
+    // Note: Verification happens in frontend, redemption happens in customer portal backend
   }
-
-  // Calculate adjusted Stripe charge amount
-  const giftCardAmountUsed = giftCardRedemption?.amountUsed || 0;
-  const stripeChargeAmount = Math.max(0, totalAmountCents - giftCardAmountUsed);
-
-  console.log(`💰 Payment breakdown:`, {
-    originalTotal: totalAmountCents,
-    giftCardAmountUsed,
-    stripeChargeAmount
-  });
 
   // Build comprehensive metadata for Source portal
   const websiteUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://tanja-unlimited-809785351172.europe-north1.run.app';
@@ -411,21 +345,11 @@ export async function POST(req: NextRequest) {
     ...campaignData
   };
 
-  // Add gift card redemption metadata if gift card was used
-  if (giftCardRedemption) {
-    sessionMetadata.giftCardCode = giftCardRedemption.maskedCode;
-    sessionMetadata.giftCardRedemptionId = giftCardRedemption.redemptionId;
-    sessionMetadata.giftCardAmountUsed = String(giftCardRedemption.amountUsed);
-    sessionMetadata.originalTotal = String(totalAmountCents);
-    sessionMetadata.stripeChargeAmount = String(stripeChargeAmount);
-    
-    console.log(`🎁 Adding gift card redemption metadata:`, {
-      giftCardCode: giftCardRedemption.maskedCode,
-      giftCardRedemptionId: giftCardRedemption.redemptionId,
-      giftCardAmountUsed: giftCardRedemption.amountUsed,
-      originalTotal: totalAmountCents,
-      stripeChargeAmount
-    });
+  // Add gift card code to metadata (forward only - no redemption)
+  // Customer portal backend will handle redemption server-side
+  if (giftCardCode) {
+    sessionMetadata.giftCardCode = giftCardCode;
+    console.log(`🎁 Forwarding gift card code in metadata: ${maskGiftCardCode(giftCardCode)}`);
   }
 
   // Add gift card metadata if this is a gift card purchase
@@ -458,7 +382,6 @@ export async function POST(req: NextRequest) {
   console.log('📦 Creating checkout session with metadata:', sessionMetadata);
 
   // Gift cards don't require shipping (they're digital)
-  // If stripeChargeAmount is 0, we still create the session (per requirements)
   const checkoutSessionConfig: Stripe.Checkout.SessionCreateParams = {
     mode: 'payment',
     customer_email: customerEmail,
@@ -479,9 +402,7 @@ export async function POST(req: NextRequest) {
       enabled: true,
     },
     // Disable promotion codes when gift card is used (per requirements)
-    allow_promotion_codes: !giftCardRedemption,
-    // If stripeChargeAmount is 0, Stripe will handle it (free checkout)
-    // Note: Stripe may require a minimum charge amount, but we create the session anyway per requirements
+    allow_promotion_codes: !giftCardCode,
   };
 
   const session = await stripe.checkout.sessions.create(checkoutSessionConfig);

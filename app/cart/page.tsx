@@ -12,6 +12,66 @@ export default function CartPage() {
   const { items, removeItem, updateQuantity, clearCart, getTotalPrice } = useCart();
   const [checkingOut, setCheckingOut] = useState(false);
   const [giftCardCode, setGiftCardCode] = useState('');
+  const [giftCardVerified, setGiftCardVerified] = useState<{
+    valid: boolean;
+    balance?: number;
+    expiresAt?: string;
+  } | null>(null);
+  const [verifyingGiftCard, setVerifyingGiftCard] = useState(false);
+  const [giftCardError, setGiftCardError] = useState<string | null>(null);
+
+  // Verify gift card (read-only, no redemption)
+  async function handleVerifyGiftCard() {
+    if (!giftCardCode.trim()) {
+      setGiftCardError('Please enter a gift card code');
+      return;
+    }
+
+    setVerifyingGiftCard(true);
+    setGiftCardError(null);
+    setGiftCardVerified(null);
+
+    try {
+      const response = await fetch('/api/gift-cards/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          code: giftCardCode.trim()
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        setGiftCardError(data.error || 'Invalid gift card code');
+        setGiftCardVerified({ valid: false });
+        return;
+      }
+
+      if (data.valid) {
+        setGiftCardVerified({
+          valid: true,
+          balance: data.balance,
+          expiresAt: data.expiresAt
+        });
+        setGiftCardError(null);
+      } else {
+        setGiftCardError(data.error || 'Invalid gift card code');
+        setGiftCardVerified({ valid: false });
+      }
+    } catch (error) {
+      setGiftCardError('Failed to verify gift card. Please try again.');
+      setGiftCardVerified({ valid: false });
+    } finally {
+      setVerifyingGiftCard(false);
+    }
+  }
+
+  function handleClearGiftCard() {
+    setGiftCardCode('');
+    setGiftCardVerified(null);
+    setGiftCardError(null);
+  }
 
   async function handleCheckout() {
     if (items.length === 0) return;
@@ -45,7 +105,7 @@ export default function CartPage() {
             productId: item.product.id,
             variantKey: item.product.variantKey, // Include variant key if present
           })),
-          giftCardCode: giftCardCode.trim() || undefined, // Include gift card code if provided
+          giftCardCode: giftCardVerified?.valid ? giftCardCode.trim() : undefined, // Only include if verified
           successUrl: `${window.location.origin}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
           cancelUrl: window.location.href,
         }),
@@ -210,29 +270,74 @@ export default function CartPage() {
                   Gift Card
                 </h3>
                 <div className="space-y-2">
-                  <div className="flex gap-2">
-                    <input
-                      type="text"
-                      value={giftCardCode}
-                      onChange={(e) => setGiftCardCode(e.target.value)}
-                      placeholder="Enter gift card code"
-                      className="flex-1 px-3 py-2 border border-warmOchre/20 bg-ivory text-deepIndigo focus:border-warmOchre focus:outline-none text-sm"
-                      disabled={checkingOut}
-                    />
-                    {giftCardCode && (
-                      <button
-                        onClick={() => setGiftCardCode('')}
-                        className="px-2 py-2 text-terracotta hover:text-terracotta/80 transition-colors"
-                        aria-label="Clear gift card code"
-                        disabled={checkingOut}
-                      >
-                        <X className="w-4 h-4" />
-                      </button>
-                    )}
-                  </div>
-                  <p className="text-xs text-softCharcoal/60">
-                    Enter your gift card code. It will be applied during checkout.
-                  </p>
+                  {giftCardVerified?.valid ? (
+                    <div className="bg-sage/10 border border-sage/30 p-3 rounded">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-sm text-deepIndigo font-medium">
+                          {giftCardCode.slice(0, 4)}****{giftCardCode.slice(-4)}
+                        </span>
+                        <button
+                          onClick={handleClearGiftCard}
+                          className="text-terracotta hover:text-terracotta/80 transition-colors"
+                          aria-label="Remove gift card"
+                          disabled={checkingOut}
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+                      <p className="text-xs text-sage">
+                        Balance: {formatPrice((giftCardVerified.balance || 0) / 100, 'SEK')}
+                      </p>
+                      {giftCardVerified.expiresAt && (
+                        <p className="text-xs text-softCharcoal/60 mt-1">
+                          Expires: {new Date(giftCardVerified.expiresAt).toLocaleDateString('sv-SE')}
+                        </p>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          value={giftCardCode}
+                          onChange={(e) => {
+                            setGiftCardCode(e.target.value);
+                            setGiftCardError(null);
+                            setGiftCardVerified(null);
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' && giftCardCode.trim()) {
+                              handleVerifyGiftCard();
+                            }
+                          }}
+                          placeholder="Enter gift card code"
+                          className="flex-1 px-3 py-2 border border-warmOchre/20 bg-ivory text-deepIndigo focus:border-warmOchre focus:outline-none text-sm"
+                          disabled={checkingOut || verifyingGiftCard}
+                        />
+                        {giftCardCode && (
+                          <button
+                            onClick={handleVerifyGiftCard}
+                            disabled={verifyingGiftCard || !giftCardCode.trim() || checkingOut}
+                            className="px-4 py-2 bg-indigo text-ivory hover:bg-indigoDeep transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium"
+                          >
+                            {verifyingGiftCard ? (
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                            ) : (
+                              'Verify'
+                            )}
+                          </button>
+                        )}
+                      </div>
+                      {giftCardError && (
+                        <p className="text-xs text-terracotta">{giftCardError}</p>
+                      )}
+                      {!giftCardError && !giftCardVerified && (
+                        <p className="text-xs text-softCharcoal/60">
+                          Enter your gift card code and click Verify. It will be applied during checkout.
+                        </p>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -242,7 +347,7 @@ export default function CartPage() {
                   <span>Subtotal ({items.reduce((sum, item) => sum + item.quantity, 0)} items)</span>
                   <span>{formatPrice(total, 'SEK')}</span>
                 </div>
-                {giftCardCode && (
+                {giftCardVerified?.valid && (
                   <div className="flex justify-between text-sm text-sage">
                     <span>Gift card will be applied</span>
                     <span>—</span>
@@ -253,7 +358,7 @@ export default function CartPage() {
                     <span>Total</span>
                     <span>{formatPrice(total, 'SEK')}</span>
                   </div>
-                  {giftCardCode && (
+                  {giftCardVerified?.valid && (
                     <p className="text-xs text-softCharcoal/60 mt-1">
                       Final amount will be calculated at checkout
                     </p>

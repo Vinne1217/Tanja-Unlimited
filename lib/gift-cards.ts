@@ -1,65 +1,41 @@
 /**
  * Gift Card Utility Functions
- * Handles gift card verification and redemption via customer portal API
+ * READ-ONLY verification only - no redemption logic
+ * Redemption happens server-side in customer portal checkout flow
  */
 
 import { sourceFetch, SOURCE_BASE, TENANT } from './source';
 
-export type GiftCardRedemption = {
-  _id: string;
-  giftCardId: string;
-  amountUsed: number; // Amount in cents
-  remainingBalance: number; // Remaining balance in cents
-  redemptionDate: string;
-  orderId?: string;
-};
-
 export type GiftCardVerificationResult = {
-  success: boolean;
-  giftCard?: {
-    _id: string;
-    code: string;
-    maskedCode: string;
-    remainingAmount: number; // Amount in cents
-    initialAmount: number; // Amount in cents
-    tenantId: string;
-    status: 'active' | 'expired' | 'exhausted';
-    expiresAt?: string;
-  };
+  valid: boolean;
+  balance?: number; // Amount in cents
+  expiresAt?: string; // ISO date string
   error?: string;
-  redemption?: GiftCardRedemption;
 };
 
 /**
- * Verify and redeem a gift card
- * This function atomically verifies the gift card and creates a redemption record
+ * Verify a gift card (read-only, no mutation)
+ * This function only checks validity and balance - does NOT redeem
  * 
- * @param giftCardCode - The gift card code to verify and redeem
- * @param amountToRedeem - Amount to redeem in cents
+ * @param giftCardCode - The gift card code to verify
  * @param tenantId - Tenant ID (defaults to TENANT)
- * @param orderId - Optional order ID for tracking
- * @returns Verification result with redemption info
+ * @returns Verification result with balance info (no redemption)
  */
-export async function verifyAndRedeemGiftCard(
+export async function verifyGiftCard(
   giftCardCode: string,
-  amountToRedeem: number,
-  tenantId: string = TENANT,
-  orderId?: string
+  tenantId: string = TENANT
 ): Promise<GiftCardVerificationResult> {
   try {
-    // Call customer portal API to verify and redeem gift card
-    // Endpoint: POST /api/gift-cards/verify-and-redeem
-    const response = await sourceFetch('/api/gift-cards/verify-and-redeem', {
+    // Call customer portal API to verify gift card (read-only)
+    // Endpoint: POST /api/storefront/{tenant}/giftcards/verify
+    const response = await sourceFetch(`/api/storefront/${tenantId}/giftcards/verify`, {
       method: 'POST',
       headers: {
         'X-Tenant': tenantId,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        code: giftCardCode,
-        amount: amountToRedeem, // Amount in cents
-        tenantId,
-        orderId
+        code: giftCardCode
       })
     });
 
@@ -70,48 +46,48 @@ export async function verifyAndRedeemGiftCard(
       // Handle specific error cases
       if (response.status === 404) {
         return {
-          success: false,
+          valid: false,
           error: 'Gift card not found'
         };
       }
       
       if (response.status === 400) {
         return {
-          success: false,
-          error: errorData.error || 'Invalid gift card code or insufficient balance'
+          valid: false,
+          error: errorData.error || 'Invalid gift card code'
         };
       }
       
       if (response.status === 410) {
         return {
-          success: false,
+          valid: false,
           error: 'Gift card has expired or been exhausted'
         };
       }
       
       return {
-        success: false,
+        valid: false,
         error: errorData.error || `Gift card verification failed: ${response.status}`
       };
     }
 
     const data = await response.json();
     
-    console.log(`✅ Gift card verified and redeemed:`, {
-      code: data.giftCard?.maskedCode || 'masked',
-      amountUsed: data.redemption?.amountUsed,
-      remainingBalance: data.redemption?.remainingBalance
+    console.log(`✅ Gift card verified:`, {
+      code: maskGiftCardCode(giftCardCode),
+      valid: data.valid,
+      balance: data.balance
     });
 
     return {
-      success: true,
-      giftCard: data.giftCard,
-      redemption: data.redemption
+      valid: data.valid || false,
+      balance: data.balance,
+      expiresAt: data.expiresAt
     };
   } catch (error) {
     console.error('❌ Error verifying gift card:', error);
     return {
-      success: false,
+      valid: false,
       error: error instanceof Error ? error.message : 'Unknown error occurred'
     };
   }
@@ -127,4 +103,3 @@ export function maskGiftCardCode(code: string): string {
   }
   return code.slice(0, 4) + '****' + code.slice(-4);
 }
-
