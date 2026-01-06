@@ -1,31 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server';
-import Stripe from 'stripe';
 import { getLatestActivePriceForProduct, STRIPE_PRODUCT_MAPPING } from '@/lib/stripe-products';
 import { mapProductId } from '@/lib/inventory-mapping';
-import { getTenantConfig } from '@/lib/source';
+import { getTenantConfig, SOURCE_BASE, TENANT } from '@/lib/source';
 import { maskGiftCardCode } from '@/lib/gift-cards';
 
-const TENANT_ID = 'tanjaunlimited';
+const TENANT_ID = process.env.SOURCE_TENANT_ID ?? TENANT;
 
 type CartItem = {
   quantity: number;
   stripePriceId: string; // fallback price ID
   productId?: string; // To query Stripe for latest price
+  variantKey?: string; // Variant key/ID (article number/SKU)
   // Gift card fields (only when type === 'gift_card')
   type?: 'gift_card' | 'product';
   giftCardAmount?: number; // Amount in cents (e.g., 50000 = 500 SEK)
 };
 
 export async function POST(req: NextRequest) {
-  // Initialize Stripe at runtime to avoid build-time errors
-  if (!process.env.STRIPE_SECRET_KEY) {
-    return NextResponse.json({ error: 'Stripe configuration missing' }, { status: 500 });
-  }
-  
-  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, { apiVersion: '2025-02-24.acacia' });
-
-  // SAFETY CHECK: Ensure Stripe test mode only for gift cards
-  const isTestMode = process.env.STRIPE_SECRET_KEY?.startsWith('sk_test_');
   const tenantId = process.env.SOURCE_TENANT_ID ?? TENANT_ID;
 
   const { items, customerEmail, successUrl, cancelUrl, giftCardCode } = (await req.json()) as {
@@ -55,15 +46,6 @@ export async function POST(req: NextRequest) {
   const hasGiftCard = items.some(item => item.type === 'gift_card');
   
   if (hasGiftCard) {
-    // SAFETY: Gift cards only work in test mode
-    if (!isTestMode) {
-      console.error('❌ Gift card purchase blocked: Stripe is not in test mode');
-      return NextResponse.json(
-        { error: 'Gift cards are only available in test mode' },
-        { status: 403 }
-      );
-    }
-
     // Check tenant configuration for gift card feature flag
     const tenantConfig = await getTenantConfig(tenantId);
     if (!tenantConfig.giftCardsEnabled) {
@@ -74,7 +56,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    console.log(`✅ Gift card purchase allowed for tenant ${tenantId} (test mode)`);
+    console.log(`✅ Gift card purchase allowed for tenant ${tenantId}`);
   }
 
   // Get latest prices from Stripe (campaigns are newer prices on same product)
@@ -129,9 +111,11 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  const line_items = await Promise.all(
+  // Transform items for backend API
+  // Backend handles campaign prices automatically, but we can optionally check them first
+  const backendItems = await Promise.all(
     items.map(async (item, index) => {
-      // Handle gift cards differently - they use the provided stripePriceId directly
+      // Handle gift cards - use provided stripePriceId directly
       if (item.type === 'gift_card') {
         if (!item.stripePriceId) {
           throw new Error('Gift card items must include stripePriceId');
@@ -141,8 +125,9 @@ export async function POST(req: NextRequest) {
         }
         console.log(`🎁 Processing gift card: amount=${item.giftCardAmount}, priceId=${item.stripePriceId}`);
         return {
-          price: item.stripePriceId,
-          quantity: item.quantity || 1
+          variantId: item.variantKey || item.productId || 'gift-card', // Fallback for gift cards
+          quantity: item.quantity || 1,
+          stripePriceId: item.stripePriceId
         };
       }
 
@@ -294,30 +279,32 @@ export async function POST(req: NextRequest) {
 
       // Validate that we have a price ID
       if (!priceId) {
-        console.error(`❌ No price ID found for item ${index}:`, {
+        console.error(`❌ No price ID found for item:`, {
           productId: item.productId,
           stripePriceId: item.stripePriceId
         });
         throw new Error(`No price ID available for product ${item.productId || 'unknown'}`);
       }
 
-      return { 
-        price: priceId, 
-        quantity: item.quantity || 1 
+      // Return backend format: variantId, quantity, stripePriceId
+      return {
+        variantId: item.variantKey || item.productId || `item-${index}`, // Use variantKey or productId as variantId
+        quantity: item.quantity || 1,
+        stripePriceId: priceId // Use campaign price if found, otherwise original price
       };
     })
   );
 
-  // Validate all line items have prices
-  const invalidItems = line_items.filter(item => !item.price);
+  // Validate all items have required fields
+  const invalidItems = backendItems.filter(item => !item.stripePriceId || !item.variantId);
   if (invalidItems.length > 0) {
-    console.error('❌ Some line items are missing prices:', {
+    console.error('❌ Some items are missing required fields:', {
       invalidItems,
-      allItems: line_items,
+      allItems: backendItems,
       originalItems: items
     });
     return NextResponse.json(
-      { error: 'Some products are missing price information. Please try again or contact support.' },
+      { error: 'Some products are missing required information. Please try again or contact support.' },
       { status: 400 }
     );
   }
@@ -379,37 +366,63 @@ export async function POST(req: NextRequest) {
     });
   }
 
-  console.log('📦 Creating checkout session with metadata:', sessionMetadata);
+  console.log('📦 Creating checkout via backend endpoint:', {
+    items: backendItems.length,
+    metadata: sessionMetadata
+  });
 
-  // Gift cards don't require shipping (they're digital)
-  const checkoutSessionConfig: Stripe.Checkout.SessionCreateParams = {
-    mode: 'payment',
-    customer_email: customerEmail,
-    line_items,
-    success_url: successUrl,
-    cancel_url: cancelUrl,
-    metadata: sessionMetadata,
-    // Set locale to Swedish for proper translations
-    locale: 'sv',
-    // Enable shipping address collection (skip for gift cards)
-    ...(isGiftCardPurchase ? {} : {
-      shipping_address_collection: {
-        allowed_countries: ['SE', 'NO', 'DK', 'FI', 'DE', 'GB', 'US', 'CA', 'FR', 'ES', 'IT', 'NL', 'BE', 'AT', 'CH', 'PL', 'CZ'],
+  // Call backend Stripe Connect checkout endpoint
+  try {
+    const backendUrl = `${SOURCE_BASE}/storefront/${tenantId}/checkout`;
+    
+    const backendResponse = await fetch(backendUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Tenant': tenantId
       },
-    }),
-    // Enable phone number collection
-    phone_number_collection: {
-      enabled: true,
-    },
-    // Disable promotion codes when gift card is used (per requirements)
-    allow_promotion_codes: !giftCardCode,
-  };
+      body: JSON.stringify({
+        items: backendItems,
+        customerEmail: customerEmail || undefined,
+        successUrl: successUrl,
+        cancelUrl: cancelUrl,
+        metadata: sessionMetadata
+      })
+    });
 
-  const session = await stripe.checkout.sessions.create(checkoutSessionConfig);
+    if (!backendResponse.ok) {
+      const errorData = await backendResponse.json().catch(() => ({ message: 'Unknown error' }));
+      console.error(`❌ Backend checkout failed: ${backendResponse.status}`, errorData);
+      return NextResponse.json(
+        { error: errorData.message || errorData.error || 'Checkout failed. Please try again.' },
+        { status: backendResponse.status }
+      );
+    }
 
-  console.log(`✅ Checkout session created: ${session.id}`);
+    const backendData = await backendResponse.json();
 
-  return NextResponse.json({ url: session.url, id: session.id });
+    if (!backendData.success || !backendData.checkoutUrl) {
+      console.error('❌ Backend checkout response invalid:', backendData);
+      return NextResponse.json(
+        { error: backendData.message || 'Checkout failed. Please try again.' },
+        { status: 500 }
+      );
+    }
+
+    console.log(`✅ Checkout session created via backend: ${backendData.sessionId || 'N/A'}`);
+
+    return NextResponse.json({
+      url: backendData.checkoutUrl,
+      id: backendData.sessionId,
+      orderId: backendData.orderId
+    });
+  } catch (error) {
+    console.error('❌ Error calling backend checkout:', error);
+    return NextResponse.json(
+      { error: 'Failed to create checkout session. Please try again.' },
+      { status: 500 }
+    );
+  }
 }
 
 
