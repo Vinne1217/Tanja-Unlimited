@@ -108,7 +108,7 @@ export async function GET(req: NextRequest) {
       // Fallback: Check local campaign storage (synced via /api/campaigns/sync)
       // Note: originalPriceId is the regular price, we need to find campaigns that have campaign prices
       // for this product/variant
-      const productCampaign = getActiveCampaignForProduct(productId, originalPriceId);
+      const productCampaign = getActiveCampaignForProduct(productId, originalPriceId || undefined);
       if (productCampaign && productCampaign.stripePriceIds && productCampaign.stripePriceIds.length > 0) {
         console.log(`✅ Campaign API: Found campaign in local storage for ${productId}:`, {
           campaignId: productCampaign.id,
