@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { sourceFetch } from '@/lib/source';
 import { mapProductId } from '@/lib/inventory-mapping';
 import { STRIPE_PRODUCT_MAPPING } from '@/lib/stripe-products';
+import { findCampaignByStripePriceId, getActiveCampaignForProduct } from '@/lib/campaigns';
 
 const TENANT_ID = 'tanjaunlimited';
 const SOURCE_BASE = process.env.SOURCE_DATABASE_URL ?? 'https://source-database-809785351172.europe-north1.run.app';
@@ -102,7 +103,37 @@ export async function GET(req: NextRequest) {
     }
 
     if (!data.hasCampaignPrice) {
-      console.log(`ℹ️ Campaign API: No campaign found for ${productId}`);
+      console.log(`ℹ️ Campaign API: No campaign found in Source Portal for ${productId}`);
+      
+      // Fallback: Check local campaign storage (synced via /api/campaigns/sync)
+      // Note: originalPriceId is the regular price, we need to find campaigns that have campaign prices
+      // for this product/variant
+      const productCampaign = getActiveCampaignForProduct(productId, originalPriceId);
+      if (productCampaign && productCampaign.stripePriceIds && productCampaign.stripePriceIds.length > 0) {
+        console.log(`✅ Campaign API: Found campaign in local storage for ${productId}:`, {
+          campaignId: productCampaign.id,
+          campaignName: productCampaign.name,
+          stripePriceIdsCount: productCampaign.stripePriceIds.length,
+          stripePriceIds: productCampaign.stripePriceIds.slice(0, 3) // Log first 3
+        });
+        
+        // Use first campaign price ID (campaign prices are in stripePriceIds array)
+        // The backend will match the correct campaign price to the original price
+        const campaignPriceId = productCampaign.stripePriceIds[0];
+        
+        return NextResponse.json({
+          success: true,
+          hasCampaignPrice: true,
+          priceId: campaignPriceId,
+          campaignId: productCampaign.id,
+          campaignName: productCampaign.name,
+          originalPriceId: originalPriceId,
+          source: 'local_storage', // Indicate this came from local storage
+          productId
+        });
+      }
+      
+      console.log(`ℹ️ Campaign API: No campaign found in Source Portal or local storage for ${productId}`);
       return NextResponse.json({
         success: true,
         hasCampaignPrice: false,
@@ -110,7 +141,7 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    console.log(`🎯 Campaign API: Campaign price found for ${productId}:`, {
+    console.log(`🎯 Campaign API: Campaign price found in Source Portal for ${productId}:`, {
       priceId: data.priceId,
       campaignName: data.campaignName,
       originalPriceId: data.originalPriceId
@@ -124,6 +155,7 @@ export async function GET(req: NextRequest) {
       campaignName: data.campaignName,
       originalPriceId: data.originalPriceId,
       metadata: data.metadata,
+      source: 'source_portal', // Indicate this came from Source Portal
       productId
     });
   } catch (error) {
