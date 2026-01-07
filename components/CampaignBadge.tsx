@@ -176,7 +176,26 @@ export default function CampaignBadge({
               console.warn(`⚠️ CampaignBadge: Failed to fetch Stripe price: ${priceRes.status}`);
             }
           } catch (error) {
-            console.error('❌ CampaignBadge: Failed to fetch campaign price details from Stripe:', error);
+            // Campaign price is likely in Stripe Connect account (not accessible via platform key)
+            // Show campaign badge anyway - checkout will use the correct price
+            console.warn(`⚠️ CampaignBadge: Could not fetch campaign price (likely Stripe Connect):`, error instanceof Error ? error.message : 'Unknown error');
+            console.log(`ℹ️ CampaignBadge: Showing campaign badge - price will be applied in checkout`);
+            
+            // Show campaign badge without exact price
+            const originalAmount = defaultPrice * 100;
+            const campaignInfo: PriceInfo = {
+              found: true,
+              priceId: data.priceId,
+              amount: originalAmount, // Placeholder
+              currency: currency,
+              isCampaign: true,
+              campaignInfo: {
+                originalAmount,
+                discountPercent: 0, // Unknown - will be calculated in checkout
+                description: data.campaignName
+              }
+            };
+            setPriceInfo(campaignInfo);
           }
         } else {
           console.log(`ℹ️ CampaignBadge: No campaign found for ${productId}${variantPriceId ? ` (variant: ${variantPriceId})` : ''}`);
