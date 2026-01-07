@@ -93,11 +93,16 @@ export async function GET(req: NextRequest) {
     console.log(`📊 Campaign API: campaignId =`, data.campaignId);
     console.log(`📊 Campaign API: campaignName =`, data.campaignName);
     console.log(`📊 Campaign API: originalPriceId =`, data.originalPriceId);
+    console.log(`📊 Campaign API: metadata =`, data.metadata);
+    console.log(`📊 Campaign API: metadata keys =`, data.metadata ? Object.keys(data.metadata) : 'null');
+    console.log(`📊 Campaign API: discount_percent =`, data.metadata?.discount_percent);
+    console.log(`📊 Campaign API: unit_amount =`, data.metadata?.unit_amount);
+    console.log(`📊 Campaign API: amount =`, data.amount);
     
     // Log full response as string (might be truncated but better than object)
     try {
       const responseStr = JSON.stringify(data);
-      console.log(`📊 Campaign API: Full response (first 500 chars):`, responseStr.substring(0, 500));
+      console.log(`📊 Campaign API: Full response (first 1000 chars):`, responseStr.substring(0, 1000));
     } catch (e) {
       console.log(`📊 Campaign API: Could not stringify response`);
     }

@@ -93,7 +93,11 @@ export default function CampaignBadge({
           hasCampaignPrice: data.hasCampaignPrice,
           priceId: data.priceId,
           campaignName: data.campaignName,
-          success: data.success
+          success: data.success,
+          metadata: data.metadata,
+          discountPercent: data.metadata?.discount_percent,
+          amount: data.amount,
+          unitAmount: data.metadata?.unit_amount
         });
 
         // If campaign price found, fetch the actual price amount from Stripe
