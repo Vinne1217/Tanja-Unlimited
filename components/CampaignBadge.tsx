@@ -100,9 +100,52 @@ export default function CampaignBadge({
           unitAmount: data.metadata?.unit_amount
         });
 
-        // If campaign price found, fetch the actual price amount from Stripe
+        // If campaign price found, use API-provided data first (from customer portal)
         if (data.hasCampaignPrice && data.priceId) {
-          console.log(`✅ CampaignBadge: Campaign found! Fetching price details for ${data.priceId}`);
+          console.log(`✅ CampaignBadge: Campaign found! Price ID: ${data.priceId}`);
+          
+          // PRIORITY 1: Use amount and metadata from API response (customer portal now provides this)
+          if (data.amount && data.metadata?.discount_percent) {
+            const campaignAmount = data.amount; // Already in cents
+            const discountPercent = data.metadata.discount_percent;
+            const originalAmount = data.metadata.original_unit_amount || (defaultPrice * 100);
+            
+            console.log(`💰 CampaignBadge: Using API-provided price data:`, {
+              campaignAmount: campaignAmount / 100,
+              originalAmount: originalAmount / 100,
+              discountPercent,
+              source: 'customer_portal_api'
+            });
+            
+            if (discountPercent > 0) {
+              const campaignInfo: PriceInfo = {
+                found: true,
+                priceId: data.priceId,
+                amount: campaignAmount,
+                currency: data.currency || currency,
+                isCampaign: true,
+                campaignInfo: {
+                  originalAmount,
+                  discountPercent,
+                  description: data.campaignName
+                }
+              };
+              
+              setPriceInfo(campaignInfo);
+              const campaignPrice = campaignAmount / 100; // Convert cents to SEK
+              
+              console.log(`🎯 CampaignBadge: Campaign price set from API! ${campaignPrice} SEK (${discountPercent}% off)`);
+              
+              // Notify parent component
+              if (onCampaignFound) {
+                onCampaignFound(campaignPrice);
+              }
+              return; // Exit early - we have all the data we need
+            }
+          }
+          
+          // PRIORITY 2: Fallback to fetching from Stripe (for backward compatibility)
+          console.log(`ℹ️ CampaignBadge: API response missing amount/metadata, trying Stripe fetch...`);
           try {
             // Fetch campaign price details from Stripe to get amount
             const priceRes = await fetch(`/api/products/price?productId=${productId}&stripePriceId=${encodeURIComponent(data.priceId)}`);
