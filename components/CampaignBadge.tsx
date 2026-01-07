@@ -173,7 +173,25 @@ export default function CampaignBadge({
                 console.warn(`⚠️ CampaignBadge: Stripe price data not found or missing amount`);
               }
             } else {
-              console.warn(`⚠️ CampaignBadge: Failed to fetch Stripe price: ${priceRes.status}`);
+              // Price fetch failed (likely Stripe Connect account)
+              console.warn(`⚠️ CampaignBadge: Failed to fetch Stripe price: ${priceRes.status} - price may be in Stripe Connect account`);
+              console.log(`ℹ️ CampaignBadge: Showing campaign badge - price will be applied in checkout`);
+              
+              // Show campaign badge without exact price
+              const originalAmount = defaultPrice * 100;
+              const campaignInfo: PriceInfo = {
+                found: true,
+                priceId: data.priceId,
+                amount: originalAmount, // Placeholder
+                currency: currency,
+                isCampaign: true,
+                campaignInfo: {
+                  originalAmount,
+                  discountPercent: 0, // Unknown - will be calculated in checkout
+                  description: data.campaignName
+                }
+              };
+              setPriceInfo(campaignInfo);
             }
           } catch (error) {
             // Campaign price is likely in Stripe Connect account (not accessible via platform key)
@@ -225,7 +243,12 @@ export default function CampaignBadge({
       {/* Campaign Badge */}
       <div className="inline-flex items-center gap-2 px-4 py-2 bg-terracotta text-ivory text-sm font-medium tracking-wider">
         <Sparkles className="w-4 h-4" />
-        <span>{discountPercent}% rabatt</span>
+        <span>
+          {discountPercent > 0 
+            ? `${discountPercent}% rabatt`
+            : priceInfo.campaignInfo?.description || 'Kampanj'
+          }
+        </span>
       </div>
 
       {/* Price Display with Strikethrough */}
