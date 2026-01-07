@@ -52,11 +52,13 @@ export default function CampaignBadge({
       
       console.log(`🔍 CampaignBadge: useEffect triggered for product: ${productId}${variantPriceId ? ` (variant: ${variantPriceId})` : ' (no variant)'}`);
       
-      // If we have variants but no variantPriceId selected yet, don't fetch (wait for selection)
-      if (hasVariants && !variantPriceId) {
-        console.log(`⏳ CampaignBadge: Waiting for variant selection...`);
-        setLoading(false);
-        return;
+      // Normalize variantPriceId: convert 'none' string to undefined for API call
+      const normalizedVariantPriceId = variantPriceId && variantPriceId !== 'none' ? variantPriceId : undefined;
+      
+      // If we have variants but no variantPriceId selected yet, still fetch for product-level campaigns
+      // We'll fetch without originalPriceId to check for product-level campaigns
+      if (hasVariants && !normalizedVariantPriceId) {
+        console.log(`ℹ️ CampaignBadge: No variant selected, checking for product-level campaigns...`);
       }
       
       try {
@@ -68,8 +70,8 @@ export default function CampaignBadge({
         // Build URL with optional originalPriceId for variant-specific campaigns
         // productId should already be Stripe Product ID from product.stripeProductId
         let url = `/api/campaigns/price?productId=${encodeURIComponent(productId)}`;
-        if (variantPriceId) {
-          url += `&originalPriceId=${encodeURIComponent(variantPriceId)}`;
+        if (normalizedVariantPriceId) {
+          url += `&originalPriceId=${encodeURIComponent(normalizedVariantPriceId)}`;
         }
 
         console.log(`📡 CampaignBadge: Fetching from: ${url}`);
