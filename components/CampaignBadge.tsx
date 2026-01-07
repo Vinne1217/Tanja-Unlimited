@@ -175,23 +175,78 @@ export default function CampaignBadge({
             } else {
               // Price fetch failed (likely Stripe Connect account)
               console.warn(`⚠️ CampaignBadge: Failed to fetch Stripe price: ${priceRes.status} - price may be in Stripe Connect account`);
-              console.log(`ℹ️ CampaignBadge: Showing campaign badge - price will be applied in checkout`);
               
-              // Show campaign badge without exact price
-              const originalAmount = defaultPrice * 100;
-              const campaignInfo: PriceInfo = {
-                found: true,
-                priceId: data.priceId,
-                amount: originalAmount, // Placeholder
-                currency: currency,
-                isCampaign: true,
-                campaignInfo: {
-                  originalAmount,
-                  discountPercent: 0, // Unknown - will be calculated in checkout
-                  description: data.campaignName
+              // Try to get original price and calculate campaign price from metadata
+              let originalAmount = defaultPrice * 100; // Default: convert SEK to cents
+              
+              // Try to fetch original variant price if available (this should work as it's not a campaign price)
+              if (normalizedVariantPriceId && normalizedVariantPriceId !== 'none') {
+                try {
+                  const originalPriceRes = await fetch(`/api/products/price?productId=${productId}&stripePriceId=${encodeURIComponent(normalizedVariantPriceId)}`);
+                  if (originalPriceRes.ok) {
+                    const originalPriceData = await originalPriceRes.json();
+                    if (originalPriceData.found && originalPriceData.amount) {
+                      originalAmount = originalPriceData.amount; // Already in cents
+                      console.log(`💰 CampaignBadge: Fetched original variant price: ${originalAmount / 100} SEK`);
+                    }
+                  }
+                } catch (error) {
+                  console.warn(`⚠️ CampaignBadge: Could not fetch original variant price:`, error);
                 }
-              };
-              setPriceInfo(campaignInfo);
+              }
+              
+              // Try to calculate campaign price from metadata discount_percent
+              let campaignAmount: number | null = null;
+              const discountPercent = data.metadata?.discount_percent || data.metadata?.discountPercent;
+              
+              if (discountPercent && typeof discountPercent === 'number' && discountPercent > 0) {
+                campaignAmount = Math.round(originalAmount * (1 - discountPercent / 100));
+                console.log(`💰 CampaignBadge: Calculated campaign price from metadata: ${campaignAmount / 100} SEK (${discountPercent}% off from ${originalAmount / 100} SEK)`);
+              } else {
+                console.log(`ℹ️ CampaignBadge: No discount metadata available - showing badge without price details`);
+                // Don't show price if we can't calculate it - just show badge
+                const campaignInfo: PriceInfo = {
+                  found: true,
+                  priceId: data.priceId,
+                  amount: originalAmount, // Use original as placeholder
+                  currency: currency,
+                  isCampaign: true,
+                  campaignInfo: {
+                    originalAmount,
+                    discountPercent: 0, // Unknown
+                    description: data.campaignName
+                  }
+                };
+                setPriceInfo(campaignInfo);
+                return; // Exit early - badge will show but without price
+              }
+              
+              // Calculate discount percentage
+              const calculatedDiscountPercent = Math.round(((originalAmount - campaignAmount) / originalAmount) * 100);
+              
+              if (calculatedDiscountPercent > 0) {
+                const campaignInfo: PriceInfo = {
+                  found: true,
+                  priceId: data.priceId,
+                  amount: campaignAmount,
+                  currency: currency,
+                  isCampaign: true,
+                  campaignInfo: {
+                    originalAmount,
+                    discountPercent: calculatedDiscountPercent,
+                    description: data.campaignName
+                  }
+                };
+                setPriceInfo(campaignInfo);
+                console.log(`🎯 CampaignBadge: Campaign price calculated! ${campaignAmount / 100} SEK (${calculatedDiscountPercent}% off)`);
+                
+                // Notify parent component
+                if (onCampaignFound) {
+                  onCampaignFound(campaignAmount / 100);
+                }
+              } else {
+                console.warn(`⚠️ CampaignBadge: Calculated discount is ${calculatedDiscountPercent}%, not showing campaign`);
+              }
             }
           } catch (error) {
             // Campaign price is likely in Stripe Connect account (not accessible via platform key)
