@@ -7,6 +7,7 @@ import type { CartItem } from '@/lib/cart-context';
 
 type CartTotalWithCampaignsProps = {
   items: CartItem[];
+  onTotalCalculated?: (total: number) => void;
 };
 
 // Component to calculate and expose price for a single cart item
@@ -39,14 +40,24 @@ function CartItemPriceCalculator({
   return null; // This component doesn't render anything
 }
 
-export function CartTotalWithCampaigns({ items }: CartTotalWithCampaignsProps) {
+export function CartTotalWithCampaigns({ items, onTotalCalculated }: CartTotalWithCampaignsProps) {
   const [itemPrices, setItemPrices] = useState<Record<string, number>>({});
 
   const handlePriceCalculated = (itemKey: string, price: number) => {
-    setItemPrices(prev => ({
-      ...prev,
-      [itemKey]: price
-    }));
+    setItemPrices(prev => {
+      const updated = {
+        ...prev,
+        [itemKey]: price
+      };
+      
+      // Calculate total and notify parent
+      const total = Object.values(updated).reduce((sum, p) => sum + p, 0);
+      if (onTotalCalculated) {
+        onTotalCalculated(total);
+      }
+      
+      return updated;
+    });
   };
 
   const total = Object.values(itemPrices).reduce((sum, price) => sum + price, 0);

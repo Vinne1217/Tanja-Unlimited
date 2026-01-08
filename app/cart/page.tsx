@@ -4,11 +4,11 @@ import { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { ShoppingCart, Trash2, Plus, Minus, ArrowLeft, Loader2, Gift, X } from 'lucide-react';
 import Link from 'next/link';
+import { useState } from 'react';
 import { useCart } from '../../lib/cart-context';
 import { formatPrice } from '../../lib/products';
 import CartItem from '../../components/CartItem';
 import { CartTotalWithCampaigns } from '../../components/CartTotalWithCampaigns';
-import { CartTotalDisplay } from '../../components/CartTotalDisplay';
 
 export default function CartPage() {
   const { items, removeItem, updateQuantity, clearCart, getTotalPrice } = useCart();
@@ -21,6 +21,7 @@ export default function CartPage() {
   } | null>(null);
   const [verifyingGiftCard, setVerifyingGiftCard] = useState(false);
   const [giftCardError, setGiftCardError] = useState<string | null>(null);
+  const [calculatedTotal, setCalculatedTotal] = useState<number | null>(null);
 
   // Verify gift card (read-only, no redemption)
   async function handleVerifyGiftCard() {
@@ -289,7 +290,10 @@ export default function CartPage() {
               </div>
 
               {/* Order Totals */}
-              <CartTotalWithCampaigns items={items} />
+              <CartTotalWithCampaigns 
+                items={items} 
+                onTotalCalculated={setCalculatedTotal}
+              />
               {giftCardVerified?.valid && (
                 <div className="flex justify-between text-sm text-sage">
                   <span>Gift card will be applied</span>
@@ -297,7 +301,17 @@ export default function CartPage() {
                 </div>
               )}
               <div className="border-t border-warmOchre/20 pt-4">
-                <CartTotalDisplay items={items} />
+                <div className="flex justify-between text-xl font-serif text-deepIndigo">
+                  <span>Total</span>
+                  <span>
+                    {formatPrice(
+                      calculatedTotal !== null 
+                        ? calculatedTotal 
+                        : items.reduce((sum, item) => sum + (item.product.price || 0) * item.quantity, 0),
+                      'SEK'
+                    )}
+                  </span>
+                </div>
                 {giftCardVerified?.valid && (
                   <p className="text-xs text-softCharcoal/60 mt-1">
                     Final amount will be calculated at checkout
