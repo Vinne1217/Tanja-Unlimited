@@ -115,7 +115,29 @@ export default function BuyNowButton({ product, onVariantChange }: BuyNowButtonP
         if (res.ok) {
           const data = await res.json();
           if (data.hasCampaignPrice && data.priceId) {
-            // Fetch price amount from Stripe
+            // PRIORITY 1: Use amount and metadata from API response (customer portal provides this)
+            if (data.amount && data.metadata?.discount_percent) {
+              const campaignAmount = data.amount / 100; // Convert cents to SEK
+              const originalAmount = (data.metadata.original_unit_amount || (selectedVariantData?.price ?? product.price) * 100) / 100;
+              const discountPercent = data.metadata.discount_percent;
+              
+              console.log(`💰 BuyNowButton: Using API-provided campaign price:`, {
+                campaignAmount,
+                originalAmount,
+                discountPercent,
+                source: 'customer_portal_api'
+              });
+              
+              setCampaignPrice({
+                amount: campaignAmount,
+                originalAmount,
+                discountPercent
+              });
+              return;
+            }
+            
+            // PRIORITY 2: Fallback to fetching from Stripe (for backward compatibility)
+            console.log(`ℹ️ BuyNowButton: API response missing amount/metadata, trying Stripe fetch...`);
             const priceRes = await fetch(`/api/products/price?productId=${encodeURIComponent(productIdForCampaign)}&stripePriceId=${encodeURIComponent(data.priceId)}`);
             if (priceRes.ok) {
               const priceData = await priceRes.json();
@@ -132,6 +154,8 @@ export default function BuyNowButton({ product, onVariantChange }: BuyNowButtonP
                 });
                 return;
               }
+            } else {
+              console.warn(`⚠️ BuyNowButton: Stripe price fetch failed (${priceRes.status}) - price may be in Stripe Connect account`);
             }
           }
         }
