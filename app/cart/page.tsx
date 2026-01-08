@@ -14,8 +14,11 @@ export default function CartPage() {
   const [giftCardCode, setGiftCardCode] = useState('');
   const [giftCardVerified, setGiftCardVerified] = useState<{
     valid: boolean;
-    balance?: number;
+    balance?: number; // In SEK for display
+    balanceInCents?: number; // Original amount in cents
     expiresAt?: string;
+    status?: string;
+    currency?: string;
   } | null>(null);
   const [verifyingGiftCard, setVerifyingGiftCard] = useState(false);
   const [giftCardError, setGiftCardError] = useState<string | null>(null);
