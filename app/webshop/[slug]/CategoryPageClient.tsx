@@ -50,11 +50,7 @@ export default function CategoryPageClient({
             <span>Back to Webshop</span>
           </Link>
 
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.7 }}
-          >
+          <div>
             <h1 className="text-5xl lg:text-6xl font-serif font-medium text-deepIndigo mb-6">
               {category.name}
             </h1>
@@ -65,7 +61,7 @@ export default function CategoryPageClient({
             <p className="text-sm text-softCharcoal/60 mt-4">
               {products.length} {products.length === 1 ? 'product' : 'products'} available
             </p>
-          </motion.div>
+          </div>
         </div>
       </section>
 
