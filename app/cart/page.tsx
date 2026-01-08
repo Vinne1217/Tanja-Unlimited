@@ -7,6 +7,8 @@ import Link from 'next/link';
 import { useCart } from '../../lib/cart-context';
 import { formatPrice } from '../../lib/products';
 import CartItem from '../../components/CartItem';
+import { CartTotalWithCampaigns } from '../../components/CartTotalWithCampaigns';
+import { CartTotalDisplay } from '../../components/CartTotalDisplay';
 
 export default function CartPage() {
   const { items, removeItem, updateQuantity, clearCart, getTotalPrice } = useCart();
@@ -175,7 +177,7 @@ export default function CartPage() {
     );
   }
 
-  const total = getTotalPrice();
+  // Note: Total is now calculated in CartTotalWithCampaigns component
 
   return (
     <div className="min-h-screen bg-ivory py-16">
@@ -287,28 +289,20 @@ export default function CartPage() {
               </div>
 
               {/* Order Totals */}
-              <div className="space-y-4 border-t border-warmOchre/20 pt-4">
-                <div className="flex justify-between text-softCharcoal">
-                  <span>Subtotal ({items.reduce((sum, item) => sum + item.quantity, 0)} items)</span>
-                  <span>{formatPrice(total, 'SEK')}</span>
+              <CartTotalWithCampaigns items={items} />
+              {giftCardVerified?.valid && (
+                <div className="flex justify-between text-sm text-sage">
+                  <span>Gift card will be applied</span>
+                  <span>—</span>
                 </div>
+              )}
+              <div className="border-t border-warmOchre/20 pt-4">
+                <CartTotalDisplay items={items} />
                 {giftCardVerified?.valid && (
-                  <div className="flex justify-between text-sm text-sage">
-                    <span>Gift card will be applied</span>
-                    <span>—</span>
-                  </div>
+                  <p className="text-xs text-softCharcoal/60 mt-1">
+                    Final amount will be calculated at checkout
+                  </p>
                 )}
-                <div className="border-t border-warmOchre/20 pt-4">
-                  <div className="flex justify-between text-xl font-serif text-deepIndigo">
-                    <span>Total</span>
-                    <span>{formatPrice(total, 'SEK')}</span>
-                  </div>
-                  {giftCardVerified?.valid && (
-                    <p className="text-xs text-softCharcoal/60 mt-1">
-                      Final amount will be calculated at checkout
-                    </p>
-                  )}
-                </div>
               </div>
               <button
                 onClick={handleCheckout}
