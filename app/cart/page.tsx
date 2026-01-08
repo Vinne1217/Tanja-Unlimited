@@ -1,10 +1,8 @@
 'use client';
 
-import { useState, useMemo } from 'react';
-import { motion } from 'framer-motion';
+import { useState } from 'react';
 import { ShoppingCart, Trash2, Plus, Minus, ArrowLeft, Loader2, Gift, X } from 'lucide-react';
 import Link from 'next/link';
-import { useState } from 'react';
 import { useCart } from '../../lib/cart-context';
 import { formatPrice } from '../../lib/products';
 import CartItem from '../../components/CartItem';
