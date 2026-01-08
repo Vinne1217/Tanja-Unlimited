@@ -30,7 +30,9 @@ export default function CartPage() {
 
   // Verify gift card (read-only, no redemption)
   async function handleVerifyGiftCard() {
-    if (!giftCardCode.trim()) {
+    const formattedCode = giftCardCode.toUpperCase().trim();
+    
+    if (!formattedCode) {
       setGiftCardError('Please enter a gift card code');
       return;
     }
@@ -44,23 +46,30 @@ export default function CartPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          code: giftCardCode.trim()
+          code: formattedCode
         }),
       });
 
       const data = await response.json();
 
       if (!response.ok) {
-        setGiftCardError(data.error || 'Invalid gift card code');
+        // Handle error responses
+        const errorMessage = data.error || data.message || 'Invalid gift card code';
+        setGiftCardError(errorMessage);
         setGiftCardVerified({ valid: false });
         return;
       }
 
       if (data.valid) {
+        // Convert balance from cents to SEK for display
+        const balanceInSEK = data.balance ? data.balance / 100 : 0;
         setGiftCardVerified({
           valid: true,
-          balance: data.balance,
-          expiresAt: data.expiresAt
+          balance: balanceInSEK, // Store in SEK for display
+          balanceInCents: data.balance, // Keep original in cents
+          expiresAt: data.expiresAt,
+          status: data.status,
+          currency: data.currency || 'SEK'
         });
         setGiftCardError(null);
       } else {
@@ -68,6 +77,7 @@ export default function CartPage() {
         setGiftCardVerified({ valid: false });
       }
     } catch (error) {
+      console.error('❌ Gift card verification failed:', error);
       setGiftCardError('Failed to verify gift card. Please try again.');
       setGiftCardVerified({ valid: false });
     } finally {
@@ -239,7 +249,7 @@ export default function CartPage() {
                         </button>
                       </div>
                       <p className="text-xs text-sage">
-                        Balance: {formatPrice((giftCardVerified.balance || 0) / 100, 'SEK')}
+                        Balance: {formatPrice(giftCardVerified.balance || 0, giftCardVerified.currency || 'SEK')}
                       </p>
                       {giftCardVerified.expiresAt && (
                         <p className="text-xs text-softCharcoal/60 mt-1">

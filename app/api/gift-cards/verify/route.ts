@@ -21,27 +21,31 @@ export async function POST(req: NextRequest) {
     }
 
     // Call customer portal verify endpoint (read-only)
-    // Endpoint: POST /api/storefront/{tenant}/giftcards/verify
-    const response = await sourceFetch(`/api/storefront/${TENANT_ID}/giftcards/verify`, {
+    // Endpoint: POST /api/gift-cards/verify
+    // Response format: { success: true, data: { status, remainingAmount, initialAmount, expiresAt, currency } }
+    const formattedCode = code.toUpperCase().trim();
+    const response = await sourceFetch(`/api/gift-cards/verify`, {
       method: 'POST',
       headers: {
         'X-Tenant': TENANT_ID,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        code: code.trim()
+        code: formattedCode
       })
     });
 
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+      const errorData = await response.json().catch(() => ({ message: 'Unknown error' }));
       console.error(`❌ Gift card verification failed: ${response.status}`, errorData);
       
-      // Return error response
+      // Map error responses to frontend format
+      const errorMessage = errorData.message || `Verification failed: ${response.status}`;
+      
       return NextResponse.json(
         {
           valid: false,
-          error: errorData.error || `Verification failed: ${response.status}`
+          error: errorMessage
         },
         { status: response.status }
       );
@@ -49,17 +53,39 @@ export async function POST(req: NextRequest) {
 
     const data = await response.json();
     
-    console.log(`✅ Gift card verified:`, {
-      code: code.slice(0, 4) + '****' + code.slice(-4),
-      valid: data.valid,
-      balance: data.balance
-    });
+    // Handle new response format: { success: true, data: { ... } }
+    if (data.success && data.data) {
+      const giftCardData = data.data;
+      console.log(`✅ Gift card verified:`, {
+        code: formattedCode.slice(0, 4) + '****' + formattedCode.slice(-4),
+        status: giftCardData.status,
+        remainingAmount: giftCardData.remainingAmount,
+        currency: giftCardData.currency
+      });
 
-    return NextResponse.json({
-      valid: data.valid || false,
-      balance: data.balance,
-      expiresAt: data.expiresAt
-    });
+      // Convert remainingAmount (in cents) to balance (in cents)
+      // Map response format to frontend format
+      return NextResponse.json({
+        valid: giftCardData.status === 'active',
+        balance: giftCardData.remainingAmount, // Already in cents
+        expiresAt: giftCardData.expiresAt || null,
+        status: giftCardData.status,
+        currency: giftCardData.currency
+      });
+    } else {
+      // Fallback for old response format: { valid: true, balance: ... }
+      console.log(`✅ Gift card verified (legacy format):`, {
+        code: formattedCode.slice(0, 4) + '****' + formattedCode.slice(-4),
+        valid: data.valid,
+        balance: data.balance
+      });
+
+      return NextResponse.json({
+        valid: data.valid || false,
+        balance: data.balance,
+        expiresAt: data.expiresAt || null
+      });
+    }
   } catch (error) {
     console.error('❌ Error verifying gift card:', error);
     return NextResponse.json(
