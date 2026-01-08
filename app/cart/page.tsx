@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { ShoppingCart, Trash2, Plus, Minus, ArrowLeft, Loader2, Gift, X } from 'lucide-react';
 import Link from 'next/link';
 import { useCart } from '../../lib/cart-context';
@@ -20,6 +20,13 @@ export default function CartPage() {
   const [verifyingGiftCard, setVerifyingGiftCard] = useState(false);
   const [giftCardError, setGiftCardError] = useState<string | null>(null);
   const [calculatedTotal, setCalculatedTotal] = useState<number | null>(null);
+
+  // Log when calculatedTotal changes
+  useEffect(() => {
+    if (calculatedTotal !== null) {
+      console.log(`💰 CartPage: calculatedTotal updated to: ${calculatedTotal} SEK`);
+    }
+  }, [calculatedTotal]);
 
   // Verify gift card (read-only, no redemption)
   async function handleVerifyGiftCard() {

@@ -44,20 +44,10 @@ export function CartTotalWithCampaigns({ items, onTotalCalculated }: CartTotalWi
   const [itemPrices, setItemPrices] = useState<Record<string, number>>({});
 
   const handlePriceCalculated = (itemKey: string, price: number) => {
-    setItemPrices(prev => {
-      const updated = {
-        ...prev,
-        [itemKey]: price
-      };
-      
-      // Calculate total and notify parent
-      const total = Object.values(updated).reduce((sum, p) => sum + p, 0);
-      if (onTotalCalculated) {
-        onTotalCalculated(total);
-      }
-      
-      return updated;
-    });
+    setItemPrices(prev => ({
+      ...prev,
+      [itemKey]: price
+    }));
   };
 
   const total = Object.values(itemPrices).reduce((sum, price) => sum + price, 0);
@@ -69,6 +59,18 @@ export function CartTotalWithCampaigns({ items, onTotalCalculated }: CartTotalWi
   }, 0);
 
   const displayTotal = Object.keys(itemPrices).length === items.length ? total : fallbackTotal;
+
+  // Notify parent when total changes
+  useEffect(() => {
+    if (onTotalCalculated && Object.keys(itemPrices).length === items.length) {
+      console.log(`💰 CartTotalWithCampaigns: Notifying parent of calculated total: ${total} SEK`);
+      onTotalCalculated(total);
+    } else if (onTotalCalculated && Object.keys(itemPrices).length > 0) {
+      // Also notify with partial total (as prices load)
+      console.log(`💰 CartTotalWithCampaigns: Notifying parent of partial total: ${total} SEK (${Object.keys(itemPrices).length}/${items.length} items)`);
+      onTotalCalculated(total);
+    }
+  }, [total, itemPrices, items.length, onTotalCalculated]);
 
   return (
     <>
