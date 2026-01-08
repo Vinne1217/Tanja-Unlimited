@@ -53,6 +53,15 @@ export function useCampaignPrice(
         }
 
         const data = await res.json();
+        
+        console.log(`🔍 useCampaignPrice: API response for ${productId}:`, {
+          hasCampaignPrice: data.hasCampaignPrice,
+          priceId: data.priceId,
+          amount: data.amount,
+          metadata: data.metadata,
+          discountPercent: data.metadata?.discount_percent || data.metadata?.discountPercent,
+          campaignName: data.campaignName
+        });
 
         // If campaign price found, use API-provided data
         if (data.hasCampaignPrice && data.priceId) {
@@ -77,7 +86,46 @@ export function useCampaignPrice(
             }
           }
 
-          // PRIORITY 2: Fallback - try to fetch from Stripe (for backward compatibility)
+          // PRIORITY 2: Calculate from metadata.discount_percent if available (even without amount)
+          const discountPercent = data.metadata?.discount_percent || data.metadata?.discountPercent;
+          if (discountPercent && typeof discountPercent === 'number' && discountPercent > 0) {
+            // Try to get original price - first from metadata, then try fetching variant price, then use defaultPrice
+            let originalAmount = data.metadata?.original_unit_amount || (defaultPrice * 100);
+            
+            // If we have a variant price ID, try to fetch the original variant price
+            if (normalizedVariantPriceId && normalizedVariantPriceId !== 'none') {
+              try {
+                const originalPriceRes = await fetch(`/api/products/price?productId=${encodeURIComponent(productId)}&stripePriceId=${encodeURIComponent(normalizedVariantPriceId)}`);
+                if (originalPriceRes.ok) {
+                  const originalPriceData = await originalPriceRes.json();
+                  if (originalPriceData.found && originalPriceData.amount) {
+                    originalAmount = originalPriceData.amount; // Already in cents
+                  }
+                }
+              } catch (error) {
+                // Ignore - use originalAmount from metadata or defaultPrice
+              }
+            }
+            
+            // Calculate campaign price from discount percentage
+            const campaignAmount = Math.round(originalAmount * (1 - discountPercent / 100));
+            const campaignPrice = campaignAmount / 100; // Convert cents to SEK
+            const originalPrice = originalAmount / 100; // Convert cents to SEK
+
+            console.log(`💰 useCampaignPrice: Calculated campaign price from metadata: ${campaignPrice} SEK (${discountPercent}% off from ${originalPrice} SEK)`);
+
+            setCampaignInfo({
+              hasCampaign: true,
+              campaignPrice,
+              originalPrice,
+              discountPercent,
+              campaignName: data.campaignName,
+              priceId: data.priceId,
+            });
+            return;
+          }
+
+          // PRIORITY 3: Fallback - try to fetch from Stripe (for backward compatibility)
           // This is less reliable with Stripe Connect, but we'll try
           try {
             const priceRes = await fetch(`/api/products/price?productId=${encodeURIComponent(productId)}&stripePriceId=${encodeURIComponent(data.priceId)}`);

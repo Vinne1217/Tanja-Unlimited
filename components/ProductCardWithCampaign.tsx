@@ -38,8 +38,16 @@ type ProductCardWithCampaignProps = {
 
 export default function ProductCardWithCampaign({ product, slug, idx }: ProductCardWithCampaignProps) {
   // Fetch campaign price for this product
+  const productIdForCampaign = product.stripeProductId || product.id;
+  console.log(`🎨 ProductCardWithCampaign: Product ${product.id}`, {
+    stripeProductId: product.stripeProductId,
+    productIdForCampaign,
+    price: product.price,
+    stripePriceId: product.stripePriceId
+  });
+  
   const campaignPrice = useCampaignPrice(
-    product.stripeProductId || product.id,
+    productIdForCampaign,
     product.price,
     product.stripePriceId
   );
