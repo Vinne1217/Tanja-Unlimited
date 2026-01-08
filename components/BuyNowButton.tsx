@@ -224,6 +224,7 @@ export default function BuyNowButton({ product, onVariantChange }: BuyNowButtonP
       image: product.image,
       inStock: !inventory?.outOfStock && !variantOutOfStock,
       stripePriceId: priceId || product.stripePriceId, // Use selected variant's price ID
+      stripeProductId: product.stripeProductId, // Include Stripe Product ID for campaign price lookup
       variantKey: selectedVariant || undefined,
       variantPriceId: selectedVariantData?.stripePriceId,
     };

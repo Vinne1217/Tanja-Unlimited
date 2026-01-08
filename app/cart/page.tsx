@@ -1,12 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { ShoppingCart, Trash2, Plus, Minus, ArrowLeft, Loader2, Gift, X } from 'lucide-react';
 import Link from 'next/link';
 import { useCart } from '../../lib/cart-context';
-import StockStatus from '../../components/StockStatus';
 import { formatPrice } from '../../lib/products';
+import CartItem from '../../components/CartItem';
 
 export default function CartPage() {
   const { items, removeItem, updateQuantity, clearCart, getTotalPrice } = useCart();
@@ -193,69 +193,14 @@ export default function CartPage() {
         <div className="grid lg:grid-cols-3 gap-8">
           {/* Cart Items */}
           <div className="lg:col-span-2 space-y-4">
-            {items.map((item) => {
-              const price = item.product.price || 0;
-              const image = item.product.image || item.product.images?.[0];
-              return (
-                <motion.div
-                  key={`${item.product.id}${item.product.variantKey ? `:${item.product.variantKey}` : ''}`}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="bg-warmIvory border border-warmOchre/20 p-6 flex gap-6"
-                >
-                  {image && (
-                    <img
-                      src={image}
-                      alt={item.product.name}
-                      className="w-24 h-24 object-cover border border-ochre/20"
-                    />
-                  )}
-                  <div className="flex-1">
-                    <h3 className="text-xl font-serif text-deepIndigo mb-2">{item.product.name}</h3>
-                    {item.product.variantKey && (
-                      <p className="text-sm text-softCharcoal mb-2">Storlek: {item.product.variantKey}</p>
-                    )}
-                    <StockStatus productId={item.product.id} />
-                    <div className="flex items-center justify-between mt-4">
-                      <div className="flex items-center gap-3">
-                        <button
-                          onClick={() => updateQuantity(item.product.id, item.quantity - 1, item.product.variantKey)}
-                          className="p-1 border border-warmOchre/20 hover:border-warmOchre transition-colors"
-                          aria-label="Decrease quantity"
-                        >
-                          <Minus className="w-4 h-4" />
-                        </button>
-                        <span className="w-12 text-center font-medium">{item.quantity}</span>
-                        <button
-                          onClick={() => updateQuantity(item.product.id, item.quantity + 1, item.product.variantKey)}
-                          className="p-1 border border-warmOchre/20 hover:border-warmOchre transition-colors"
-                          aria-label="Increase quantity"
-                        >
-                          <Plus className="w-4 h-4" />
-                        </button>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-lg font-serif text-deepIndigo">
-                          {formatPrice(price * item.quantity, item.product.currency)}
-                        </p>
-                        {item.quantity > 1 && (
-                          <p className="text-sm text-softCharcoal/60">
-                            {formatPrice(price, item.product.currency)} each
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                    <button
-                      onClick={() => removeItem(item.product.id, item.product.variantKey)}
-                      className="mt-4 flex items-center gap-2 text-sm text-terracotta hover:text-terracotta/80 transition-colors"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                      <span>Remove</span>
-                    </button>
-                  </div>
-                </motion.div>
-              );
-            })}
+            {items.map((item) => (
+              <CartItem
+                key={`${item.product.id}${item.product.variantKey ? `:${item.product.variantKey}` : ''}`}
+                item={item}
+                onUpdateQuantity={updateQuantity}
+                onRemove={removeItem}
+              />
+            ))}
           </div>
 
           {/* Order Summary */}

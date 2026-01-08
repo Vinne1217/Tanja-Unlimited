@@ -82,6 +82,7 @@ export default function ProductPurchase({ product }: { product: Product }) {
       images: product.images,
       inStock: !inventory?.outOfStock,
       stripePriceId: fallbackPriceId,
+      stripeProductId: product.stripeProductId, // Include Stripe Product ID for campaign price lookup
       variantKey: variantKey,
       variantPriceId: selectedPriceId,
     };

@@ -16,6 +16,7 @@ export type CartProduct = {
   images?: string[];
   inStock: boolean;
   stripePriceId?: string;
+  stripeProductId?: string; // Stripe Product ID (prod_...) for campaign price lookup
   // For catalog products with variants
   variantKey?: string;
   variantPriceId?: string;
