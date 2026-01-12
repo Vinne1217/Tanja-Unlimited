@@ -403,11 +403,24 @@ export async function POST(req: NextRequest) {
       console.log(`🎁 [API CHECKOUT] Including giftCardCode in backend request body: ${maskGiftCardCode(giftCardCode)}`);
     }
 
+    // Log detailed request body for debugging
     console.log('📦 Backend request body:', {
       items: backendItems.length,
       hasGiftCardCode: !!backendRequestBody.giftCardCode,
-      giftCardCodeInMetadata: !!sessionMetadata.giftCardCode
+      giftCardCodeInMetadata: !!sessionMetadata.giftCardCode,
+      giftCardCode: backendRequestBody.giftCardCode ? maskGiftCardCode(backendRequestBody.giftCardCode) : 'NOT PROVIDED',
+      itemsDetail: backendItems.map(item => ({
+        variantId: item.variantId,
+        quantity: item.quantity,
+        stripePriceId: item.stripePriceId
+      }))
     });
+    
+    // Log full request body (for debugging - remove sensitive data in production)
+    console.log('📦 Full backend request body (sanitized):', JSON.stringify({
+      ...backendRequestBody,
+      giftCardCode: backendRequestBody.giftCardCode ? maskGiftCardCode(backendRequestBody.giftCardCode) : undefined
+    }, null, 2));
 
     const backendResponse = await fetch(backendUrl, {
       method: 'POST',
