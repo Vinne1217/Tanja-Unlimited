@@ -64,12 +64,15 @@ export default function CartPage() {
       }
 
       if (data.valid) {
-        // Convert balance from cents to SEK for display
-        const balanceInSEK = data.balance ? data.balance / 100 : 0;
+        // API returns balance in cents (öre), convert to SEK for display
+        // balanceInCents is the original amount from API (in cents)
+        const balanceInCents = data.balance || 0;
+        const balanceInSEK = balanceInCents / 100;
+        
         setGiftCardVerified({
           valid: true,
           balance: balanceInSEK, // Store in SEK for display
-          balanceInCents: data.balance, // Keep original in cents
+          balanceInCents: balanceInCents, // Keep original in cents for calculations
           expiresAt: data.expiresAt,
           status: data.status,
           currency: data.currency || 'SEK'
@@ -126,7 +129,7 @@ export default function CartPage() {
             productId: item.product.id,
             variantKey: item.product.variantKey, // Include variant key if present
           })),
-          giftCardCode: giftCardVerified?.valid ? giftCardCode.trim() : undefined, // Only include if verified
+          giftCardCode: giftCardVerified?.valid ? giftCardCode.toUpperCase().trim() : undefined, // Only include if verified (uppercase)
           successUrl: `${window.location.origin}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
           cancelUrl: window.location.href,
         }),
@@ -312,30 +315,59 @@ export default function CartPage() {
                 items={items} 
                 onTotalCalculated={setCalculatedTotal}
               />
-              {giftCardVerified?.valid && (
-                <div className="flex justify-between text-sm text-sage">
-                  <span>Gift card will be applied</span>
-                  <span>—</span>
-                </div>
-              )}
-              <div className="border-t border-warmOchre/20 pt-4">
-                <div className="flex justify-between text-xl font-serif text-deepIndigo">
-                  <span>Total</span>
-                  <span>
-                    {formatPrice(
-                      calculatedTotal !== null 
-                        ? calculatedTotal 
-                        : items.reduce((sum, item) => sum + (item.product.price || 0) * item.quantity, 0),
-                      'SEK'
+              
+              {/* Gift Card Discount Calculation */}
+              {(() => {
+                // Calculate totals in SEK (calculatedTotal is already in SEK)
+                const subtotal = calculatedTotal !== null 
+                  ? calculatedTotal 
+                  : items.reduce((sum, item) => sum + (item.product.price || 0) * item.quantity, 0);
+                
+                // Gift card balance is in cents, convert to SEK
+                const giftCardBalanceSEK = giftCardVerified?.balanceInCents 
+                  ? giftCardVerified.balanceInCents / 100 
+                  : (giftCardVerified?.balance || 0);
+                
+                // Calculate discount (min of gift card balance and subtotal)
+                const discount = giftCardVerified?.valid 
+                  ? Math.min(giftCardBalanceSEK, subtotal)
+                  : 0;
+                
+                // Calculate final total (minimum 0.50 SEK for Stripe)
+                const finalTotal = Math.max(0.50, subtotal - discount);
+                
+                return (
+                  <>
+                    {giftCardVerified?.valid && discount > 0 && (
+                      <div className="flex justify-between text-sm text-sage">
+                        <span>Gift card discount</span>
+                        <span>-{formatPrice(discount, giftCardVerified.currency || 'SEK')}</span>
+                      </div>
                     )}
-                  </span>
-                </div>
-                {giftCardVerified?.valid && (
-                  <p className="text-xs text-softCharcoal/60 mt-1">
-                    Final amount will be calculated at checkout
-                  </p>
-                )}
-              </div>
+                    {giftCardVerified?.valid && discount === 0 && (
+                      <div className="flex justify-between text-sm text-softCharcoal/60">
+                        <span>Gift card balance: {formatPrice(giftCardBalanceSEK, giftCardVerified.currency || 'SEK')}</span>
+                        <span>(Less than order total)</span>
+                      </div>
+                    )}
+                    <div className="border-t border-warmOchre/20 pt-4">
+                      <div className="flex justify-between text-xl font-serif text-deepIndigo">
+                        <span>Total</span>
+                        <span>
+                          {formatPrice(finalTotal, giftCardVerified?.currency || 'SEK')}
+                        </span>
+                      </div>
+                      {giftCardVerified?.valid && discount > 0 && (
+                        <p className="text-xs text-softCharcoal/60 mt-1">
+                          {discount >= subtotal 
+                            ? 'Gift card covers full amount' 
+                            : `You'll pay ${formatPrice(finalTotal, giftCardVerified.currency || 'SEK')} at checkout`}
+                        </p>
+                      )}
+                    </div>
+                  </>
+                );
+              })()}
               <button
                 onClick={handleCheckout}
                 disabled={checkingOut}
