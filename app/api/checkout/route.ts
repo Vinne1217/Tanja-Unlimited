@@ -387,19 +387,35 @@ export async function POST(req: NextRequest) {
   try {
     const backendUrl = `${SOURCE_BASE}/storefront/${tenantId}/checkout`;
     
+    // Prepare request body for backend
+    const backendRequestBody: any = {
+      items: backendItems,
+      customerEmail: customerEmail || undefined,
+      successUrl: successUrl,
+      cancelUrl: cancelUrl,
+      metadata: sessionMetadata
+    };
+
+    // ✅ CRITICAL: Include giftCardCode as direct property (backend expects this)
+    // The backend applies the discount to Stripe line items when it sees giftCardCode
+    if (giftCardCode) {
+      backendRequestBody.giftCardCode = giftCardCode;
+      console.log(`🎁 [API CHECKOUT] Including giftCardCode in backend request body: ${maskGiftCardCode(giftCardCode)}`);
+    }
+
+    console.log('📦 Backend request body:', {
+      items: backendItems.length,
+      hasGiftCardCode: !!backendRequestBody.giftCardCode,
+      giftCardCodeInMetadata: !!sessionMetadata.giftCardCode
+    });
+
     const backendResponse = await fetch(backendUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'X-Tenant': tenantId
       },
-      body: JSON.stringify({
-        items: backendItems,
-        customerEmail: customerEmail || undefined,
-        successUrl: successUrl,
-        cancelUrl: cancelUrl,
-        metadata: sessionMetadata
-      })
+      body: JSON.stringify(backendRequestBody)
     });
 
     if (!backendResponse.ok) {
