@@ -388,27 +388,31 @@ export async function POST(req: NextRequest) {
     const backendUrl = `${SOURCE_BASE}/storefront/${tenantId}/checkout`;
     
     // Prepare request body for backend
-    const backendRequestBody: any = {
+    // ✅ CRITICAL: Include giftCardCode as direct property using spread operator
+    // This ensures it's explicitly included in the JSON (not filtered out)
+    const backendRequestBody = {
       items: backendItems,
       customerEmail: customerEmail || undefined,
       successUrl: successUrl,
       cancelUrl: cancelUrl,
+      ...(giftCardCode && { giftCardCode: giftCardCode }), // Explicitly include if present
       metadata: sessionMetadata
     };
 
-    // ✅ CRITICAL: Include giftCardCode as direct property (backend expects this)
-    // The backend applies the discount to Stripe line items when it sees giftCardCode
+    // Log detailed request body for debugging
     if (giftCardCode) {
-      backendRequestBody.giftCardCode = giftCardCode;
       console.log(`🎁 [API CHECKOUT] Including giftCardCode in backend request body: ${maskGiftCardCode(giftCardCode)}`);
+    } else {
+      console.log(`⚠️ [API CHECKOUT] No giftCardCode to include in backend request`);
     }
 
-    // Log detailed request body for debugging
-    console.log('📦 Backend request body:', {
+    // Log request body structure
+    console.log('📦 Backend request body structure:', {
       items: backendItems.length,
       hasGiftCardCode: !!backendRequestBody.giftCardCode,
+      giftCardCodeValue: backendRequestBody.giftCardCode ? maskGiftCardCode(backendRequestBody.giftCardCode) : 'NOT SET',
       giftCardCodeInMetadata: !!sessionMetadata.giftCardCode,
-      giftCardCode: backendRequestBody.giftCardCode ? maskGiftCardCode(backendRequestBody.giftCardCode) : 'NOT PROVIDED',
+      requestBodyKeys: Object.keys(backendRequestBody),
       itemsDetail: backendItems.map(item => ({
         variantId: item.variantId,
         quantity: item.quantity,
@@ -416,7 +420,7 @@ export async function POST(req: NextRequest) {
       }))
     });
     
-    // Log full request body (for debugging - remove sensitive data in production)
+    // Log full request body (for debugging - sanitize gift card code)
     console.log('📦 Full backend request body (sanitized):', JSON.stringify({
       ...backendRequestBody,
       giftCardCode: backendRequestBody.giftCardCode ? maskGiftCardCode(backendRequestBody.giftCardCode) : undefined
