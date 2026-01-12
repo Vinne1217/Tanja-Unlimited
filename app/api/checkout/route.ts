@@ -19,13 +19,23 @@ type CartItem = {
 export async function POST(req: NextRequest) {
   const tenantId = process.env.SOURCE_TENANT_ID ?? TENANT_ID;
 
-  const { items, customerEmail, successUrl, cancelUrl, giftCardCode } = (await req.json()) as {
+  const requestBody = await req.json() as {
     items: CartItem[];
     customerEmail?: string;
     successUrl: string;
     cancelUrl: string;
-    giftCardCode?: string; // Optional gift card code (forwarded to customer portal for redemption)
+    giftCardCode?: string; // Optional gift card code (direct property - preferred)
+    metadata?: {
+      giftCardCode?: string; // Optional gift card code in metadata (fallback)
+      [key: string]: any;
+    };
   };
+
+  const { items, customerEmail, successUrl, cancelUrl } = requestBody;
+  
+  // Extract gift card code from direct property or metadata (as per documentation)
+  // Direct property is preferred, but metadata is checked as fallback
+  const giftCardCode = requestBody.giftCardCode || requestBody.metadata?.giftCardCode;
 
   // Validate: Only one gift card code allowed
   if (giftCardCode && typeof giftCardCode !== 'string') {
@@ -39,7 +49,9 @@ export async function POST(req: NextRequest) {
   if (giftCardCode) {
     // Note: Stripe promotion codes are handled by Stripe Checkout
     // We'll disable allow_promotion_codes when gift card is used
-    console.log(`🎁 Gift card code provided: ${maskGiftCardCode(giftCardCode)}`);
+    console.log(`🎁 [API CHECKOUT] Gift card code found: ${maskGiftCardCode(giftCardCode)}`);
+  } else {
+    console.log(`⚠️ [API CHECKOUT] No gift card code found`);
   }
 
   // Check if any items are gift cards
