@@ -119,6 +119,20 @@ export default function CartPage() {
     setCheckingOut(true);
 
     try {
+      // Prepare gift card code (uppercase, trimmed)
+      const giftCardCodeToSend = giftCardVerified?.valid 
+        ? giftCardCode.toUpperCase().trim() 
+        : undefined;
+
+      // Debug log (as per documentation)
+      console.log('🔍 [CHECKOUT] Creating checkout with:', {
+        items: items.length,
+        giftCardCode: giftCardCodeToSend || 'NOT PROVIDED',
+        hasGiftCard: !!giftCardCodeToSend,
+        giftCardVerified: giftCardVerified?.valid || false,
+        giftCardBalance: giftCardVerified?.balanceInCents || 0
+      });
+
       const response = await fetch('/api/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -129,9 +143,13 @@ export default function CartPage() {
             productId: item.product.id,
             variantKey: item.product.variantKey, // Include variant key if present
           })),
-          giftCardCode: giftCardVerified?.valid ? giftCardCode.toUpperCase().trim() : undefined, // Only include if verified (uppercase)
+          giftCardCode: giftCardCodeToSend, // ✅ Direct property (preferred)
           successUrl: `${window.location.origin}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
           cancelUrl: window.location.href,
+          metadata: {
+            // Include gift card code in metadata as backup (as per documentation)
+            ...(giftCardCodeToSend && { giftCardCode: giftCardCodeToSend }),
+          },
         }),
       });
 
