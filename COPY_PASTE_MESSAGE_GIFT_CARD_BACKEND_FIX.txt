@@ -1,0 +1,335 @@
+================================================================================
+GIFT CARD CHECKOUT DISCOUNT NOT APPLIED - BACKEND FIX REQUIRED
+================================================================================
+
+Subject: Gift Card Discount Not Applied in Stripe Checkout
+
+Hi Customer Portal Team,
+
+The tenant frontend is correctly sending gift card codes to the checkout endpoint,
+but the backend is not applying the discount to the Stripe checkout session.
+The checkout shows the full price instead of the discounted amount.
+
+================================================================================
+CURRENT STATUS
+================================================================================
+
+✅ WORKING:
+- Tenant frontend verifies gift card code before checkout
+- Gift card code is sent to backend endpoint
+- Backend receives the gift card code
+- Stripe checkout session is created successfully
+
+❌ NOT WORKING:
+- Backend does NOT apply discount to Stripe checkout session
+- Checkout shows full price (550 kr) instead of discounted price (300 kr)
+
+================================================================================
+WHAT THE TENANT FRONTEND IS SENDING
+================================================================================
+
+Endpoint: POST /storefront/{tenant}/checkout
+
+Request Body Format:
+{
+  "items": [
+    {
+      "variantId": "JACK-1234",
+      "quantity": 1,
+      "stripePriceId": "price_1SmchQ1fkdOqt85xhAcJUQuN"
+    }
+  ],
+  "customerEmail": "customer@example.com",
+  "successUrl": "https://tanja-unlimited-809785351172.europe-north1.run.app/checkout/success?session_id={CHECKOUT_SESSION_ID}",
+  "cancelUrl": "https://tanja-unlimited-809785351172.europe-north1.run.app/cart",
+  "giftCardCode": "GC-CWSJ-WAFC",  // ✅ CRITICAL: Direct property (not just in metadata)
+  "metadata": {
+    "tenant": "tanjaunlimited",
+    "source": "tanja_website",
+    "website": "tanja-unlimited-809785351172.europe-north1.run.app",
+    "giftCardCode": "GC-CWSJ-WAFC"  // Also in metadata as backup
+  }
+}
+
+IMPORTANT:
+- giftCardCode is sent as a DIRECT PROPERTY (top-level in request body)
+- giftCardCode is ALSO included in metadata (as backup)
+- Code format: GC-XXXX-XXXX (uppercase, with dashes)
+
+================================================================================
+VERIFICATION LOGS FROM TENANT FRONTEND
+================================================================================
+
+Tenant logs show:
+✅ Gift card verified: { remainingAmount: 25000, currency: 'SEK' }  // 250 SEK
+✅ Gift card code found: GC-C****WAFC
+✅ Including giftCardCode in backend request body: GC-C****WAFC
+✅ Backend request body keys: ['items', 'customerEmail', 'successUrl', 'cancelUrl', 'giftCardCode', 'metadata']
+✅ Checkout session created via backend: cs_test_...
+
+================================================================================
+WHAT THE BACKEND NEEDS TO DO
+================================================================================
+
+When the backend receives a request with giftCardCode:
+
+1. VERIFY GIFT CARD CODE
+   - Call: POST /api/gift-cards/verify (or internal verification)
+   - Verify code format: GC-XXXX-XXXX
+   - Check status: 'active'
+   - Get remaining balance: 25000 öre (250 SEK)
+
+2. CALCULATE DISCOUNT
+   Example calculation:
+   - Product price: 50000 öre (500 SEK)
+   - Delivery: 5000 öre (50 SEK)
+   - Subtotal: 55000 öre (550 SEK)
+   - Gift card balance: 25000 öre (250 SEK)
+   - Discount amount: min(25000, 55000) = 25000 öre (250 SEK)
+   - Final total: max(50, 55000 - 25000) = 30000 öre (300 SEK)
+
+3. APPLY DISCOUNT TO STRIPE CHECKOUT
+   Option A: Create discount line item
+   - Add negative line item: { amount: -25000, description: "Gift card discount" }
+   
+   Option B: Adjust line item amounts
+   - Reduce line item amounts proportionally
+   - Ensure minimum charge: 50 öre (0.50 SEK)
+
+4. CREATE STRIPE CHECKOUT SESSION
+   - Use adjusted line items (with discount applied)
+   - Include giftCardCode in session metadata
+   - Set allow_promotion_codes: false (gift cards and promotions can't be combined)
+
+================================================================================
+EXPECTED BACKEND IMPLEMENTATION
+================================================================================
+
+Backend endpoint: POST /storefront/{tenant}/checkout
+
+Expected flow:
+```javascript
+// 1. Extract gift card code from request body
+const { items, giftCardCode, customerEmail, successUrl, cancelUrl, metadata } = req.body;
+
+// 2. If gift card code present, verify and get balance
+let giftCardBalance = 0;
+if (giftCardCode) {
+  const verification = await verifyGiftCard(giftCardCode, tenantId);
+  if (verification.success && verification.data.status === 'active') {
+    giftCardBalance = verification.data.remainingAmount; // in öre
+    console.log(`✅ [CHECKOUT] Gift card verified: ${giftCardBalance} öre`);
+  } else {
+    console.error(`❌ [CHECKOUT] Gift card verification failed`);
+    return res.status(400).json({ error: 'Invalid gift card code' });
+  }
+}
+
+// 3. Calculate line items total
+const lineItems = [];
+let lineItemsTotal = 0;
+
+for (const item of items) {
+  const price = await stripe.prices.retrieve(item.stripePriceId);
+  const itemTotal = price.unit_amount * item.quantity;
+  lineItemsTotal += itemTotal;
+  
+  lineItems.push({
+    price: item.stripePriceId,
+    quantity: item.quantity
+  });
+}
+
+// 4. Calculate discount
+const discountAmount = giftCardBalance > 0 
+  ? Math.min(giftCardBalance, lineItemsTotal) 
+  : 0;
+const finalTotal = Math.max(50, lineItemsTotal - discountAmount); // Minimum 50 öre
+
+console.log(`💰 [CHECKOUT] Discount calculation:`, {
+  lineItemsTotal,
+  giftCardBalance,
+  discountAmount,
+  finalTotal
+});
+
+// 5. Add discount line item if discount > 0
+if (discountAmount > 0) {
+  lineItems.push({
+    price_data: {
+      currency: 'sek',
+      product_data: {
+        name: 'Gift Card Discount',
+        description: `Gift card: ${giftCardCode.substring(0, 5)}...`
+      },
+      unit_amount: -discountAmount // Negative amount for discount
+    },
+    quantity: 1
+  });
+  
+  console.log(`🎁 [CHECKOUT] Added discount line item: -${discountAmount} öre`);
+}
+
+// 6. Create Stripe checkout session
+const session = await stripe.checkout.sessions.create({
+  line_items: lineItems,
+  mode: 'payment',
+  success_url: successUrl,
+  cancel_url: cancelUrl,
+  allow_promotion_codes: false, // Disable promotions when gift card used
+  metadata: {
+    ...metadata,
+    giftCardCode: giftCardCode,
+    giftCardDiscount: discountAmount.toString(),
+    originalTotal: lineItemsTotal.toString(),
+    finalTotal: finalTotal.toString()
+  }
+});
+
+console.log(`✅ [CHECKOUT] Stripe session created with discount:`, {
+  sessionId: session.id,
+  discountAmount,
+  finalTotal
+});
+
+return res.json({
+  success: true,
+  checkoutUrl: session.url,
+  sessionId: session.id
+});
+```
+
+================================================================================
+TESTING SCENARIO
+================================================================================
+
+Test Case:
+- Product: Fodrad jacka (500 SEK)
+- Delivery: Standard (50 SEK)
+- Gift Card Balance: 250 SEK
+- Expected Total: 300 SEK (550 - 250)
+- Expected Discount: 250 SEK
+
+Current Behavior:
+- Stripe Checkout shows: 550 SEK (no discount applied)
+
+Expected Behavior:
+- Stripe Checkout shows: 300 SEK (discount applied)
+
+================================================================================
+DEBUGGING CHECKLIST
+================================================================================
+
+Please verify in backend logs:
+
+1. Is giftCardCode being read from request body?
+   Look for: "🎁 [CHECKOUT] Gift card code found: GC-..."
+
+2. Is gift card being verified?
+   Look for: "✅ [CHECKOUT] Gift card verified: { balance: 25000 }"
+
+3. Is discount being calculated?
+   Look for: "💰 [CHECKOUT] Discount calculation: { discountAmount: 25000 }"
+
+4. Are line items being adjusted?
+   Look for: "🎁 [CHECKOUT] Added discount line item: -25000 öre"
+
+5. Is Stripe session being created with discount?
+   Look for: "✅ [CHECKOUT] Stripe session created with discount: { finalTotal: 30000 }"
+
+If any of these logs are missing, that's where the issue is.
+
+================================================================================
+REQUEST BODY STRUCTURE (ACTUAL EXAMPLE)
+================================================================================
+
+From tenant logs, here's the exact structure being sent:
+
+{
+  "items": [
+    {
+      "variantId": "JACK-1234",
+      "quantity": 1,
+      "stripePriceId": "price_1SmchQ1fkdOqt85xhAcJUQuN"
+    }
+  ],
+  "customerEmail": undefined,
+  "successUrl": "https://tanja-unlimited-809785351172.europe-north1.run.app/checkout/success?session_id={CHECKOUT_SESSION_ID}",
+  "cancelUrl": "https://tanja-unlimited-809785351172.europe-north1.run.app/cart",
+  "giftCardCode": "GC-CWSJ-WAFC",  // ✅ TOP-LEVEL PROPERTY
+  "metadata": {
+    "tenant": "tanjaunlimited",
+    "source": "tanja_website",
+    "website": "tanja-unlimited-809785351172.europe-north1.run.app",
+    "giftCardCode": "GC-CWSJ-WAFC"  // Also in metadata
+  }
+}
+
+================================================================================
+GIFT CARD VERIFICATION ENDPOINT
+================================================================================
+
+The tenant frontend verifies gift cards using:
+POST /api/gift-cards/verify
+
+Response format:
+{
+  "success": true,
+  "data": {
+    "status": "active",
+    "remainingAmount": 25000,  // in öre (cents)
+    "initialAmount": 25000,
+    "expiresAt": null,
+    "currency": "SEK"
+  }
+}
+
+The backend should use the same verification logic or call this endpoint
+to get the gift card balance before applying the discount.
+
+================================================================================
+IMPORTANT NOTES
+================================================================================
+
+1. giftCardCode is sent as a DIRECT PROPERTY (not just in metadata)
+   - Check: req.body.giftCardCode
+   - Fallback: req.body.metadata?.giftCardCode
+
+2. Gift card code format: GC-XXXX-XXXX (uppercase, with dashes)
+
+3. Amounts are in öre (cents):
+   - 250 SEK = 25000 öre
+   - 500 SEK = 50000 öre
+   - Minimum charge: 50 öre (0.50 SEK)
+
+4. Discount calculation:
+   - discount = min(giftCardBalance, totalAmount)
+   - finalTotal = max(50, totalAmount - discount)
+
+5. Stripe Checkout:
+   - Must show discounted total
+   - Must include giftCardCode in metadata
+   - Must disable promotion codes when gift card is used
+
+================================================================================
+NEXT STEPS
+================================================================================
+
+1. Verify backend reads giftCardCode from request body
+2. Implement gift card verification in checkout flow
+3. Calculate discount based on gift card balance
+4. Apply discount to Stripe line items
+5. Test with tenant frontend to confirm discount appears in Stripe Checkout
+
+================================================================================
+CONTACT
+================================================================================
+
+If you need more information or have questions, please let us know.
+We can provide additional logs or test cases as needed.
+
+Tenant: tanjaunlimited
+Test Gift Card: GC-CWSJ-WAFC (balance: 250 SEK)
+
+================================================================================
+
