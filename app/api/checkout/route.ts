@@ -383,9 +383,18 @@ export async function POST(req: NextRequest) {
     metadata: sessionMetadata
   });
 
-  // Call backend Stripe Connect checkout endpoint
+  // Call Source Portal backend endpoint (proxy pattern)
+  // ✅ CRITICAL: We forward to Source Portal, NOT creating Stripe checkout directly
+  // Source Portal handles gift card discounts and all checkout logic
   try {
     const backendUrl = `${SOURCE_BASE}/storefront/${tenantId}/checkout`;
+    
+    console.log(`🔄 [TENANT BACKEND] Forwarding checkout request to Source Portal:`, {
+      url: backendUrl,
+      tenantId,
+      hasGiftCardCode: !!giftCardCode,
+      itemsCount: backendItems.length
+    });
     
     // Prepare request body for backend
     // ✅ CRITICAL: Include giftCardCode as direct property using spread operator
@@ -426,6 +435,8 @@ export async function POST(req: NextRequest) {
       giftCardCode: backendRequestBody.giftCardCode ? maskGiftCardCode(backendRequestBody.giftCardCode) : undefined
     }, null, 2));
 
+    console.log(`📤 [TENANT BACKEND] Sending request to Source Portal...`);
+    
     const backendResponse = await fetch(backendUrl, {
       method: 'POST',
       headers: {
@@ -435,9 +446,11 @@ export async function POST(req: NextRequest) {
       body: JSON.stringify(backendRequestBody)
     });
 
+    console.log(`📥 [TENANT BACKEND] Source Portal response status: ${backendResponse.status}`);
+
     if (!backendResponse.ok) {
       const errorData = await backendResponse.json().catch(() => ({ message: 'Unknown error' }));
-      console.error(`❌ Backend checkout failed: ${backendResponse.status}`, errorData);
+      console.error(`❌ [TENANT BACKEND] Source Portal checkout failed: ${backendResponse.status}`, errorData);
       return NextResponse.json(
         { error: errorData.message || errorData.error || 'Checkout failed. Please try again.' },
         { status: backendResponse.status }
@@ -445,24 +458,31 @@ export async function POST(req: NextRequest) {
     }
 
     const backendData = await backendResponse.json();
+    
+    console.log(`✅ [TENANT BACKEND] Source Portal response received:`, {
+      success: backendData.success,
+      hasCheckoutUrl: !!backendData.checkoutUrl,
+      sessionId: backendData.sessionId || 'N/A'
+    });
 
     if (!backendData.success || !backendData.checkoutUrl) {
-      console.error('❌ Backend checkout response invalid:', backendData);
+      console.error('❌ [TENANT BACKEND] Source Portal response invalid:', backendData);
       return NextResponse.json(
         { error: backendData.message || 'Checkout failed. Please try again.' },
         { status: 500 }
       );
     }
 
-    console.log(`✅ Checkout session created via backend: ${backendData.sessionId || 'N/A'}`);
+    console.log(`✅ [TENANT BACKEND] Checkout session created via Source Portal: ${backendData.sessionId || 'N/A'}`);
 
+    // ✅ Return Source Portal's checkout URL to frontend
     return NextResponse.json({
       url: backendData.checkoutUrl,
       id: backendData.sessionId,
       orderId: backendData.orderId
     });
   } catch (error) {
-    console.error('❌ Error calling backend checkout:', error);
+    console.error('❌ [TENANT BACKEND] Error calling Source Portal checkout:', error);
     return NextResponse.json(
       { error: 'Failed to create checkout session. Please try again.' },
       { status: 500 }
