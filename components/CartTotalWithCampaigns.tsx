@@ -58,19 +58,28 @@ export function CartTotalWithCampaigns({ items, onTotalCalculated }: CartTotalWi
     return sum + (item.product.price || 0) * item.quantity;
   }, 0);
 
-  const displayTotal = Object.keys(itemPrices).length === items.length ? total : fallbackTotal;
+  // Use campaign price total if all prices are loaded, otherwise use fallback
+  // But prefer campaign prices even if not all loaded (to show correct price as items load)
+  const allPricesLoaded = Object.keys(itemPrices).length === items.length;
+  const displayTotal = allPricesLoaded ? total : (Object.keys(itemPrices).length > 0 ? total : fallbackTotal);
 
   // Notify parent when total changes
   useEffect(() => {
-    if (onTotalCalculated && Object.keys(itemPrices).length === items.length) {
-      console.log(`💰 CartTotalWithCampaigns: Notifying parent of calculated total: ${total} SEK`);
-      onTotalCalculated(total);
-    } else if (onTotalCalculated && Object.keys(itemPrices).length > 0) {
-      // Also notify with partial total (as prices load)
-      console.log(`💰 CartTotalWithCampaigns: Notifying parent of partial total: ${total} SEK (${Object.keys(itemPrices).length}/${items.length} items)`);
-      onTotalCalculated(total);
+    if (onTotalCalculated) {
+      if (allPricesLoaded) {
+        console.log(`💰 CartTotalWithCampaigns: Notifying parent of calculated total: ${total} SEK (all ${items.length} items loaded)`);
+        onTotalCalculated(total);
+      } else if (Object.keys(itemPrices).length > 0) {
+        // Use campaign prices if available, even if not all loaded
+        console.log(`💰 CartTotalWithCampaigns: Notifying parent of partial total: ${total} SEK (${Object.keys(itemPrices).length}/${items.length} items loaded)`);
+        onTotalCalculated(total);
+      } else {
+        // Fallback to original prices if no campaign prices loaded yet
+        console.log(`💰 CartTotalWithCampaigns: Using fallback total: ${fallbackTotal} SEK (no campaign prices loaded yet)`);
+        onTotalCalculated(fallbackTotal);
+      }
     }
-  }, [total, itemPrices, items.length, onTotalCalculated]);
+  }, [total, itemPrices, items.length, onTotalCalculated, allPricesLoaded, fallbackTotal]);
 
   return (
     <>
