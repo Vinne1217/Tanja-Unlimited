@@ -30,6 +30,8 @@ export type Product = {
   stripeProductId?: string;
   stripePriceId?: string;
   variants?: Variant[];
+  type?: 'one_time' | 'subscription';
+  subscription?: { interval: string; intervalCount: number };
 };
 
 export type Category = {

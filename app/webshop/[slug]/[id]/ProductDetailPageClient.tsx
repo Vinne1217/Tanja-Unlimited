@@ -7,6 +7,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import type { Product } from '@/lib/products';
 import { formatPrice } from '@/lib/products';
+import { formatSubscriptionInfo } from '@/lib/subscription';
 import BuyNowButton from '@/components/BuyNowButton';
 import CampaignBadge from '@/components/CampaignBadge';
 import StockStatus from '@/components/StockStatus';
@@ -286,6 +287,16 @@ export default function ProductDetailPageClient({
                 {!campaignPrice && (
                   <div className="flex items-baseline gap-3 mb-6">
                     {(() => {
+                      // Check if this is a subscription product
+                      const subscriptionInfo = formatSubscriptionInfo(product);
+                      if (subscriptionInfo) {
+                        return (
+                          <span className="text-4xl font-serif text-deepIndigo">
+                            {subscriptionInfo}
+                          </span>
+                        );
+                      }
+
                       // Use variant-specific price if available and variant is selected
                       const displayPrice = selectedVariantData?.price ?? product.price;
                       const displayPriceFormatted = selectedVariantData?.priceFormatted 

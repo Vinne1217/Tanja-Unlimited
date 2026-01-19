@@ -74,6 +74,11 @@ export type Variant = {
   lowStock?: boolean;
   inStock?: boolean;
 };
+export type SubscriptionInfo = {
+  interval: 'day' | 'week' | 'month' | 'year';
+  intervalCount: number;
+};
+
 export type Product = {
   id: string;
   name: string;
@@ -84,6 +89,8 @@ export type Product = {
   stripeProductId?: string; // Stripe Product ID (prod_...)
   variants?: Variant[];
   categoryId?: string;
+  type?: 'one_time' | 'subscription'; // Product type from API
+  subscription?: SubscriptionInfo; // Subscription details if type === 'subscription'
 };
 
 const TENANT_ID = process.env.SOURCE_TENANT_ID ?? 'tanjaunlimited';
@@ -252,6 +259,15 @@ export async function getProducts(params: { locale?: string; category?: string; 
       const priceInCents = p.priceRange?.min || (p.variants?.[0]?.priceSEK);
       const priceInSEK = priceInCents ? priceInCents / 100 : undefined;
       
+      // Check if product is a subscription
+      const isSubscription = p.type === 'subscription' || p.subscription;
+      const subscriptionInfo: SubscriptionInfo | undefined = isSubscription && p.subscription
+        ? {
+            interval: p.subscription.interval || 'month',
+            intervalCount: p.subscription.intervalCount || 1
+          }
+        : undefined;
+
       return {
         id: p.baseSku || p.id,
         name: p.title || p.name,
@@ -260,6 +276,8 @@ export async function getProducts(params: { locale?: string; category?: string; 
         price: priceInSEK, // Store price in SEK, not cents
         currency: 'SEK',
         stripeProductId: p.stripeProductId || p.stripe_product_id, // Use Stripe Product ID from Source API
+        type: p.type || (isSubscription ? 'subscription' : 'one_time'),
+        subscription: subscriptionInfo,
         variants: p.variants?.map((v: any) => {
           const articleNumber = v.articleNumber || v.sku || v.id || v.key;
           
@@ -365,6 +383,15 @@ export async function getProduct(productId: string, locale = 'sv'): Promise<Prod
     const priceInCents = p.priceRange?.min || (p.variants?.[0]?.priceSEK);
     const priceInSEK = priceInCents ? priceInCents / 100 : undefined;
     
+    // Check if product is a subscription
+    const isSubscription = p.type === 'subscription' || p.subscription;
+    const subscriptionInfo: SubscriptionInfo | undefined = isSubscription && p.subscription
+      ? {
+          interval: p.subscription.interval || 'month',
+          intervalCount: p.subscription.intervalCount || 1
+        }
+      : undefined;
+    
     return {
       id: p.baseSku || p.id,
       name: p.title || p.name,
@@ -373,6 +400,8 @@ export async function getProduct(productId: string, locale = 'sv'): Promise<Prod
       price: priceInSEK, // Store price in SEK, not cents
       currency: 'SEK',
       stripeProductId: p.stripeProductId || p.stripe_product_id, // Use Stripe Product ID from Source API
+      type: p.type || (isSubscription ? 'subscription' : 'one_time'),
+      subscription: subscriptionInfo,
       variants: p.variants?.map((v: any) => {
         const articleNumber = v.articleNumber || v.sku || v.id || v.key;
         

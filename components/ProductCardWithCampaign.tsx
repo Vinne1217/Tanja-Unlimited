@@ -5,6 +5,7 @@ import { ShoppingCart } from 'lucide-react';
 import Link from 'next/link';
 import { formatPrice } from '@/lib/products';
 import { useCampaignPrice } from '@/lib/useCampaignPrice';
+import { formatSubscriptionInfo } from '@/lib/subscription';
 
 // ✅ Proxy images through our API to bypass CORS issues
 const getProxiedImageUrl = (url: string) => {
@@ -28,6 +29,8 @@ type Product = {
   category: string;
   stripeProductId?: string;
   stripePriceId?: string;
+  type?: 'one_time' | 'subscription';
+  subscription?: { interval: string; intervalCount: number };
 };
 
 type ProductCardWithCampaignProps = {
@@ -111,29 +114,48 @@ export default function ProductCardWithCampaign({ product, slug, idx }: ProductC
           
           <div className="mt-auto">
             <div className="flex items-baseline gap-2 mb-4">
-              {campaignPrice.hasCampaign && campaignPrice.campaignPrice ? (
-                <>
-                  <span className="text-2xl font-serif text-terracotta">
-                    {formatPrice(campaignPrice.campaignPrice, product.currency)}
-                  </span>
-                  <span className="text-lg text-graphite/50 line-through">
-                    {formatPrice(campaignPrice.originalPrice, product.currency)}
-                  </span>
-                </>
-              ) : product.salePrice ? (
-                <>
-                  <span className="text-2xl font-serif text-terracotta">
-                    {formatPrice(product.salePrice, product.currency)}
-                  </span>
-                  <span className="text-lg text-graphite/50 line-through">
-                    {formatPrice(product.price, product.currency)}
-                  </span>
-                </>
-              ) : (
-                <span className="text-2xl font-serif text-indigo">
-                  {formatPrice(product.price, product.currency)}
-                </span>
-              )}
+              {(() => {
+                // Check if this is a subscription product
+                const subscriptionInfo = formatSubscriptionInfo(product);
+                if (subscriptionInfo) {
+                  return (
+                    <span className="text-2xl font-serif text-indigo">
+                      {subscriptionInfo}
+                    </span>
+                  );
+                }
+
+                // Regular product pricing with campaign support
+                if (campaignPrice.hasCampaign && campaignPrice.campaignPrice) {
+                  return (
+                    <>
+                      <span className="text-2xl font-serif text-terracotta">
+                        {formatPrice(campaignPrice.campaignPrice, product.currency)}
+                      </span>
+                      <span className="text-lg text-graphite/50 line-through">
+                        {formatPrice(campaignPrice.originalPrice, product.currency)}
+                      </span>
+                    </>
+                  );
+                } else if (product.salePrice) {
+                  return (
+                    <>
+                      <span className="text-2xl font-serif text-terracotta">
+                        {formatPrice(product.salePrice, product.currency)}
+                      </span>
+                      <span className="text-lg text-graphite/50 line-through">
+                        {formatPrice(product.price, product.currency)}
+                      </span>
+                    </>
+                  );
+                } else {
+                  return (
+                    <span className="text-2xl font-serif text-indigo">
+                      {formatPrice(product.price, product.currency)}
+                    </span>
+                  );
+                }
+              })()}
             </div>
             
             <Link
