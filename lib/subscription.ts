@@ -1,9 +1,13 @@
 /**
- * Format subscription information for display
+ * Format subscription information for display (synchronous version)
  * @param product - Product with subscription info
  * @returns Formatted subscription string (e.g., "499 kr/månad") or null if not a subscription
  */
-export function formatSubscriptionInfo(product: { type?: string; subscription?: { interval: string; intervalCount: number }; price?: number }): string | null {
+export function formatSubscriptionInfo(product: { 
+  type?: string; 
+  subscription?: { interval: string; intervalCount: number }; 
+  price?: number;
+}): string | null {
   if (product.type !== 'subscription' || !product.subscription) {
     return null;
   }

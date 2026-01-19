@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { formatPrice } from '@/lib/products';
 import { useCampaignPrice } from '@/lib/useCampaignPrice';
 import { formatSubscriptionInfo } from '@/lib/subscription';
+import { useSubscriptionDetection } from '@/lib/useSubscriptionDetection';
 
 // ✅ Proxy images through our API to bypass CORS issues
 const getProxiedImageUrl = (url: string) => {
@@ -46,12 +47,20 @@ export default function ProductCardWithCampaign({ product, slug, idx }: ProductC
     stripeProductId: product.stripeProductId,
     productIdForCampaign,
     price: product.price,
-    stripePriceId: product.stripePriceId
+    stripePriceId: product.stripePriceId,
+    type: product.type,
+    subscription: product.subscription
   });
   
   const campaignPrice = useCampaignPrice(
     productIdForCampaign,
     product.price,
+    product.stripePriceId
+  );
+  
+  // Use subscription detection with Stripe Price fallback
+  const { subscriptionInfo: detectedSubscriptionInfo } = useSubscriptionDetection(
+    product,
     product.stripePriceId
   );
 
@@ -92,8 +101,8 @@ export default function ProductCardWithCampaign({ product, slug, idx }: ProductC
             </div>
           )}
           
-          {/* Subscription Badge */}
-          {product.type === 'subscription' && (
+          {/* Subscription Badge - Show if detected via API or Stripe Price fallback */}
+          {(product.type === 'subscription' || detectedSubscriptionInfo) && (
             <div className="absolute top-4 right-4 px-3 py-1 bg-indigo text-ivory text-xs uppercase tracking-widest font-medium z-10">
               Prenumeration
             </div>
@@ -122,8 +131,8 @@ export default function ProductCardWithCampaign({ product, slug, idx }: ProductC
           <div className="mt-auto">
             <div className="flex items-baseline gap-2 mb-4">
               {(() => {
-                // Check if this is a subscription product
-                const subscriptionInfo = formatSubscriptionInfo(product);
+                // Check if this is a subscription product (use detected info with fallback)
+                const subscriptionInfo = detectedSubscriptionInfo || formatSubscriptionInfo(product);
                 if (subscriptionInfo) {
                   return (
                     <span className="text-2xl font-serif text-indigo">
@@ -169,7 +178,7 @@ export default function ProductCardWithCampaign({ product, slug, idx }: ProductC
               href={`/webshop/${slug}/${product.id}`}
               className="inline-flex items-center justify-center gap-2 w-full px-6 py-3 bg-indigo text-ivory hover:bg-indigoDeep transition-all duration-300 font-medium"
             >
-              <span>{product.type === 'subscription' ? 'Prenumerera' : 'View Details'}</span>
+              <span>{(product.type === 'subscription' || detectedSubscriptionInfo) ? 'Prenumerera' : 'View Details'}</span>
               <ShoppingCart className="w-4 h-4" />
             </Link>
           </div>

@@ -8,6 +8,7 @@ import { useRouter } from 'next/navigation';
 import type { Product } from '@/lib/products';
 import { formatPrice } from '@/lib/products';
 import { formatSubscriptionInfo, getSubscriptionIntervalDescription } from '@/lib/subscription';
+import { useSubscriptionDetection } from '@/lib/useSubscriptionDetection';
 import BuyNowButton from '@/components/BuyNowButton';
 import CampaignBadge from '@/components/CampaignBadge';
 import StockStatus from '@/components/StockStatus';
@@ -32,6 +33,16 @@ export default function ProductDetailPageClient({
   const [campaignPrice, setCampaignPrice] = useState<number | null>(null);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0); // ✅ Add state for selected image
   
+  // Get selected variant's price ID for subscription detection
+  const selectedVariantData = product.variants?.find(v => v.key === selectedVariant);
+  const variantPriceId = selectedVariantData?.stripePriceId;
+  
+  // Use subscription detection hook with Stripe Price fallback
+  const { subscriptionInfo: detectedSubscriptionInfo, isDetecting: isDetectingSubscription } = useSubscriptionDetection(
+    product,
+    variantPriceId
+  );
+  
   // Log product data to debug subscription detection
   useEffect(() => {
     console.log(`🔍 ProductDetailPageClient: Product data for ${product.id}`, {
@@ -39,9 +50,13 @@ export default function ProductDetailPageClient({
       hasSubscription: !!product.subscription,
       subscription: product.subscription,
       price: product.price,
-      name: product.name
+      name: product.name,
+      stripeProductId: product.stripeProductId,
+      variantPriceId: variantPriceId,
+      detectedSubscriptionInfo: detectedSubscriptionInfo,
+      isDetectingSubscription: isDetectingSubscription
     });
-  }, [product]);
+  }, [product, variantPriceId, detectedSubscriptionInfo, isDetectingSubscription]);
   
   // Filter variants to only those with sizes (matching BuyNowButton logic)
   const sizeVariants = product.variants?.filter(v => v.size) || [];
@@ -282,15 +297,17 @@ export default function ProductDetailPageClient({
                   {product.name}
                 </h1>
                 
-                {/* Subscription Badge */}
-                {product.type === 'subscription' && product.subscription && (
+                {/* Subscription Badge - Show if detected via API or Stripe Price fallback */}
+                {(product.type === 'subscription' || detectedSubscriptionInfo) && (
                   <div className="mb-6 space-y-2">
                     <span className="inline-block px-4 py-2 bg-indigo text-ivory text-sm uppercase tracking-widest font-medium">
                       Prenumeration
                     </span>
-                    <p className="text-softCharcoal text-sm font-medium">
-                      Faktureras {getSubscriptionIntervalDescription(product.subscription.interval, product.subscription.intervalCount)}
-                    </p>
+                    {product.subscription && (
+                      <p className="text-softCharcoal text-sm font-medium">
+                        Faktureras {getSubscriptionIntervalDescription(product.subscription.interval, product.subscription.intervalCount)}
+                      </p>
+                    )}
                     <p className="text-softCharcoal/70 text-sm leading-relaxed">
                       Detta är en prenumeration som förnyas automatiskt. Du kan avsluta när som helst.
                     </p>
@@ -315,12 +332,14 @@ export default function ProductDetailPageClient({
                 <div className="flex items-baseline gap-3 mb-6">
                   {(() => {
                     // PRIORITY 1: Check if this is a subscription product (always show subscription format)
-                    const subscriptionInfo = formatSubscriptionInfo(product);
+                    // Use detected subscription info (includes Stripe Price fallback)
+                    const subscriptionInfo = detectedSubscriptionInfo || formatSubscriptionInfo(product);
                     if (subscriptionInfo) {
                       console.log(`💰 Displaying subscription price: ${subscriptionInfo}`, {
                         productType: product.type,
                         subscription: product.subscription,
-                        price: product.price
+                        price: product.price,
+                        detectedViaFallback: !!detectedSubscriptionInfo && !product.type
                       });
                       return (
                         <span className="text-4xl font-serif text-deepIndigo">
