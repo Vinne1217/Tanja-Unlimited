@@ -273,12 +273,15 @@ export default function ProductDetailPageClient({
                 
                 {/* Subscription Badge */}
                 {product.type === 'subscription' && product.subscription && (
-                  <div className="mb-6">
-                    <span className="inline-block px-4 py-2 bg-indigo text-ivory text-sm uppercase tracking-widest font-medium mb-2">
+                  <div className="mb-6 space-y-2">
+                    <span className="inline-block px-4 py-2 bg-indigo text-ivory text-sm uppercase tracking-widest font-medium">
                       Prenumeration
                     </span>
                     <p className="text-softCharcoal text-sm font-medium">
                       Faktureras {getSubscriptionIntervalDescription(product.subscription.interval, product.subscription.intervalCount)}
+                    </p>
+                    <p className="text-softCharcoal/70 text-sm leading-relaxed">
+                      Detta är en prenumeration som förnyas automatiskt. Du kan avsluta när som helst.
                     </p>
                   </div>
                 )}
