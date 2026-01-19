@@ -32,6 +32,17 @@ export default function ProductDetailPageClient({
   const [campaignPrice, setCampaignPrice] = useState<number | null>(null);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0); // ✅ Add state for selected image
   
+  // Log product data to debug subscription detection
+  useEffect(() => {
+    console.log(`🔍 ProductDetailPageClient: Product data for ${product.id}`, {
+      type: product.type,
+      hasSubscription: !!product.subscription,
+      subscription: product.subscription,
+      price: product.price,
+      name: product.name
+    });
+  }, [product]);
+  
   // Filter variants to only those with sizes (matching BuyNowButton logic)
   const sizeVariants = product.variants?.filter(v => v.size) || [];
   const hasMultipleSizes = sizeVariants.length > 1;
@@ -299,47 +310,64 @@ export default function ProductDetailPageClient({
                   />
                 )}
                 
-                {/* Regular Price Display (if no campaign) */}
+                {/* Price Display - Show subscription price even if campaign exists */}
                 {/* ✅ Show variant-specific price if variant is selected, otherwise show product price */}
-                {!campaignPrice && (
-                  <div className="flex items-baseline gap-3 mb-6">
-                    {(() => {
-                      // Check if this is a subscription product
-                      const subscriptionInfo = formatSubscriptionInfo(product);
-                      if (subscriptionInfo) {
-                        return (
-                          <span className="text-4xl font-serif text-deepIndigo">
-                            {subscriptionInfo}
-                          </span>
-                        );
-                      }
-
-                      // Use variant-specific price if available and variant is selected
-                      const displayPrice = selectedVariantData?.price ?? product.price;
-                      const displayPriceFormatted = selectedVariantData?.priceFormatted 
-                        ? selectedVariantData.priceFormatted.replace(/\.00/, '') // Remove .00 if present
-                        : formatPrice(displayPrice, product.currency);
-                      
-                      return product.salePrice ? (
-                        <>
-                          <span className="text-4xl font-serif text-terracotta">
-                            {formatPrice(product.salePrice, product.currency)}
-                          </span>
-                          <span className="text-2xl text-softCharcoal/50 line-through">
-                            {displayPriceFormatted}
-                          </span>
-                          <span className="px-3 py-1 bg-terracotta/10 text-terracotta text-sm font-medium">
-                            Save {formatPrice(displayPrice - product.salePrice, product.currency)}
-                          </span>
-                        </>
-                      ) : (
+                <div className="flex items-baseline gap-3 mb-6">
+                  {(() => {
+                    // PRIORITY 1: Check if this is a subscription product (always show subscription format)
+                    const subscriptionInfo = formatSubscriptionInfo(product);
+                    if (subscriptionInfo) {
+                      console.log(`💰 Displaying subscription price: ${subscriptionInfo}`, {
+                        productType: product.type,
+                        subscription: product.subscription,
+                        price: product.price
+                      });
+                      return (
                         <span className="text-4xl font-serif text-deepIndigo">
-                          {displayPriceFormatted}
+                          {subscriptionInfo}
                         </span>
                       );
-                    })()}
-                  </div>
-                )}
+                    }
+
+                    // PRIORITY 2: Show campaign price if available (only for non-subscriptions)
+                    if (campaignPrice) {
+                      return (
+                        <>
+                          <span className="text-4xl font-serif text-terracotta">
+                            {formatPrice(campaignPrice, product.currency)}
+                          </span>
+                          <span className="text-2xl text-softCharcoal/50 line-through">
+                            {formatPrice(product.price, product.currency)}
+                          </span>
+                        </>
+                      );
+                    }
+
+                    // PRIORITY 3: Regular price (use variant-specific price if available and variant is selected)
+                    const displayPrice = selectedVariantData?.price ?? product.price;
+                    const displayPriceFormatted = selectedVariantData?.priceFormatted 
+                      ? selectedVariantData.priceFormatted.replace(/\.00/, '') // Remove .00 if present
+                      : formatPrice(displayPrice, product.currency);
+                    
+                    return product.salePrice ? (
+                      <>
+                        <span className="text-4xl font-serif text-terracotta">
+                          {formatPrice(product.salePrice, product.currency)}
+                        </span>
+                        <span className="text-2xl text-softCharcoal/50 line-through">
+                          {displayPriceFormatted}
+                        </span>
+                        <span className="px-3 py-1 bg-terracotta/10 text-terracotta text-sm font-medium">
+                          Save {formatPrice(displayPrice - product.salePrice, product.currency)}
+                        </span>
+                      </>
+                    ) : (
+                      <span className="text-4xl font-serif text-deepIndigo">
+                        {displayPriceFormatted}
+                      </span>
+                    );
+                  })()}
+                </div>
 
                 {/* Stock Status */}
                 <div className="mt-6">

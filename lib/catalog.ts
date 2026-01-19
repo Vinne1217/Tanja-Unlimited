@@ -260,6 +260,15 @@ export async function getProducts(params: { locale?: string; category?: string; 
       const priceInSEK = priceInCents ? priceInCents / 100 : undefined;
       
       // Check if product is a subscription
+      // Log subscription data for debugging
+      if (p.type === 'subscription' || p.subscription) {
+        console.log(`📋 Subscription product detected: ${p.baseSku || p.id}`, {
+          type: p.type,
+          hasSubscriptionObject: !!p.subscription,
+          subscription: p.subscription
+        });
+      }
+      
       const isSubscription = p.type === 'subscription' || p.subscription;
       const subscriptionInfo: SubscriptionInfo | undefined = isSubscription && p.subscription
         ? {
