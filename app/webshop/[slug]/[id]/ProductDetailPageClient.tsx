@@ -33,7 +33,17 @@ export default function ProductDetailPageClient({
   const [campaignPrice, setCampaignPrice] = useState<number | null>(null);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0); // ✅ Add state for selected image
   
-  // Get selected variant's price ID for subscription detection
+  // Filter variants to only those with sizes (matching BuyNowButton logic)
+  const sizeVariants = product.variants?.filter(v => v.size) || [];
+  const hasMultipleSizes = sizeVariants.length > 1;
+  
+  // Initialize selectedVariant: if multiple sizes, start with null (user must select)
+  // If single size or no sizes, auto-select first variant
+  const [selectedVariant, setSelectedVariant] = useState<string | null>(
+    hasMultipleSizes ? null : (sizeVariants[0]?.key || product.variants?.[0]?.key || null)
+  );
+  
+  // Get selected variant's price ID for campaign badge and subscription detection
   const selectedVariantData = product.variants?.find(v => v.key === selectedVariant);
   const variantPriceId = selectedVariantData?.stripePriceId;
   
@@ -57,20 +67,6 @@ export default function ProductDetailPageClient({
       isDetectingSubscription: isDetectingSubscription
     });
   }, [product, variantPriceId, detectedSubscriptionInfo, isDetectingSubscription]);
-  
-  // Filter variants to only those with sizes (matching BuyNowButton logic)
-  const sizeVariants = product.variants?.filter(v => v.size) || [];
-  const hasMultipleSizes = sizeVariants.length > 1;
-  
-  // Initialize selectedVariant: if multiple sizes, start with null (user must select)
-  // If single size or no sizes, auto-select first variant
-  const [selectedVariant, setSelectedVariant] = useState<string | null>(
-    hasMultipleSizes ? null : (sizeVariants[0]?.key || product.variants?.[0]?.key || null)
-  );
-  
-  // Get selected variant's price ID for campaign badge
-  const selectedVariantData = product.variants?.find(v => v.key === selectedVariant);
-  const variantPriceId = selectedVariantData?.stripePriceId;
   
   // Get images array (fallback to single image for backward compatibility)
   const images = product.images && product.images.length > 0 
