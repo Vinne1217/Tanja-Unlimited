@@ -29,6 +29,16 @@ export async function detectSubscriptionFromStripePrice(
       
       if (variantResponse.ok) {
         const variantData = await variantResponse.json();
+        console.log(`🔍 Storefront API variant response for ${stripePriceId}:`, {
+          success: variantData.success,
+          hasVariant: !!variantData.variant,
+          hasProduct: !!variantData.product,
+          variantType: variantData.variant?.type,
+          variantSubscription: variantData.variant?.subscription,
+          productType: variantData.product?.type,
+          productSubscription: variantData.product?.subscription
+        });
+        
         if (variantData.success && variantData.variant) {
           const variant = variantData.variant;
           
