@@ -341,7 +341,7 @@ export default function BuyNowButton({ product, onVariantChange }: BuyNowButtonP
         ) : (
           <>
             <ShoppingCart className="w-5 h-5" />
-            <span>Lägg i varukorg</span>
+            <span>{product.type === 'subscription' ? 'Prenumerera nu' : 'Lägg i varukorg'}</span>
           </>
         )}
       </button>

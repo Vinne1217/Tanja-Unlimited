@@ -7,7 +7,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import type { Product } from '@/lib/products';
 import { formatPrice } from '@/lib/products';
-import { formatSubscriptionInfo } from '@/lib/subscription';
+import { formatSubscriptionInfo, getSubscriptionIntervalDescription } from '@/lib/subscription';
 import BuyNowButton from '@/components/BuyNowButton';
 import CampaignBadge from '@/components/CampaignBadge';
 import StockStatus from '@/components/StockStatus';
@@ -271,16 +271,30 @@ export default function ProductDetailPageClient({
                   {product.name}
                 </h1>
                 
+                {/* Subscription Badge */}
+                {product.type === 'subscription' && product.subscription && (
+                  <div className="mb-6">
+                    <span className="inline-block px-4 py-2 bg-indigo text-ivory text-sm uppercase tracking-widest font-medium mb-2">
+                      Prenumeration
+                    </span>
+                    <p className="text-softCharcoal text-sm font-medium">
+                      Faktureras {getSubscriptionIntervalDescription(product.subscription.interval, product.subscription.intervalCount)}
+                    </p>
+                  </div>
+                )}
+                
                 {/* Campaign Badge & Price (if campaign exists) */}
                 {/* IMPORTANT: Use stripeProductId instead of id (baseSku) for campaign API */}
-                <CampaignBadge 
+                {product.type !== 'subscription' && (
+                  <CampaignBadge 
                   productId={product.stripeProductId || product.id}
                   defaultPrice={product.price}
                   currency={product.currency || 'SEK'}
                   onCampaignFound={setCampaignPrice}
                   variantPriceId={variantPriceId}
                   hasVariants={hasMultipleSizes}
-                />
+                  />
+                )}
                 
                 {/* Regular Price Display (if no campaign) */}
                 {/* ✅ Show variant-specific price if variant is selected, otherwise show product price */}

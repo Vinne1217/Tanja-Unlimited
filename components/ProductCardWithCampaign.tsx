@@ -92,8 +92,15 @@ export default function ProductCardWithCampaign({ product, slug, idx }: ProductC
             </div>
           )}
           
+          {/* Subscription Badge */}
+          {product.type === 'subscription' && (
+            <div className="absolute top-4 right-4 px-3 py-1 bg-indigo text-ivory text-xs uppercase tracking-widest font-medium z-10">
+              Prenumeration
+            </div>
+          )}
+          
           {/* Campaign/Sale Badge */}
-          {(campaignPrice.hasCampaign || product.salePrice) && (
+          {product.type !== 'subscription' && (campaignPrice.hasCampaign || product.salePrice) && (
             <div className="absolute top-4 right-4 px-3 py-1 bg-terracotta text-ivory text-xs uppercase tracking-widest font-medium z-10">
               {campaignPrice.discountPercent ? `${campaignPrice.discountPercent}% OFF` : 'Sale'}
             </div>
@@ -162,7 +169,7 @@ export default function ProductCardWithCampaign({ product, slug, idx }: ProductC
               href={`/webshop/${slug}/${product.id}`}
               className="inline-flex items-center justify-center gap-2 w-full px-6 py-3 bg-indigo text-ivory hover:bg-indigoDeep transition-all duration-300 font-medium"
             >
-              <span>View Details</span>
+              <span>{product.type === 'subscription' ? 'Prenumerera' : 'View Details'}</span>
               <ShoppingCart className="w-4 h-4" />
             </Link>
           </div>

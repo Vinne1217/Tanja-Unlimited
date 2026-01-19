@@ -25,6 +25,29 @@ export function formatSubscriptionInfo(product: { type?: string; subscription?: 
 }
 
 /**
+ * Get subscription interval description in Swedish
+ * @param interval - Subscription interval (day, week, month, year)
+ * @param intervalCount - Number of intervals
+ * @returns Description like "varje månad" or "var 2:e månad"
+ */
+export function getSubscriptionIntervalDescription(interval: string, intervalCount: number): string {
+  const intervalLabels: Record<string, string> = {
+    'day': 'dag',
+    'week': 'vecka',
+    'month': 'månad',
+    'year': 'år'
+  };
+
+  const intervalLabel = intervalLabels[interval] || interval;
+
+  if (intervalCount === 1) {
+    return `varje ${intervalLabel}`;
+  } else {
+    return `var ${intervalCount}:e ${intervalLabel}`;
+  }
+}
+
+/**
  * Get subscription interval label in Swedish
  */
 export function getSubscriptionIntervalLabel(interval: string, intervalCount: number): string {
