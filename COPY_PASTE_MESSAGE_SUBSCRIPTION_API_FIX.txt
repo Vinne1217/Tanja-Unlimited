@@ -1,0 +1,91 @@
+Hej!
+
+Vi har implementerat stöd för prenumerationsprodukter i tenant frontend, men det fungerar inte eftersom Source Portal API:et inte returnerar subscription-data.
+
+**Problem:**
+När vi hämtar produkter via Storefront API (`GET /storefront/:tenant/products` eller `GET /storefront/:tenant/product/:productId`) så returneras inte:
+- `type: "subscription"` 
+- `subscription`-objektet med `interval` och `intervalCount`
+
+**Vad som behövs:**
+För prenumerationsprodukter behöver API:et returnera:
+
+```json
+{
+  "success": true,
+  "product": {
+    "id": "test-prenumeration-mklcw32a",
+    "baseSku": "test-prenumeration-mklcw32a",
+    "title": "Test prenumeration",
+    "type": "subscription",  // ← SAKNAS
+    "subscription": {         // ← SAKNAS
+      "interval": "month",
+      "intervalCount": 1
+    },
+    "priceRange": {
+      "min": 40000,
+      "max": 40000,
+      "currency": "SEK"
+    },
+    "variants": [...]
+  }
+}
+```
+
+**Påverkan:**
+- Frontend kan inte identifiera att produkten är en prenumeration
+- Priset visas som "400 kr" istället för "400 kr/månad"
+- Prenumerationsbadge visas inte
+- Knapptext visar "Lägg i varukorg" istället för "Prenumerera nu"
+- Ingen intervalltext visas (t.ex. "Faktureras varje månad")
+
+**Testprodukt:**
+- Product ID: `test-prenumeration-mklcw32a`
+- Stripe Product ID: `prod_ToyuVp2RbRp8CX`
+- Variant Price ID: `price_1SrKwq1fkdOqt85xxth4mZHE`
+
+**Lösning:**
+När ni skapar prenumerationer i kundportalen, se till att Storefront API:et returnerar:
+1. `type: "subscription"` för prenumerationsprodukter
+2. `subscription`-objektet med:
+   - `interval`: "day", "week", "month", eller "year"
+   - `intervalCount`: antal intervall (t.ex. 1 för "varje månad", 2 för "var 2:a månad")
+
+Detta behöver gälla för både:
+- `GET /storefront/:tenant/products` (produktlista)
+- `GET /storefront/:tenant/product/:productId` (enskild produkt)
+- `GET /storefront/:tenant/variant/:stripePriceId` (variant endpoint)
+
+**Exempel på korrekt API-response:**
+```json
+{
+  "success": true,
+  "products": [
+    {
+      "id": "test-prenumeration-mklcw32a",
+      "baseSku": "test-prenumeration-mklcw32a",
+      "title": "Test prenumeration",
+      "type": "subscription",
+      "subscription": {
+        "interval": "month",
+        "intervalCount": 1
+      },
+      "priceRange": {
+        "min": 40000,
+        "max": 40000,
+        "currency": "SEK"
+      },
+      "variants": [
+        {
+          "stripePriceId": "price_1SrKwq1fkdOqt85xxth4mZHE",
+          "articleNumber": "testar",
+          "priceSEK": 40000
+        }
+      ]
+    }
+  ]
+}
+```
+
+Tack!
+
