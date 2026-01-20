@@ -227,6 +227,9 @@ export default function BuyNowButton({ product, onVariantChange }: BuyNowButtonP
       stripeProductId: product.stripeProductId, // Include Stripe Product ID for campaign price lookup
       variantKey: selectedVariant || undefined,
       variantPriceId: selectedVariantData?.stripePriceId,
+      // Preserve subscription metadata so cart UI can detect subscriptions
+      type: (product as any).type,
+      subscription: (product as any).subscription,
     };
 
     addItem(cartProduct, 1);

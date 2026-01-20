@@ -24,6 +24,10 @@ export default function CartPage() {
   const [giftCardError, setGiftCardError] = useState<string | null>(null);
   const [calculatedTotal, setCalculatedTotal] = useState<number | null>(null);
 
+  const hasSubscriptionInCart = items.some(
+    (item) => item.product.type === 'subscription'
+  );
+
   // Log when calculatedTotal changes
   useEffect(() => {
     if (calculatedTotal !== null) {
@@ -399,7 +403,9 @@ export default function CartPage() {
                 ) : (
                   <>
                     <ShoppingCart className="w-5 h-5" />
-                    <span>Proceed to Checkout</span>
+                    <span>
+                      {hasSubscriptionInCart ? 'Starta prenumeration' : 'Proceed to Checkout'}
+                    </span>
                   </>
                 )}
               </button>

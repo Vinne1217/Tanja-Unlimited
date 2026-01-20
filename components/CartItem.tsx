@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import { Trash2, Plus, Minus } from 'lucide-react';
 import { formatPrice } from '@/lib/products';
 import { useCampaignPrice } from '@/lib/useCampaignPrice';
+import { formatSubscriptionInfo, getSubscriptionIntervalDescription } from '@/lib/subscription';
 import StockStatus from './StockStatus';
 import type { CartItem as CartItemType } from '@/lib/cart-context';
 
@@ -33,6 +34,16 @@ export default function CartItem({ item, onUpdateQuantity, onRemove }: CartItemP
     ? campaignPrice.originalPrice
     : item.product.price || 0;
 
+  // Check if this cart item is a subscription
+  const isSubscription = item.product.type === 'subscription' && !!item.product.subscription;
+  const subscriptionPricePerUnit = isSubscription ? (item.product.price || 0) : null;
+  const subscriptionIntervalText = isSubscription && item.product.subscription
+    ? getSubscriptionIntervalDescription(
+        item.product.subscription.interval,
+        item.product.subscription.intervalCount
+      )
+    : null;
+
   return (
     <motion.div
       key={`${item.product.id}${item.product.variantKey ? `:${item.product.variantKey}` : ''}`}
@@ -48,7 +59,12 @@ export default function CartItem({ item, onUpdateQuantity, onRemove }: CartItemP
         />
       )}
       <div className="flex-1">
-        <h3 className="text-xl font-serif text-deepIndigo mb-2">{item.product.name}</h3>
+        <h3 className="text-xl font-serif text-deepIndigo mb-1">{item.product.name}</h3>
+        {isSubscription && (
+          <p className="text-xs uppercase tracking-widest text-indigo mb-1">
+            Prenumeration
+          </p>
+        )}
         {item.product.variantKey && (
           <p className="text-sm text-softCharcoal mb-2">Storlek: {item.product.variantKey}</p>
         )}
@@ -72,7 +88,18 @@ export default function CartItem({ item, onUpdateQuantity, onRemove }: CartItemP
             </button>
           </div>
           <div className="text-right">
-            {campaignPrice.hasCampaign && campaignPrice.campaignPrice ? (
+            {isSubscription ? (
+              <>
+                <p className="text-lg font-serif text-deepIndigo">
+                  {formatPrice((subscriptionPricePerUnit || 0) * item.quantity, item.product.currency)}{subscriptionIntervalText ? ` /${subscriptionIntervalText}` : ''}
+                </p>
+                {item.quantity > 1 && subscriptionPricePerUnit !== null && (
+                  <p className="text-xs text-softCharcoal/60 mt-1">
+                    {formatPrice(subscriptionPricePerUnit, item.product.currency)} per {subscriptionIntervalText || 'period'}
+                  </p>
+                )}
+              </>
+            ) : campaignPrice.hasCampaign && campaignPrice.campaignPrice ? (
               <>
                 <p className="text-lg font-serif text-terracotta">
                   {formatPrice(displayPrice * item.quantity, item.product.currency)}

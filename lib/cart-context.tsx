@@ -10,6 +10,13 @@ export type CartProduct = {
   name: string;
   price: number;
   currency: string;
+  // Optional product type (supports subscriptions)
+  type?: 'one_time' | 'subscription';
+  // Subscription information if this is a subscription product
+  subscription?: {
+    interval: string;
+    intervalCount: number;
+  };
   category?: string;
   description?: string;
   image?: string;

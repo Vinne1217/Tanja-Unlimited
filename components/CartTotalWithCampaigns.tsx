@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useCampaignPrice } from '@/lib/useCampaignPrice';
 import { formatPrice } from '@/lib/products';
+import { getSubscriptionIntervalLabel } from '@/lib/subscription';
 import type { CartItem } from '@/lib/cart-context';
 
 type CartTotalWithCampaignsProps = {
@@ -53,6 +54,24 @@ export function CartTotalWithCampaigns({ items, onTotalCalculated }: CartTotalWi
   const total = Object.values(itemPrices).reduce((sum, price) => sum + price, 0);
   const itemCount = items.reduce((sum, item) => sum + item.quantity, 0);
 
+  // Detect if cart contains subscription products
+  const subscriptionItems = items.filter(
+    (item) => item.product.type === 'subscription' && item.product.subscription
+  );
+  const hasSubscription = subscriptionItems.length > 0;
+  const hasOnlySubscriptions =
+    hasSubscription && items.every((item) => item.product.type === 'subscription');
+
+  // If all subscription items share the same interval, use it for label
+  const subscriptionInterval =
+    subscriptionItems.length > 0
+      ? subscriptionItems[0].product.subscription!.interval
+      : null;
+  const subscriptionIntervalCount =
+    subscriptionItems.length > 0
+      ? subscriptionItems[0].product.subscription!.intervalCount
+      : 1;
+
   // Fallback to regular price calculation if campaign prices haven't loaded yet
   const fallbackTotal = items.reduce((sum, item) => {
     return sum + (item.product.price || 0) * item.quantity;
@@ -94,8 +113,19 @@ export function CartTotalWithCampaigns({ items, onTotalCalculated }: CartTotalWi
       
       <div className="space-y-4 border-t border-warmOchre/20 pt-4">
         <div className="flex justify-between text-softCharcoal">
-          <span>Subtotal ({itemCount} {itemCount === 1 ? 'item' : 'items'})</span>
-          <span>{formatPrice(displayTotal, 'SEK')}</span>
+          <span>
+            {hasOnlySubscriptions
+              ? `Subtotal (${itemCount} ${itemCount === 1 ? 'prenumeration' : 'prenumerationer'})`
+              : `Subtotal (${itemCount} ${itemCount === 1 ? 'item' : 'items'})`}
+          </span>
+          <span>
+            {hasOnlySubscriptions && subscriptionInterval
+              ? `${formatPrice(displayTotal, 'SEK')} /${getSubscriptionIntervalLabel(
+                  subscriptionInterval,
+                  subscriptionIntervalCount
+                )}`
+              : formatPrice(displayTotal, 'SEK')}
+          </span>
         </div>
       </div>
     </>
