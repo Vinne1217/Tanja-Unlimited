@@ -159,12 +159,28 @@ export default function AnalyticsProvider({ children }: { children: React.ReactN
 
     // Track form submissions
     const handleSubmit = (event: Event) => {
-      const form = event.target as HTMLFormElement;
-      trackEvent('form_submit', {
-        form_id: form.id || form.name || 'unknown',
-        form_action: form.action || '',
-        field_count: form.elements.length
-      });
+      try {
+        const form = event.target as HTMLFormElement;
+        // ✅ Säkerställ att vi bara skickar primitiva värden (inga DOM-element)
+        const formProps: Record<string, any> = {
+          form_id: form.id || form.name || 'unknown',
+          form_action: form.action || '',
+          field_count: form.elements ? form.elements.length : 0
+        };
+        
+        // ✅ Filtrera bort eventuella icke-primitiva värden
+        const safeProps: Record<string, string | number> = {};
+        for (const [key, value] of Object.entries(formProps)) {
+          if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+            safeProps[key] = value;
+          }
+        }
+        
+        trackEvent('form_submit', safeProps);
+      } catch (error) {
+        // ✅ Ignorera analytics-fel så att de inte stör formulärfunktionaliteten
+        console.warn('Analytics tracking error (non-critical):', error);
+      }
     };
     
     document.addEventListener('submit', handleSubmit);

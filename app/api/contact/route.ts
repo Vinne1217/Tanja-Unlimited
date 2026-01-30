@@ -21,28 +21,13 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // ✅ Hämta CSRF-token från Source Database
-    let csrfToken: string;
-    try {
-      const csrfResponse = await fetch(`${SOURCE_BASE}/api/auth/csrf`, {
-        credentials: 'include'
-      });
-      
-      if (!csrfResponse.ok) {
-        throw new Error('Kunde inte hämta CSRF-token');
-      }
-      
-      const csrfData = await csrfResponse.json();
-      csrfToken = csrfData.csrfToken;
-      
-      if (!csrfToken) {
-        throw new Error('CSRF-token saknas i svar');
-      }
-    } catch (error) {
-      console.error('❌ CSRF token error:', error);
+    // ✅ Hämta CSRF-token från request header (skickas från klienten)
+    const csrfToken = req.headers.get('X-CSRF-Token');
+    
+    if (!csrfToken) {
       return NextResponse.json(
-        { success: false, message: 'Kunde inte hämta säkerhetstoken. Ladda om sidan och försök igen.' },
-        { status: 500 }
+        { success: false, message: 'CSRF-token saknas. Ladda om sidan och försök igen.' },
+        { status: 400 }
       );
     }
 

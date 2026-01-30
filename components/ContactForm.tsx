@@ -37,9 +37,36 @@ export default function ContactForm() {
     }
 
     try {
+      // ✅ Hämta CSRF-token från klient-sidan
+      let csrfToken: string;
+      try {
+        const csrfResponse = await fetch('https://source-database-809785351172.europe-north1.run.app/api/auth/csrf', {
+          credentials: 'include'
+        });
+        
+        if (!csrfResponse.ok) {
+          throw new Error('Kunde inte hämta säkerhetstoken');
+        }
+        
+        const csrfData = await csrfResponse.json();
+        csrfToken = csrfData.csrfToken;
+        
+        if (!csrfToken) {
+          throw new Error('CSRF-token saknas i svar');
+        }
+      } catch (error) {
+        setLoading(false);
+        alert('Kunde inte hämta säkerhetstoken. Ladda om sidan och försök igen.');
+        return;
+      }
+
+      // ✅ Skicka meddelande med CSRF-token
       const res = await fetch('/api/contact', { 
         method: 'POST', 
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'X-CSRF-Token': csrfToken
+        },
         body: JSON.stringify(data) 
       });
       
