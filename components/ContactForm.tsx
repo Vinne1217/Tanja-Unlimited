@@ -15,10 +15,26 @@ export default function ContactForm() {
     const data = {
       name: formData.get('name'),
       email: formData.get('email'),
-      subject: formData.get('subject') || 'Contact Form',
+      phone: formData.get('phone') || '',
+      subject: formData.get('subject') || 'Kontaktformulär',
       message: formData.get('message'),
-      company: formData.get('company') // Honeypot for spam protection
+      company: '' // ✅ Honeypot måste vara tomt (spam-skydd)
     };
+
+    // Validate required fields
+    if (!data.name || !data.email || !data.message) {
+      setLoading(false);
+      alert('Vänligen fyll i alla obligatoriska fält.');
+      return;
+    }
+
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(data.email as string)) {
+      setLoading(false);
+      alert('Ogiltig e-postadress.');
+      return;
+    }
 
     try {
       const res = await fetch('/api/contact', { 
@@ -34,11 +50,13 @@ export default function ContactForm() {
         e.currentTarget.reset();
         setTimeout(() => setSuccess(false), 5000);
       } else {
-        throw new Error('Failed to send message');
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.message || 'Kunde inte skicka meddelande');
       }
     } catch (error) {
       setLoading(false);
-      alert('An error occurred. Please try again or contact us directly.');
+      const errorMessage = error instanceof Error ? error.message : 'Ett fel uppstod. Försök igen senare.';
+      alert(errorMessage);
     }
   }
 
@@ -46,19 +64,19 @@ export default function ContactForm() {
     <form onSubmit={onSubmit} className="space-y-4">
       {success && (
         <div className="bg-sage/10 border border-sage text-sage p-4 text-center font-medium">
-          Thank you! We'll get back to you soon.
+          Tack! Ditt meddelande har skickats. Vi återkommer så snart som möjligt.
         </div>
       )}
       
       <div>
         <label htmlFor="name" className="block text-sm font-medium text-indigo mb-2">
-          Name
+          Namn
         </label>
         <input 
           id="name"
           className="w-full border border-ochre/20 p-3 focus:border-ochre focus:outline-none transition-colors bg-ivory text-graphite"
           name="name" 
-          placeholder="Your name"
+          placeholder="Ditt namn"
         />
       </div>
 
@@ -77,31 +95,44 @@ export default function ContactForm() {
       </div>
 
       <div>
+        <label htmlFor="phone" className="block text-sm font-medium text-indigo mb-2">
+          Telefon
+        </label>
+        <input 
+          id="phone"
+          className="w-full border border-ochre/20 p-3 focus:border-ochre focus:outline-none transition-colors bg-ivory text-graphite"
+          name="phone" 
+          type="tel" 
+          placeholder="0701234567"
+        />
+      </div>
+
+      <div>
         <label htmlFor="subject" className="block text-sm font-medium text-indigo mb-2">
-          Subject
+          Ämne
         </label>
         <input 
           id="subject"
           className="w-full border border-ochre/20 p-3 focus:border-ochre focus:outline-none transition-colors bg-ivory text-graphite"
           name="subject" 
-          placeholder="Subject"
+          placeholder="Ämne"
         />
       </div>
 
       <div>
         <label htmlFor="message" className="block text-sm font-medium text-indigo mb-2">
-          Message <span className="text-terracotta">*</span>
+          Meddelande <span className="text-terracotta">*</span>
         </label>
         <textarea 
           id="message"
           className="w-full border border-ochre/20 p-3 focus:border-ochre focus:outline-none transition-colors bg-ivory text-graphite min-h-[150px]"
           name="message" 
-          placeholder="Your message..." 
+          placeholder="Ditt meddelande..." 
           required 
         />
       </div>
 
-      {/* Honeypot field for spam protection */}
+      {/* Honeypot field for spam protection - måste vara tomt */}
       <input name="company" type="text" style={{ display: 'none' }} tabIndex={-1} autoComplete="off" />
 
       <button 
@@ -112,12 +143,12 @@ export default function ContactForm() {
         {loading ? (
           <>
             <Loader2 className="w-5 h-5 animate-spin" />
-            <span>Sending...</span>
+            <span>Skickar...</span>
           </>
         ) : (
           <>
             <Send className="w-5 h-5" />
-            <span>Send Message</span>
+            <span>Skicka meddelande</span>
           </>
         )}
       </button>
