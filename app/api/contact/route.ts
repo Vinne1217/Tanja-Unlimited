@@ -21,13 +21,33 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // ✅ Hämta CSRF-token från request header (skickas från klienten)
-    const csrfToken = req.headers.get('X-CSRF-Token');
-    
-    if (!csrfToken) {
+    // ✅ Hämta CSRF-token från Source Database (server-till-server, inga CORS-problem)
+    let csrfToken: string;
+    try {
+      const csrfResponse = await fetch(`${SOURCE_BASE}/api/auth/csrf`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (!csrfResponse.ok) {
+        console.error('❌ CSRF token fetch failed:', csrfResponse.status, csrfResponse.statusText);
+        throw new Error('Kunde inte hämta CSRF-token från Source Database');
+      }
+      
+      const csrfData = await csrfResponse.json();
+      csrfToken = csrfData.csrfToken;
+      
+      if (!csrfToken) {
+        console.error('❌ CSRF token missing in response:', csrfData);
+        throw new Error('CSRF-token saknas i svar från Source Database');
+      }
+    } catch (error) {
+      console.error('❌ CSRF token error:', error);
       return NextResponse.json(
-        { success: false, message: 'CSRF-token saknas. Ladda om sidan och försök igen.' },
-        { status: 400 }
+        { success: false, message: 'Kunde inte hämta säkerhetstoken. Försök igen senare.' },
+        { status: 500 }
       );
     }
 
