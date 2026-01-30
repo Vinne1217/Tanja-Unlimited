@@ -24,6 +24,7 @@ export async function POST(req: NextRequest) {
     // ✅ Hämta CSRF-token från Source Database (server-till-server, inga CORS-problem)
     let csrfToken: string;
     try {
+      console.log('🔐 Hämtar CSRF-token från:', `${SOURCE_BASE}/api/auth/csrf`);
       const csrfResponse = await fetch(`${SOURCE_BASE}/api/auth/csrf`, {
         method: 'GET',
         headers: {
@@ -31,12 +32,21 @@ export async function POST(req: NextRequest) {
         }
       });
       
+      console.log('🔐 CSRF response status:', csrfResponse.status, csrfResponse.statusText);
+      
       if (!csrfResponse.ok) {
-        console.error('❌ CSRF token fetch failed:', csrfResponse.status, csrfResponse.statusText);
-        throw new Error('Kunde inte hämta CSRF-token från Source Database');
+        const errorText = await csrfResponse.text();
+        console.error('❌ CSRF token fetch failed:', {
+          status: csrfResponse.status,
+          statusText: csrfResponse.statusText,
+          body: errorText
+        });
+        throw new Error(`Kunde inte hämta CSRF-token: ${csrfResponse.status} ${csrfResponse.statusText}`);
       }
       
       const csrfData = await csrfResponse.json();
+      console.log('🔐 CSRF response data:', { hasToken: !!csrfData.csrfToken, tokenLength: csrfData.csrfToken?.length });
+      
       csrfToken = csrfData.csrfToken;
       
       if (!csrfToken) {
@@ -63,6 +73,19 @@ export async function POST(req: NextRequest) {
     };
 
     // ✅ Skicka meddelande till Source Database med CSRF-token
+    console.log('📤 Skickar meddelande till Source Database:', {
+      endpoint: `${SOURCE_BASE}/api/messages`,
+      tenant: TENANT,
+      hasCsrfToken: !!csrfToken,
+      messageData: {
+        tenant: messageData.tenant,
+        email: messageData.email,
+        name: messageData.name,
+        subject: messageData.subject,
+        messageLength: messageData.message.length
+      }
+    });
+    
     const res = await sourceFetch('/api/messages', {
       method: 'POST',
       headers: {
@@ -73,15 +96,22 @@ export async function POST(req: NextRequest) {
     });
 
     const responseText = await res.text();
+    console.log('📥 Source Database response:', {
+      status: res.status,
+      statusText: res.statusText,
+      bodyPreview: responseText.substring(0, 200)
+    });
     
     if (!res.ok) {
       let errorMessage = 'Kunde inte skicka meddelande';
       try {
         const errorData = JSON.parse(responseText);
         errorMessage = errorData.message || errorMessage;
+        console.error('❌ Source Database error response:', errorData);
       } catch {
         // Om JSON parsing misslyckas, använd response text
         errorMessage = responseText || errorMessage;
+        console.error('❌ Source Database error (non-JSON):', responseText);
       }
       
       return NextResponse.json(
