@@ -169,7 +169,7 @@ export default function AnalyticsProvider({ children }: { children: React.ReactN
         };
         
         // ✅ Filtrera bort eventuella icke-primitiva värden
-        const safeProps: Record<string, string | number> = {};
+        const safeProps: Record<string, string | number | boolean> = {};
         for (const [key, value] of Object.entries(formProps)) {
           if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
             safeProps[key] = value;
