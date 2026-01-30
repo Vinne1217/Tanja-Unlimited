@@ -21,46 +21,6 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // ✅ Hämta CSRF-token från Source Database (server-till-server, inga CORS-problem)
-    let csrfToken: string;
-    try {
-      console.log('🔐 Hämtar CSRF-token från:', `${SOURCE_BASE}/api/auth/csrf`);
-      const csrfResponse = await fetch(`${SOURCE_BASE}/api/auth/csrf`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      });
-      
-      console.log('🔐 CSRF response status:', csrfResponse.status, csrfResponse.statusText);
-      
-      if (!csrfResponse.ok) {
-        const errorText = await csrfResponse.text();
-        console.error('❌ CSRF token fetch failed:', {
-          status: csrfResponse.status,
-          statusText: csrfResponse.statusText,
-          body: errorText
-        });
-        throw new Error(`Kunde inte hämta CSRF-token: ${csrfResponse.status} ${csrfResponse.statusText}`);
-      }
-      
-      const csrfData = await csrfResponse.json();
-      console.log('🔐 CSRF response data:', { hasToken: !!csrfData.csrfToken, tokenLength: csrfData.csrfToken?.length });
-      
-      csrfToken = csrfData.csrfToken;
-      
-      if (!csrfToken) {
-        console.error('❌ CSRF token missing in response:', csrfData);
-        throw new Error('CSRF-token saknas i svar från Source Database');
-      }
-    } catch (error) {
-      console.error('❌ CSRF token error:', error);
-      return NextResponse.json(
-        { success: false, message: 'Kunde inte hämta säkerhetstoken. Försök igen senare.' },
-        { status: 500 }
-      );
-    }
-
     // ✅ Förbered meddelandedata med tenant
     const messageData = {
       tenant: TENANT,
@@ -72,11 +32,10 @@ export async function POST(req: NextRequest) {
       company: '' // ✅ Honeypot måste vara tomt
     };
 
-    // ✅ Skicka meddelande till Source Database med CSRF-token
+    // ✅ Skicka meddelande till Source Database via /api/contact (ingen CSRF-token behövs!)
     console.log('📤 Skickar meddelande till Source Database:', {
-      endpoint: `${SOURCE_BASE}/api/messages`,
+      endpoint: `${SOURCE_BASE}/api/contact`,
       tenant: TENANT,
-      hasCsrfToken: !!csrfToken,
       messageData: {
         tenant: messageData.tenant,
         email: messageData.email,
@@ -86,10 +45,9 @@ export async function POST(req: NextRequest) {
       }
     });
     
-    const res = await sourceFetch('/api/messages', {
+    const res = await sourceFetch('/api/contact', {
       method: 'POST',
       headers: {
-        'X-CSRF-Token': csrfToken,
         'X-Tenant': TENANT
       },
       body: JSON.stringify(messageData)
