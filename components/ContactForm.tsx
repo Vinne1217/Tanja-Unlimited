@@ -1,10 +1,11 @@
 'use client';
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { Send, Loader2 } from 'lucide-react';
 
 export default function ContactForm() {
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+  const formRef = useRef<HTMLFormElement>(null);
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -50,7 +51,10 @@ export default function ContactForm() {
       
       if (res.ok) {
         setSuccess(true);
-        e.currentTarget.reset();
+        // ✅ Använd ref istället för e.currentTarget för att undvika null-fel
+        if (formRef.current) {
+          formRef.current.reset();
+        }
         setTimeout(() => setSuccess(false), 5000);
       } else {
         const errorData = await res.json().catch(() => ({}));
@@ -64,7 +68,7 @@ export default function ContactForm() {
   }
 
   return (
-    <form onSubmit={onSubmit} className="space-y-4">
+    <form ref={formRef} onSubmit={onSubmit} className="space-y-4">
       {success && (
         <div className="bg-sage/10 border border-sage text-sage p-4 text-center font-medium">
           Tack! Ditt meddelande har skickats. Vi återkommer så snart som möjligt.
