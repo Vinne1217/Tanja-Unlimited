@@ -1,16 +1,19 @@
 'use client';
 import { useState, useRef } from 'react';
 import { Send, Loader2 } from 'lucide-react';
+import { SOURCE_BASE, TENANT } from '@/lib/source';
 
 export default function ContactForm() {
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const formRef = useRef<HTMLFormElement>(null);
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setLoading(true);
     setSuccess(false);
+    setError(null);
 
     const formData = new FormData(e.currentTarget);
     const data = {
@@ -19,13 +22,19 @@ export default function ContactForm() {
       phone: formData.get('phone') || '',
       subject: formData.get('subject') || 'Kontaktformulär',
       message: formData.get('message'),
-      company: '' // ✅ Honeypot måste vara tomt (spam-skydd)
+      company: formData.get('company') || '' // ✅ Honeypot måste vara tomt (spam-skydd)
     };
 
-    // Validate required fields
-    if (!data.name || !data.email || !data.message) {
+    // ✅ Honeypot-validering - om company har värde, är det spam
+    if (data.company && data.company.toString().trim() !== '') {
       setLoading(false);
-      alert('Vänligen fyll i alla obligatoriska fält.');
+      return; // Bot detected, silently fail
+    }
+
+    // Validate required fields
+    if (!data.email || !data.message) {
+      setLoading(false);
+      setError('E-post och meddelande krävs.');
       return;
     }
 
@@ -33,18 +42,40 @@ export default function ContactForm() {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(data.email as string)) {
       setLoading(false);
-      alert('Ogiltig e-postadress.');
+      setError('Ogiltig e-postadress.');
       return;
     }
 
     try {
-      // ✅ Skicka meddelande - backend hämtar CSRF-token automatiskt
-      const res = await fetch('/api/contact', { 
-        method: 'POST', 
-        headers: { 
-          'Content-Type': 'application/json'
+      // 1. Hämta CSRF-token
+      const csrfResponse = await fetch(`${SOURCE_BASE}/api/auth/csrf`, {
+        credentials: 'include'
+      });
+
+      if (!csrfResponse.ok) {
+        throw new Error('Kunde inte hämta CSRF-token');
+      }
+
+      const { csrfToken } = await csrfResponse.json();
+
+      // 2. Skicka meddelande till /api/messages
+      const res = await fetch(`${SOURCE_BASE}/api/messages`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-Token': csrfToken,
+          'X-Tenant': TENANT // ✅ Använd exakt tenant-värde
         },
-        body: JSON.stringify(data) 
+        credentials: 'include',
+        body: JSON.stringify({
+          tenant: TENANT, // ✅ Använd exakt tenant-värde
+          name: data.name || '',
+          email: data.email,
+          phone: data.phone || '',
+          subject: data.subject || 'Kontaktformulär',
+          message: data.message,
+          company: '' // ✅ Honeypot (måste vara tomt)
+        })
       });
       
       setLoading(false);
@@ -63,7 +94,7 @@ export default function ContactForm() {
     } catch (error) {
       setLoading(false);
       const errorMessage = error instanceof Error ? error.message : 'Ett fel uppstod. Försök igen senare.';
-      alert(errorMessage);
+      setError(errorMessage);
     }
   }
 
@@ -72,6 +103,12 @@ export default function ContactForm() {
       {success && (
         <div className="bg-sage/10 border border-sage text-sage p-4 text-center font-medium">
           Tack! Ditt meddelande har skickats. Vi återkommer så snart som möjligt.
+        </div>
+      )}
+      
+      {error && (
+        <div className="bg-terracotta/10 border border-terracotta text-terracotta p-4 text-center font-medium">
+          {error}
         </div>
       )}
       

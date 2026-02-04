@@ -1,6 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { sourceFetch, SOURCE_BASE, TENANT } from '@/lib/source';
+import { SOURCE_BASE, TENANT } from '@/lib/source';
 
+/**
+ * Legacy API route for contact form (fallback)
+ * 
+ * NOTE: The frontend now sends messages directly to Source Database
+ * using CSRF tokens. This route is kept for backwards compatibility
+ * but should use the new /api/messages endpoint with CSRF token.
+ * 
+ * @deprecated Use direct frontend integration with CSRF token instead
+ */
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
@@ -32,9 +41,21 @@ export async function POST(req: NextRequest) {
       company: '' // ✅ Honeypot måste vara tomt
     };
 
-    // ✅ Skicka meddelande till Source Database via /api/contact (ingen CSRF-token behövs!)
+    // ✅ Hämta CSRF-token först
+    console.log('📤 Hämtar CSRF-token från Source Database...');
+    const csrfResponse = await fetch(`${SOURCE_BASE}/api/auth/csrf`, {
+      credentials: 'include'
+    });
+
+    if (!csrfResponse.ok) {
+      throw new Error('Kunde inte hämta CSRF-token');
+    }
+
+    const { csrfToken } = await csrfResponse.json();
+
+    // ✅ Skicka meddelande till Source Database via /api/messages med CSRF-token
     console.log('📤 Skickar meddelande till Source Database:', {
-      endpoint: `${SOURCE_BASE}/api/contact`,
+      endpoint: `${SOURCE_BASE}/api/messages`,
       tenant: TENANT,
       messageData: {
         tenant: messageData.tenant,
@@ -45,11 +66,14 @@ export async function POST(req: NextRequest) {
       }
     });
     
-    const res = await sourceFetch('/api/contact', {
+    const res = await fetch(`${SOURCE_BASE}/api/messages`, {
       method: 'POST',
       headers: {
+        'Content-Type': 'application/json',
+        'X-CSRF-Token': csrfToken,
         'X-Tenant': TENANT
       },
+      credentials: 'include',
       body: JSON.stringify(messageData)
     });
 
