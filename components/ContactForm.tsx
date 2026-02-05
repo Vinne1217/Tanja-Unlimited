@@ -58,6 +58,11 @@ export default function ContactForm() {
 
       const { csrfToken } = await csrfResponse.json();
 
+      // ✅ Validera att CSRF-token faktiskt finns
+      if (!csrfToken) {
+        throw new Error('Kunde inte hämta säkerhetstoken. Ladda om sidan och försök igen.');
+      }
+
       // 2. Skicka meddelande till /api/messages
       const res = await fetch(`${SOURCE_BASE}/api/messages`, {
         method: 'POST',
