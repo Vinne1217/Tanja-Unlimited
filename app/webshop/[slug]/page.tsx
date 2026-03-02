@@ -1,7 +1,8 @@
 import Link from 'next/link';
 import { getCategoryBySlug } from '@/lib/products';
-import { getProducts, getCategories } from '@/lib/catalog';
+import { getProducts, getCategories, Category as CatalogCategory } from '@/lib/catalog';
 import CategoryPageClient from './CategoryPageClient';
+import CategoryOverviewPageClient from './CategoryOverviewPageClient';
 import CategoryNavigation from '@/components/CategoryNavigation';
 
 export const dynamic = 'force-dynamic';
@@ -29,8 +30,10 @@ export default async function CategoryPage({ params }: { params: Promise<{ slug:
     console.warn(`⚠️ sourceCategories is not an array:`, typeof sourceCategories);
     sourceCategories = [];
   }
-  
-  const sourceCategory = sourceCategories.find(c => c.slug === slug);
+
+  const sourceCategory: CatalogCategory | undefined = sourceCategories.find(
+    (c: CatalogCategory) => c.slug === slug
+  );
   console.log(`🔍 Category lookup:`, {
     slug,
     foundStaticCategory: !!staticCategory,
@@ -38,7 +41,32 @@ export default async function CategoryPage({ params }: { params: Promise<{ slug:
     sourceCategoryId: sourceCategory?.id,
     sourceCategorySlug: sourceCategory?.slug
   });
-  
+
+  // Om kategorin har underkategorier: visa en ren underkategori-översikt
+  if (sourceCategory && Array.isArray(sourceCategory.subcategories) && sourceCategory.subcategories.length > 0) {
+    const displayCategory = {
+      id: sourceCategory.id,
+      name: sourceCategory.name,
+      slug: sourceCategory.slug,
+      description: sourceCategory.description || staticCategory?.description || '',
+      icon: sourceCategory.icon || staticCategory?.icon || 'sparkles',
+    };
+
+    console.log(
+      `📦 CategoryPage: rendering subcategory overview for ${slug} with ${sourceCategory.subcategories.length} subcategories`
+    );
+
+    return (
+      <>
+        <CategoryNavigation />
+        <CategoryOverviewPageClient
+          category={displayCategory}
+          subcategories={sourceCategory.subcategories}
+        />
+      </>
+    );
+  }
+
   // Fetch products from Source API
   let products: any[] = [];
   try {

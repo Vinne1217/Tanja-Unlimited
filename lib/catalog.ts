@@ -196,10 +196,62 @@ export async function getCategories(locale = 'sv'): Promise<Category[]> {
       }
       return isValid;
     });
+
+    // Build hierarchical structure:
+    // - Huvudkategorier: kategorier utan parentId
+    // - Underkategorier: kategorier med parentId som pekar på en huvudkategori
+    const rootCategoriesMap = new Map<string, Category>();
+    const childCategories: Category[] = [];
+
+    for (const cat of validCategories) {
+      if (cat.parentId) {
+        childCategories.push(cat);
+      } else {
+        // Se till att subcategories alltid är en array (även om API:t inte skickar någon lista)
+        rootCategoriesMap.set(cat.id, {
+          ...cat,
+          subcategories: cat.subcategories ?? []
+        });
+      }
+    }
+
+    // Koppla ihop underkategorier med respektive huvudkategori
+    for (const child of childCategories) {
+      const parent = child.parentId ? rootCategoriesMap.get(child.parentId) : undefined;
+
+      if (parent) {
+        const existingSubs = parent.subcategories ?? [];
+
+        // Undvik dubletter om API:t redan skickar child i parent.subcategories
+        const alreadyExists = existingSubs.some(sub => sub.id === child.id);
+        if (!alreadyExists) {
+          existingSubs.push({
+            ...child,
+            // När den väl ligger under parent behövs inte parentId i UI:t
+            parentId: child.parentId
+          });
+        }
+
+        rootCategoriesMap.set(parent.id, {
+          ...parent,
+          subcategories: existingSubs
+        });
+      } else {
+        // Om vi inte hittar en parent (konstig eller inkomplett data) behandlar vi den som root
+        if (!rootCategoriesMap.has(child.id)) {
+          rootCategoriesMap.set(child.id, {
+            ...child,
+            subcategories: child.subcategories ?? []
+          });
+        }
+      }
+    }
+
+    const hierarchicalCategories = Array.from(rootCategoriesMap.values());
+
+    console.log(`📦 Mapped ${hierarchicalCategories.length} root categories (from ${validCategories.length} valid categories, ${categoriesArray.length} raw categories)`);
     
-    console.log(`📦 Mapped ${validCategories.length} valid categories from ${categoriesArray.length} raw categories`);
-    
-    return validCategories;
+    return hierarchicalCategories;
   } catch (error) {
     console.error(`❌ Error parsing categories response:`, error);
     return [];
