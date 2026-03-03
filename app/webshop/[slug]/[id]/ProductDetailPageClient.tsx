@@ -32,15 +32,26 @@ export default function ProductDetailPageClient({
 }) {
   const [campaignPrice, setCampaignPrice] = useState<number | null>(null);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0); // ✅ Add state for selected image
-  
-  // Filter variants to only those with sizes (matching BuyNowButton logic)
-  const sizeVariants = product.variants?.filter(v => v.size) || [];
-  const hasMultipleSizes = sizeVariants.length > 1;
-  
-  // Initialize selectedVariant: if multiple sizes, start with null (user must select)
-  // If single size or no sizes, auto-select first variant
+
+  // Samma logik som i BuyNowButton: välj om vi exponerar storlek eller färg
+  const allVariants = product.variants || [];
+  const uniqueSizes = new Set(allVariants.map(v => v.size).filter(Boolean));
+  const uniqueColors = new Set(allVariants.map(v => v.color).filter(Boolean));
+
+  const useSizeDimension = uniqueSizes.size > 1;
+  const useColorDimension = !useSizeDimension && uniqueColors.size > 1;
+
+  const optionVariants = useSizeDimension
+    ? allVariants.filter(v => v.size)
+    : useColorDimension
+    ? allVariants.filter(v => v.color)
+    : allVariants;
+
+  const hasMultipleOptions = optionVariants.length > 1;
+
+  // Initialize selectedVariant: om flera alternativ → inget förvalt, annars välj första
   const [selectedVariant, setSelectedVariant] = useState<string | null>(
-    hasMultipleSizes ? null : (sizeVariants[0]?.key || product.variants?.[0]?.key || null)
+    hasMultipleOptions ? null : (optionVariants[0]?.key || product.variants?.[0]?.key || null)
   );
   
   // Get selected variant's price ID for campaign badge and subscription detection
@@ -314,12 +325,12 @@ export default function ProductDetailPageClient({
                 {/* IMPORTANT: Use stripeProductId instead of id (baseSku) for campaign API */}
                 {product.type !== 'subscription' && (
                   <CampaignBadge 
-                  productId={product.stripeProductId || product.id}
-                  defaultPrice={product.price}
-                  currency={product.currency || 'SEK'}
-                  onCampaignFound={setCampaignPrice}
-                  variantPriceId={variantPriceId}
-                  hasVariants={hasMultipleSizes}
+                    productId={product.stripeProductId || product.id}
+                    defaultPrice={product.price}
+                    currency={product.currency || 'SEK'}
+                    onCampaignFound={setCampaignPrice}
+                    variantPriceId={variantPriceId}
+                    hasVariants={hasMultipleOptions}
                   />
                 )}
                 

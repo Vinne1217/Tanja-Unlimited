@@ -19,13 +19,28 @@ type InventoryData = {
 };
 
 export default function BuyNowButton({ product, onVariantChange }: BuyNowButtonProps) {
-  // Filter variants to only those with sizes
-  const sizeVariants = product.variants?.filter(v => v.size) || [];
-  const hasMultipleSizes = sizeVariants.length > 1;
+  // Bestäm vilken variant-dimension vi ska visa:
+  // 1) Om det finns flera olika storlekar → visa storlekar
+  // 2) Annars, om det finns flera olika färger → visa färger
+  // 3) Annars → ingen variantväljare (endast en variant)
+  const allVariants = product.variants || [];
+  const uniqueSizes = new Set(allVariants.map(v => v.size).filter(Boolean));
+  const uniqueColors = new Set(allVariants.map(v => v.color).filter(Boolean));
+
+  const useSizeDimension = uniqueSizes.size > 1;
+  const useColorDimension = !useSizeDimension && uniqueColors.size > 1;
+
+  const optionVariants = useSizeDimension
+    ? allVariants.filter(v => v.size)
+    : useColorDimension
+    ? allVariants.filter(v => v.color)
+    : allVariants;
+
+  const hasMultipleOptions = optionVariants.length > 1;
   
-  // Auto-select the only variant if there's only one size, otherwise start with null
+  // Auto-select the only variant om det bara finns en, annars låt användaren välja
   const [selectedVariant, setSelectedVariant] = useState<string | null>(
-    hasMultipleSizes ? null : (sizeVariants[0]?.key || product.variants?.[0]?.key || null)
+    hasMultipleOptions ? null : (optionVariants[0]?.key || product.variants?.[0]?.key || null)
   );
   const [inventory, setInventory] = useState<InventoryData | null>(null);
   const [variantInventories, setVariantInventories] = useState<Map<string, InventoryData>>(new Map());
@@ -188,15 +203,15 @@ export default function BuyNowButton({ product, onVariantChange }: BuyNowButtonP
       return;
     }
 
-    // Only require variant selection if there are multiple sizes
-    if (hasMultipleSizes && !selectedVariant) {
-      alert('Vänligen välj en storlek.');
+    // Kräver val om det finns flera alternativ (storlek eller färg)
+    if (hasMultipleOptions && !selectedVariant) {
+      alert(useColorDimension ? 'Vänligen välj en färg.' : 'Vänligen välj en storlek.');
       return;
     }
     
-    // If only one size variant, auto-select it
-    if (!hasMultipleSizes && sizeVariants.length === 1 && !selectedVariant) {
-      setSelectedVariant(sizeVariants[0].key);
+    // Om det bara finns en variant, auto-välj den
+    if (!hasMultipleOptions && optionVariants.length === 1 && !selectedVariant) {
+      setSelectedVariant(optionVariants[0].key);
     }
 
     // Check if out of stock - prioritize variant-level stock over product-level
@@ -250,8 +265,8 @@ export default function BuyNowButton({ product, onVariantChange }: BuyNowButtonP
       })
     : false;
   
-  // Only require variant selection if there are multiple sizes
-  const requiresVariantSelection = hasMultipleSizes;
+  // Only require variant selection om det finns flera alternativ (storlek eller färg)
+  const requiresVariantSelection = hasMultipleOptions;
   
   const isDisabled = checkingStock || isOutOfStock || allVariantsOutOfStock || variantOutOfStock || (requiresVariantSelection && !selectedVariant);
 
@@ -277,11 +292,17 @@ export default function BuyNowButton({ product, onVariantChange }: BuyNowButtonP
         </div>
       )}
 
-      {/* Size Selector - Only show if multiple sizes exist */}
-      {hasMultipleSizes && (
+      {/* Variantväljare – visar antingen storlekar eller färger beroende på data */}
+      {hasMultipleOptions && (
         <div>
           <label className="block text-sm font-medium text-deepIndigo mb-2">
-            {sizeVariants.length > 1 ? 'Storlekar' : 'Storlek'}
+            {useColorDimension
+              ? optionVariants.length > 1
+                ? 'Färger'
+                : 'Färg'
+              : optionVariants.length > 1
+              ? 'Storlekar'
+              : 'Storlek'}
           </label>
           <select
             value={selectedVariant || ''}
@@ -294,8 +315,8 @@ export default function BuyNowButton({ product, onVariantChange }: BuyNowButtonP
             }}
             className="w-full px-4 py-3 border border-warmOchre/20 bg-ivory text-deepIndigo focus:border-warmOchre focus:outline-none transition-colors"
           >
-            <option value="">Välj storlek</option>
-            {sizeVariants.map((variant) => {
+            <option value="">{useColorDimension ? 'Välj färg' : 'Välj storlek'}</option>
+            {optionVariants.map((variant) => {
               const variantInventory = variantInventories.get(variant.key);
               // Check availability: use API flags (outOfStock, status) instead of raw stock values
               const stockCount = variantInventory?.stock ?? variant.stock ?? null;
@@ -303,8 +324,12 @@ export default function BuyNowButton({ product, onVariantChange }: BuyNowButtonP
                 ? (variantInventory.outOfStock || variantInventory.status === 'out_of_stock')
                 : (variant.outOfStock || variant.status === 'out_of_stock' || variant.inStock === false);
               
-              // Display label: show size (should always exist since we filtered for size variants)
-              const displayLabel = variant.size || variant.key;
+              // Visningsnamn:
+              // - Om vi visar färger → visa färg
+              // - Annars visa storlek
+              const displayLabel = useColorDimension
+                ? variant.color || variant.size || variant.key
+                : variant.size || variant.color || variant.key;
               
               // Stock display logic:
               // - Only show stock if low stock (< 10) with "snart slutsåld"

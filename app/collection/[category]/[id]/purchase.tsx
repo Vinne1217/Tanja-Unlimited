@@ -100,25 +100,47 @@ export default function ProductPurchase({ product }: { product: Product }) {
       {/* Stock Status */}
       <StockStatus productId={product.id} />
 
-      {/* Size Selector - Only show if multiple sizes exist */}
+      {/* Variantväljare – storlek eller färg beroende på data (för äldre collection-sidor) */}
       {(() => {
-        const sizeVariants = product.variants?.filter(v => v.size) || [];
-        const hasMultipleSizes = sizeVariants.length > 1;
+        const allVariants = product.variants || [];
+        const uniqueSizes = new Set(allVariants.map(v => v.size).filter(Boolean));
+        const uniqueColors = new Set(allVariants.map(v => v.color).filter(Boolean));
+
+        const useSizeDimension = uniqueSizes.size > 1;
+        const useColorDimension = !useSizeDimension && uniqueColors.size > 1;
+
+        const optionVariants = useSizeDimension
+          ? allVariants.filter(v => v.size)
+          : useColorDimension
+          ? allVariants.filter(v => v.color)
+          : allVariants;
+
+        const hasMultipleOptions = optionVariants.length > 1;
         
-        if (!hasMultipleSizes) {
-          return null; // Don't show selector if only one or no size variants
+        if (!hasMultipleOptions) {
+          return null; // Visa ingen selector om det bara finns en variant
         }
         
         return (
           <div>
             <label className="block text-sm mb-1">
-              {sizeVariants.length > 1 ? 'Storlekar' : 'Storlek'}
+              {useColorDimension
+                ? optionVariants.length > 1
+                  ? 'Färger'
+                  : 'Färg'
+                : optionVariants.length > 1
+                ? 'Storlekar'
+                : 'Storlek'}
             </label>
             <select className="border p-2" value={variantKey || ''} onChange={(e) => setVariantKey(e.target.value)}>
-              <option value="">Välj storlek</option>
-              {sizeVariants.map(v => {
-                // Display label: show size (should always exist since we filtered for size variants)
-                const displayLabel = v.size || v.key;
+              <option value="">
+                {useColorDimension ? 'Välj färg' : 'Välj storlek'}
+              </option>
+              {optionVariants.map(v => {
+                // Visningsnamn
+                const displayLabel = useColorDimension
+                  ? v.color || v.size || v.key
+                  : v.size || v.color || v.key;
                 
                 // Check availability using API flags (outOfStock, inStock, status) instead of raw stock values
                 const stockCount = v.stock ?? null;
