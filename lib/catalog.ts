@@ -355,6 +355,7 @@ export async function getProducts(params: { locale?: string; category?: string; 
             }
           } else {
             console.warn(`⚠️ [getProducts] Detail endpoint returned ${detailRes.status} for ${p.baseSku || p.id}`);
+          }
         } catch (error) {
           console.warn(`⚠️ [getProducts] Failed to fetch stripeProductId from detail endpoint for ${p.baseSku || p.id}:`, error);
         }
