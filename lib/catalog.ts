@@ -491,11 +491,24 @@ export async function getProducts(params: { locale?: string; category?: string; 
           const variantPrice = variantPriceSEK ? variantPriceSEK / 100 : null;
           
           // Extract stripePriceId - handle null explicitly (convert to undefined)
-          const stripePriceId = v.stripePriceId || v.priceId || undefined;
+          // CRITICAL: Check both stripePriceId and priceId fields
+          // Also check if value is null (not just falsy) - null should be treated as missing
+          let stripePriceId: string | undefined = undefined;
+          
+          if (v.stripePriceId && v.stripePriceId !== null && v.stripePriceId !== '') {
+            stripePriceId = v.stripePriceId;
+          } else if (v.priceId && v.priceId !== null && v.priceId !== '') {
+            stripePriceId = v.priceId;
+          }
           
           // Log if stripePriceId is missing for first variant of first few products
-          if (!stripePriceId && data.products.indexOf(p) < 3 && p.variants?.indexOf(v) === 0) {
-            console.warn(`⚠️ Variant ${articleNumber} of product ${p.baseSku || p.id} missing stripePriceId in API response`);
+          if (!stripePriceId && index < 3 && p.variants?.indexOf(v) === 0) {
+            console.warn(`⚠️ [getProducts] Variant ${articleNumber} of product ${p.baseSku || p.id} missing stripePriceId in API response:`, {
+              rawStripePriceId: v.stripePriceId,
+              rawStripePriceIdType: typeof v.stripePriceId,
+              rawPriceId: v.priceId,
+              rawPriceIdType: typeof v.priceId
+            });
           }
           
           return {
