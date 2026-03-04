@@ -57,6 +57,8 @@ export default function ProductCardWithCampaign({ product, slug, idx }: ProductC
     product.price,
     product.stripePriceId
   );
+
+  console.log('💰 ProductCardWithCampaign: campaignPrice for', product.id, campaignPrice);
   
   // Use subscription detection with Stripe Price fallback
   const { subscriptionInfo: detectedSubscriptionInfo } = useSubscriptionDetection(
@@ -141,8 +143,13 @@ export default function ProductCardWithCampaign({ product, slug, idx }: ProductC
                   );
                 }
 
-                // Regular product pricing with campaign support
-                if (campaignPrice.hasCampaign && campaignPrice.campaignPrice) {
+              // Regular product pricing with campaign support
+              if (campaignPrice.hasCampaign && typeof campaignPrice.campaignPrice === 'number') {
+                console.log('💰 ProductCardWithCampaign: rendering CAMPAIGN price for', product.id, {
+                  campaignPrice: campaignPrice.campaignPrice,
+                  originalPrice: campaignPrice.originalPrice,
+                  discountPercent: campaignPrice.discountPercent,
+                });
                   return (
                     <>
                       <span className="text-2xl font-serif text-terracotta">
