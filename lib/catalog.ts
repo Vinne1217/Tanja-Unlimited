@@ -289,19 +289,35 @@ export async function getProducts(params: { locale?: string; category?: string; 
   // Handle different response formats
   if (data.success && data.products) {
     // Storefront format: { success: true, products: [...] }
-    // Log first product structure to see category field
+    // Log first product structure to see Stripe IDs and category field
     if (data.products.length > 0) {
       const firstProduct = data.products[0];
-      console.log(`📦 First product raw structure (category field):`, {
+      console.log(`📦 First product raw structure from API:`, {
         baseSku: firstProduct.baseSku,
         name: firstProduct.name,
         title: firstProduct.title,
+        stripeProductId: firstProduct.stripeProductId,
+        stripe_product_id: firstProduct.stripe_product_id,
+        productId: firstProduct.productId,
+        hasVariants: !!firstProduct.variants,
+        variantCount: firstProduct.variants?.length || 0,
+        firstVariantStripePriceId: firstProduct.variants?.[0]?.stripePriceId,
+        firstVariantPriceId: firstProduct.variants?.[0]?.priceId,
         category: firstProduct.category,
         categoryId: firstProduct.categoryId,
-        category_id: firstProduct.category_id,
-        categoryName: firstProduct.categoryName,
-        allCategoryKeys: Object.keys(firstProduct).filter(k => k.toLowerCase().includes('categor'))
+        allKeys: Object.keys(firstProduct).slice(0, 20) // First 20 keys to see structure
       });
+      
+      // Log all variants' Stripe Price IDs for first product
+      if (firstProduct.variants && firstProduct.variants.length > 0) {
+        console.log(`📦 First product variants (Stripe IDs):`, firstProduct.variants.map((v: any, idx: number) => ({
+          index: idx,
+          articleNumber: v.articleNumber,
+          stripePriceId: v.stripePriceId,
+          priceId: v.priceId,
+          priceSEK: v.priceSEK
+        })));
+      }
     }
     
     // Map storefront products to our Product format
@@ -342,11 +358,30 @@ export async function getProducts(params: { locale?: string; category?: string; 
         : undefined;
 
       // Extract stripeProductId - handle null explicitly (convert to undefined)
-      const stripeProductId = p.stripeProductId || p.stripe_product_id || undefined;
+      let stripeProductId = p.stripeProductId || p.stripe_product_id || undefined;
       
-      // Log if stripeProductId is missing for first few products
+      // FALLBACK: If stripeProductId is missing, try to fetch it from detail endpoint
+      // This is needed because some products might not have stripeProductId in list response
       if (!stripeProductId && data.products.indexOf(p) < 3) {
-        console.warn(`⚠️ Product ${p.baseSku || p.id} missing stripeProductId in API response`);
+        console.warn(`⚠️ Product ${p.baseSku || p.id} missing stripeProductId in list response, trying detail endpoint...`);
+        try {
+          const detailRes = await sourceFetch(`/storefront/${TENANT_ID}/product/${p.baseSku || p.id}?locale=sv`, {
+            headers: { 'X-Tenant': TENANT_ID }
+          });
+          if (detailRes.ok) {
+            const detailData = await detailRes.json();
+            if (detailData.success && detailData.product) {
+              stripeProductId = detailData.product.stripeProductId || detailData.product.stripe_product_id || undefined;
+              if (stripeProductId) {
+                console.log(`✅ Fetched stripeProductId from detail endpoint: ${p.baseSku || p.id} → ${stripeProductId}`);
+              } else {
+                console.warn(`⚠️ Detail endpoint also missing stripeProductId for ${p.baseSku || p.id}`);
+              }
+            }
+          }
+        } catch (error) {
+          console.warn(`⚠️ Failed to fetch stripeProductId from detail endpoint for ${p.baseSku || p.id}:`, error);
+        }
       }
 
       return {

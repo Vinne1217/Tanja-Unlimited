@@ -87,6 +87,17 @@ export default async function CategoryPage({ params }: { params: Promise<{ slug:
     products = result.items || [];
     console.log(`✅ Fetched ${products.length} products with category filter: ${categoryParam}`);
     
+    // Log first few products to verify Stripe IDs are present
+    if (products.length > 0) {
+      console.log(`📦 First products from getProducts (Stripe IDs check):`, products.slice(0, 3).map(p => ({
+        id: p.id,
+        name: p.name,
+        stripeProductId: p.stripeProductId,
+        variantCount: p.variants?.length || 0,
+        firstVariantStripePriceId: p.variants?.[0]?.stripePriceId
+      })));
+    }
+    
     // If no products found with filter, fetch all and filter manually
     if (products.length === 0) {
       const allProductsResult = await getProducts({ 
