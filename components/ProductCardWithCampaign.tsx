@@ -59,7 +59,12 @@ export default function ProductCardWithCampaign({ product, slug, idx }: ProductC
   const displayBasePrice = primaryVariant?.price ?? product.price;
 
   // Fetch campaign price for this product
+  // CRITICAL: Use stripeProductId if available (Stripe Product ID like "prod_...")
+  // Only fall back to product.id (baseSku/slug) if stripeProductId is missing
   const productIdForCampaign = product.stripeProductId || product.id;
+  
+  // CRITICAL: Use variant's stripePriceId if available (Stripe Price ID like "price_...")
+  // This must match the originalPriceId that campaigns are linked to
   const variantPriceIdForCampaign = primaryVariant?.stripePriceId || product.stripePriceId;
 
   console.log(`🎨 ProductCardWithCampaign: Product ${product.id}`, {
@@ -69,10 +74,21 @@ export default function ProductCardWithCampaign({ product, slug, idx }: ProductC
     displayBasePrice,
     stripePriceId: product.stripePriceId,
     variantPriceIdForCampaign,
+    primaryVariantStripePriceId: primaryVariant?.stripePriceId,
     hasVariants: variants.length,
+    variantCount: variants.length,
+    allVariantStripePriceIds: variants.map(v => v.stripePriceId).filter(Boolean),
     type: product.type,
     subscription: product.subscription
   });
+  
+  // Warn if we're using fallback IDs (not Stripe IDs)
+  if (!product.stripeProductId || !product.stripeProductId.startsWith('prod_')) {
+    console.warn(`⚠️ ProductCardWithCampaign: Product ${product.id} missing valid stripeProductId (prod_...), using fallback: ${productIdForCampaign}`);
+  }
+  if (!variantPriceIdForCampaign || !variantPriceIdForCampaign.startsWith('price_')) {
+    console.warn(`⚠️ ProductCardWithCampaign: Product ${product.id} missing valid stripePriceId (price_...), campaign lookup may fail`);
+  }
   
   const campaignPrice = useCampaignPrice(
     productIdForCampaign,

@@ -33,12 +33,24 @@ export function useCampaignPrice(
       const normalizedVariantPriceId =
         variantPriceId && variantPriceId !== 'none' ? variantPriceId : undefined;
 
+      // Log what we're sending to campaign API
+      console.log(`🔍 useCampaignPrice: Fetching campaign price:`, {
+        productId,
+        variantPriceId,
+        normalizedVariantPriceId,
+        defaultPrice,
+        isStripeProductId: productId?.startsWith('prod_'),
+        isStripePriceId: normalizedVariantPriceId?.startsWith('price_')
+      });
+
       try {
         // Bygg URL mot kampanj-API:t (ingen direkt Stripe-anrop här)
         let url = `/api/campaigns/price?productId=${encodeURIComponent(productId)}`;
         if (normalizedVariantPriceId) {
           url += `&originalPriceId=${encodeURIComponent(normalizedVariantPriceId)}`;
         }
+
+        console.log(`📡 useCampaignPrice: Calling: ${url}`);
 
         const res = await fetch(url, {
           signal: AbortSignal.timeout(3000),

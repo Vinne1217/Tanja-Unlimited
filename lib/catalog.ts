@@ -306,6 +306,18 @@ export async function getProducts(params: { locale?: string; category?: string; 
     
     // Map storefront products to our Product format
     const mappedProducts: Product[] = data.products.map((p: any) => {
+      // Log raw API data for first few products to debug Stripe IDs
+      if (data.products.indexOf(p) < 3) {
+        console.log(`🔍 Raw API product ${p.baseSku || p.id}:`, {
+          stripeProductId: p.stripeProductId,
+          stripe_product_id: p.stripe_product_id,
+          hasVariants: !!p.variants,
+          variantCount: p.variants?.length || 0,
+          firstVariantStripePriceId: p.variants?.[0]?.stripePriceId,
+          firstVariantPriceId: p.variants?.[0]?.priceId
+        });
+      }
+
       // priceRange.min and priceSEK are ALWAYS in cents from Storefront API
       // Convert to SEK by dividing by 100
       const priceInCents = p.priceRange?.min || (p.variants?.[0]?.priceSEK);
@@ -329,6 +341,14 @@ export async function getProducts(params: { locale?: string; category?: string; 
           }
         : undefined;
 
+      // Extract stripeProductId - handle null explicitly (convert to undefined)
+      const stripeProductId = p.stripeProductId || p.stripe_product_id || undefined;
+      
+      // Log if stripeProductId is missing for first few products
+      if (!stripeProductId && data.products.indexOf(p) < 3) {
+        console.warn(`⚠️ Product ${p.baseSku || p.id} missing stripeProductId in API response`);
+      }
+
       return {
         id: p.baseSku || p.id,
         name: p.title || p.name,
@@ -336,10 +356,10 @@ export async function getProducts(params: { locale?: string; category?: string; 
         images: p.images || [],
         price: priceInSEK, // Store price in SEK, not cents
         currency: 'SEK',
-        stripeProductId: p.stripeProductId || p.stripe_product_id, // Use Stripe Product ID from Source API
+        stripeProductId: stripeProductId, // Explicitly handle null -> undefined
         type: p.type || (isSubscription ? 'subscription' : 'one_time'),
         subscription: subscriptionInfo,
-        variants: p.variants?.map((v: any) => {
+        variants: (p.variants || []).map((v: any) => {
           const articleNumber = v.articleNumber || v.sku || v.id || v.key;
           
           // ✅ Use size and color fields directly from API (Source Portal provides these)
@@ -370,11 +390,19 @@ export async function getProducts(params: { locale?: string; category?: string; 
           const variantPriceSEK = v.priceSEK ?? v.price ?? null;
           const variantPrice = variantPriceSEK ? variantPriceSEK / 100 : null;
           
+          // Extract stripePriceId - handle null explicitly (convert to undefined)
+          const stripePriceId = v.stripePriceId || v.priceId || undefined;
+          
+          // Log if stripePriceId is missing for first variant of first few products
+          if (!stripePriceId && data.products.indexOf(p) < 3 && p.variants?.indexOf(v) === 0) {
+            console.warn(`⚠️ Variant ${articleNumber} of product ${p.baseSku || p.id} missing stripePriceId in API response`);
+          }
+          
           return {
             key: articleNumber,
             sku: articleNumber,
             stock: v.stock ?? 0,
-            stripePriceId: v.stripePriceId,
+            stripePriceId: stripePriceId, // Explicitly handle null -> undefined
             size: size, // ✅ Use direct field, fallback to parsed
             color: color, // ✅ Use direct field, fallback to parsed
             status: v.status || (v.inStock === false ? 'out_of_stock' : v.lowStock ? 'low_stock' : 'in_stock'),
@@ -393,12 +421,14 @@ export async function getProducts(params: { locale?: string; category?: string; 
       };
     });
     
-    // Log sample mapped products to verify categoryId mapping
+    // Log sample mapped products to verify Stripe IDs and variants
     if (mappedProducts.length > 0) {
-      console.log(`📦 Sample mapped products categoryIds:`, mappedProducts.slice(0, 3).map(p => ({
+      console.log(`📦 Sample mapped products (Stripe IDs):`, mappedProducts.slice(0, 3).map(p => ({
         productId: p.id,
         productName: p.name,
-        categoryId: p.categoryId
+        stripeProductId: p.stripeProductId,
+        variantCount: p.variants?.length || 0,
+        firstVariantStripePriceId: p.variants?.[0]?.stripePriceId
       })));
     }
     return { items: mappedProducts };

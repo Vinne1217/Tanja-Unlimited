@@ -201,6 +201,21 @@ export default async function CategoryPage({ params }: { params: Promise<{ slug:
     const basePrice = p.price || 0;
     const variantPrice = primaryVariant?.price ?? basePrice;
 
+    // Extract Stripe IDs - ensure they're not null (convert to undefined)
+    const stripeProductId = p.stripeProductId || undefined;
+    const stripePriceId = primaryVariant?.stripePriceId || undefined;
+
+    // Log first few products to verify Stripe IDs are being passed correctly
+    if (products.indexOf(p) < 3) {
+      console.log(`🔍 CategoryPage: Preparing product ${p.id}:`, {
+        stripeProductId,
+        stripePriceId,
+        primaryVariantArticleNumber: primaryVariant?.sku || primaryVariant?.key,
+        variantCount: variants.length,
+        allVariantStripePriceIds: variants.map((v: any) => v.stripePriceId).filter(Boolean)
+      });
+    }
+
     return {
       id: p.id,
       name: p.name,
@@ -210,16 +225,30 @@ export default async function CategoryPage({ params }: { params: Promise<{ slug:
       currency: p.currency || 'SEK',
       salePrice: undefined, // hanteras av kampanjlogik
       inStock: true,
-      stripeProductId: p.stripeProductId, // Stripe Product ID behövs för kampanj-API
+      stripeProductId: stripeProductId, // Stripe Product ID behövs för kampanj-API (explicitly undefined if null)
       // Viktigt: använd samma Stripe Price ID som för varianten vars pris vi visar
-      stripePriceId: primaryVariant?.stripePriceId || undefined,
+      stripePriceId: stripePriceId, // Explicitly undefined if null
       category: category.id,
       // Skicka med varianterna så kortet kan debugga/justera logik vid behov
-      variants: p.variants || []
+      variants: variants.map((v: any) => ({
+        ...v,
+        stripePriceId: v.stripePriceId || undefined // Ensure null -> undefined
+      }))
     };
   });
   
   console.log(`✅ CategoryPage: Prepared ${formattedProducts.length} products for display`);
+  
+  // Log sample formatted products to verify Stripe IDs
+  if (formattedProducts.length > 0) {
+    console.log(`📦 CategoryPage: Sample formatted products (Stripe IDs):`, formattedProducts.slice(0, 3).map(p => ({
+      id: p.id,
+      name: p.name,
+      stripeProductId: p.stripeProductId,
+      stripePriceId: p.stripePriceId,
+      variantCount: p.variants?.length || 0
+    })));
+  }
 
   return (
     <>
