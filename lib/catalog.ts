@@ -325,7 +325,7 @@ export async function getProducts(params: { locale?: string; category?: string; 
     // Check for null, undefined, or empty string
     const productsNeedingFallback = data.products
       .map((p: any, index: number) => ({ product: p, index }))
-      .filter(({ product: p }) => {
+      .filter(({ product: p }: { product: any; index: number }) => {
         const hasStripeProductId = p.stripeProductId && p.stripeProductId !== null && p.stripeProductId !== '';
         const hasStripeProductIdAlt = p.stripe_product_id && p.stripe_product_id !== null && p.stripe_product_id !== '';
         return !hasStripeProductId && !hasStripeProductIdAlt;
