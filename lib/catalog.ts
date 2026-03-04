@@ -321,17 +321,24 @@ export async function getProducts(params: { locale?: string; category?: string; 
     }
     
     // Map storefront products to our Product format
-    // First, identify products that need stripeProductId fallback (first 3 products only to avoid too many API calls)
+    // First, identify products that need stripeProductId fallback
+    // Check for null, undefined, or empty string
     const productsNeedingFallback = data.products
-      .slice(0, 3)
-      .filter((p: any) => !p.stripeProductId && !p.stripe_product_id)
-      .map((p: any) => ({ product: p, index: data.products.indexOf(p) }));
+      .map((p: any, index: number) => ({ product: p, index }))
+      .filter(({ product: p }) => {
+        const hasStripeProductId = p.stripeProductId && p.stripeProductId !== null && p.stripeProductId !== '';
+        const hasStripeProductIdAlt = p.stripe_product_id && p.stripe_product_id !== null && p.stripe_product_id !== '';
+        return !hasStripeProductId && !hasStripeProductIdAlt;
+      })
+      .slice(0, 5); // Fetch for first 5 products that need it to avoid too many API calls
+    
+    console.log(`📦 Products needing stripeProductId fallback: ${productsNeedingFallback.length} out of ${data.products.length}`);
     
     // Fetch stripeProductId from detail endpoint for products that need it
     const fallbackResults = await Promise.all(
       productsNeedingFallback.map(async ({ product: p, index }: { product: any; index: number }) => {
         try {
-          console.warn(`⚠️ Product ${p.baseSku || p.id} missing stripeProductId in list response, trying detail endpoint...`);
+          console.warn(`⚠️ [getProducts] Product ${p.baseSku || p.id} missing stripeProductId in list response, trying detail endpoint...`);
           const detailRes = await sourceFetch(`/storefront/${TENANT_ID}/product/${p.baseSku || p.id}?locale=sv`, {
             headers: { 'X-Tenant': TENANT_ID }
           });
@@ -340,13 +347,16 @@ export async function getProducts(params: { locale?: string; category?: string; 
             if (detailData.success && detailData.product) {
               const stripeProductId = detailData.product.stripeProductId || detailData.product.stripe_product_id || undefined;
               if (stripeProductId) {
-                console.log(`✅ Fetched stripeProductId from detail endpoint: ${p.baseSku || p.id} → ${stripeProductId}`);
+                console.log(`✅ [getProducts] Fetched stripeProductId from detail endpoint: ${p.baseSku || p.id} → ${stripeProductId}`);
                 return { index, stripeProductId };
+              } else {
+                console.warn(`⚠️ [getProducts] Detail endpoint also missing stripeProductId for ${p.baseSku || p.id}`);
               }
             }
-          }
+          } else {
+            console.warn(`⚠️ [getProducts] Detail endpoint returned ${detailRes.status} for ${p.baseSku || p.id}`);
         } catch (error) {
-          console.warn(`⚠️ Failed to fetch stripeProductId from detail endpoint for ${p.baseSku || p.id}:`, error);
+          console.warn(`⚠️ [getProducts] Failed to fetch stripeProductId from detail endpoint for ${p.baseSku || p.id}:`, error);
         }
         return { index, stripeProductId: undefined };
       })
@@ -357,6 +367,7 @@ export async function getProducts(params: { locale?: string; category?: string; 
     fallbackResults.forEach(({ index, stripeProductId }) => {
       if (stripeProductId) {
         fallbackMap.set(index, stripeProductId);
+        console.log(`✅ [getProducts] Added fallback stripeProductId for index ${index}: ${stripeProductId}`);
       }
     });
     
@@ -399,6 +410,16 @@ export async function getProducts(params: { locale?: string; category?: string; 
       // Extract stripeProductId - handle null explicitly (convert to undefined)
       // Use fallback if available
       let stripeProductId = p.stripeProductId || p.stripe_product_id || fallbackMap.get(index) || undefined;
+      
+      // Log if we're using fallback for first few products
+      if (index < 3 && fallbackMap.has(index)) {
+        console.log(`✅ [getProducts] Using fallback stripeProductId for ${p.baseSku || p.id}: ${stripeProductId}`);
+      }
+      
+      // Log if stripeProductId is still missing for first few products
+      if (index < 3 && !stripeProductId) {
+        console.warn(`⚠️ [getProducts] Product ${p.baseSku || p.id} still missing stripeProductId after fallback attempt`);
+      }
 
       return {
         id: p.baseSku || p.id,
