@@ -409,8 +409,35 @@ export async function getProducts(params: { locale?: string; category?: string; 
         : undefined;
 
       // Extract stripeProductId - handle null explicitly (convert to undefined)
-      // Use fallback if available
-      let stripeProductId = p.stripeProductId || p.stripe_product_id || fallbackMap.get(index) || undefined;
+      // CRITICAL: Check both stripeProductId and stripe_product_id fields
+      // Also check if value is null (not just falsy) - null should be treated as missing
+      let stripeProductId: string | undefined = undefined;
+      
+      // Try stripeProductId first
+      if (p.stripeProductId && p.stripeProductId !== null && p.stripeProductId !== '') {
+        stripeProductId = p.stripeProductId;
+      }
+      // Fallback to stripe_product_id
+      else if (p.stripe_product_id && p.stripe_product_id !== null && p.stripe_product_id !== '') {
+        stripeProductId = p.stripe_product_id;
+      }
+      // Use fallback map if available
+      else if (fallbackMap.has(index)) {
+        stripeProductId = fallbackMap.get(index);
+      }
+      
+      // Log detailed info for first few products
+      if (index < 3) {
+        console.log(`🔍 [getProducts] Extracting stripeProductId for ${p.baseSku || p.id}:`, {
+          rawStripeProductId: p.stripeProductId,
+          rawStripeProductIdType: typeof p.stripeProductId,
+          rawStripeProductIdAlt: p.stripe_product_id,
+          rawStripeProductIdAltType: typeof p.stripe_product_id,
+          hasFallback: fallbackMap.has(index),
+          finalStripeProductId: stripeProductId,
+          finalStripeProductIdType: typeof stripeProductId
+        });
+      }
       
       // Log if we're using fallback for first few products
       if (index < 3 && fallbackMap.has(index)) {
@@ -419,7 +446,7 @@ export async function getProducts(params: { locale?: string; category?: string; 
       
       // Log if stripeProductId is still missing for first few products
       if (index < 3 && !stripeProductId) {
-        console.warn(`⚠️ [getProducts] Product ${p.baseSku || p.id} still missing stripeProductId after fallback attempt`);
+        console.warn(`⚠️ [getProducts] Product ${p.baseSku || p.id} still missing stripeProductId after all attempts`);
       }
 
       return {
