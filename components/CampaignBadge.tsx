@@ -353,15 +353,7 @@ export default function CampaignBadge({
         </span>
       </div>
 
-      {/* Price Display with Strikethrough */}
-      <div className="flex items-baseline gap-3">
-        <span className="text-4xl font-serif text-terracotta">
-          {campaignPrice.toLocaleString('sv-SE')} {currency.toUpperCase()}
-        </span>
-        <span className="text-2xl text-graphite/50 line-through">
-          {originalPrice.toLocaleString('sv-SE')} {currency.toUpperCase()}
-        </span>
-      </div>
+      {/* Pris visas i huvudsektionen – här visar vi bara badge + besparing för att undvika dubbla priser */}
 
       {/* Campaign Description */}
       {priceInfo.campaignInfo.description && (
