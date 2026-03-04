@@ -329,7 +329,7 @@ export async function getProducts(params: { locale?: string; category?: string; 
     
     // Fetch stripeProductId from detail endpoint for products that need it
     const fallbackResults = await Promise.all(
-      productsNeedingFallback.map(async ({ product: p, index }) => {
+      productsNeedingFallback.map(async ({ product: p, index }: { product: any; index: number }) => {
         try {
           console.warn(`⚠️ Product ${p.baseSku || p.id} missing stripeProductId in list response, trying detail endpoint...`);
           const detailRes = await sourceFetch(`/storefront/${TENANT_ID}/product/${p.baseSku || p.id}?locale=sv`, {
