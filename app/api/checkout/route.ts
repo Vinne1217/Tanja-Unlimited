@@ -393,18 +393,22 @@ export async function POST(req: NextRequest) {
       url: backendUrl,
       tenantId,
       hasGiftCardCode: !!giftCardCode,
+      isGiftCardPurchase,
+      disableShipping: isGiftCardPurchase,
       itemsCount: backendItems.length
     });
     
     // Prepare request body for backend
     // ✅ CRITICAL: Include giftCardCode as direct property using spread operator
     // This ensures it's explicitly included in the JSON (not filtered out)
+    // For gift card purchases, disable shipping to avoid Stripe API errors
     const backendRequestBody = {
       items: backendItems,
       customerEmail: customerEmail || undefined,
       successUrl: successUrl,
       cancelUrl: cancelUrl,
       ...(giftCardCode && { giftCardCode: giftCardCode }), // Explicitly include if present
+      ...(isGiftCardPurchase && { disableShipping: true }), // Disable shipping for gift cards
       metadata: sessionMetadata
     };
 
