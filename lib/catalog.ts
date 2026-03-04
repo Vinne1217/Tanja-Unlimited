@@ -321,9 +321,48 @@ export async function getProducts(params: { locale?: string; category?: string; 
     }
     
     // Map storefront products to our Product format
-    const mappedProducts: Product[] = data.products.map((p: any) => {
+    // First, identify products that need stripeProductId fallback (first 3 products only to avoid too many API calls)
+    const productsNeedingFallback = data.products
+      .slice(0, 3)
+      .filter((p: any) => !p.stripeProductId && !p.stripe_product_id)
+      .map((p: any) => ({ product: p, index: data.products.indexOf(p) }));
+    
+    // Fetch stripeProductId from detail endpoint for products that need it
+    const fallbackResults = await Promise.all(
+      productsNeedingFallback.map(async ({ product: p, index }) => {
+        try {
+          console.warn(`⚠️ Product ${p.baseSku || p.id} missing stripeProductId in list response, trying detail endpoint...`);
+          const detailRes = await sourceFetch(`/storefront/${TENANT_ID}/product/${p.baseSku || p.id}?locale=sv`, {
+            headers: { 'X-Tenant': TENANT_ID }
+          });
+          if (detailRes.ok) {
+            const detailData = await detailRes.json();
+            if (detailData.success && detailData.product) {
+              const stripeProductId = detailData.product.stripeProductId || detailData.product.stripe_product_id || undefined;
+              if (stripeProductId) {
+                console.log(`✅ Fetched stripeProductId from detail endpoint: ${p.baseSku || p.id} → ${stripeProductId}`);
+                return { index, stripeProductId };
+              }
+            }
+          }
+        } catch (error) {
+          console.warn(`⚠️ Failed to fetch stripeProductId from detail endpoint for ${p.baseSku || p.id}:`, error);
+        }
+        return { index, stripeProductId: undefined };
+      })
+    );
+    
+    // Create a map of index -> stripeProductId for fallback results
+    const fallbackMap = new Map<number, string | undefined>();
+    fallbackResults.forEach(({ index, stripeProductId }) => {
+      if (stripeProductId) {
+        fallbackMap.set(index, stripeProductId);
+      }
+    });
+    
+    const mappedProducts: Product[] = data.products.map((p: any, index: number) => {
       // Log raw API data for first few products to debug Stripe IDs
-      if (data.products.indexOf(p) < 3) {
+      if (index < 3) {
         console.log(`🔍 Raw API product ${p.baseSku || p.id}:`, {
           stripeProductId: p.stripeProductId,
           stripe_product_id: p.stripe_product_id,
@@ -358,31 +397,8 @@ export async function getProducts(params: { locale?: string; category?: string; 
         : undefined;
 
       // Extract stripeProductId - handle null explicitly (convert to undefined)
-      let stripeProductId = p.stripeProductId || p.stripe_product_id || undefined;
-      
-      // FALLBACK: If stripeProductId is missing, try to fetch it from detail endpoint
-      // This is needed because some products might not have stripeProductId in list response
-      if (!stripeProductId && data.products.indexOf(p) < 3) {
-        console.warn(`⚠️ Product ${p.baseSku || p.id} missing stripeProductId in list response, trying detail endpoint...`);
-        try {
-          const detailRes = await sourceFetch(`/storefront/${TENANT_ID}/product/${p.baseSku || p.id}?locale=sv`, {
-            headers: { 'X-Tenant': TENANT_ID }
-          });
-          if (detailRes.ok) {
-            const detailData = await detailRes.json();
-            if (detailData.success && detailData.product) {
-              stripeProductId = detailData.product.stripeProductId || detailData.product.stripe_product_id || undefined;
-              if (stripeProductId) {
-                console.log(`✅ Fetched stripeProductId from detail endpoint: ${p.baseSku || p.id} → ${stripeProductId}`);
-              } else {
-                console.warn(`⚠️ Detail endpoint also missing stripeProductId for ${p.baseSku || p.id}`);
-              }
-            }
-          }
-        } catch (error) {
-          console.warn(`⚠️ Failed to fetch stripeProductId from detail endpoint for ${p.baseSku || p.id}:`, error);
-        }
-      }
+      // Use fallback if available
+      let stripeProductId = p.stripeProductId || p.stripe_product_id || fallbackMap.get(index) || undefined;
 
       return {
         id: p.baseSku || p.id,
