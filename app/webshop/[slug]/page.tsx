@@ -184,18 +184,35 @@ export default async function CategoryPage({ params }: { params: Promise<{ slug:
 
   // Convert Source API products to format expected by client component
   const formattedProducts = products.map(p => {
-    // Price is already in SEK from getProducts (converted from cents in lib/catalog.ts)
+    // Välj den variant vars pris vi utgår från i kortet:
+    // - helst den billigaste varianten (lägsta price)
+    // - fall tillbaka till första varianten om pris saknas
+    const variants = p.variants || [];
+    const primaryVariant =
+      variants.length > 0
+        ? variants.reduce((best: any, v: any) => {
+            const bestPrice = best?.price ?? Number.POSITIVE_INFINITY;
+            const currentPrice = v.price ?? Number.POSITIVE_INFINITY;
+            return currentPrice < bestPrice ? v : best;
+          }, variants[0])
+        : undefined;
+
+    // Price är redan i SEK från getProducts (konverterad från cents i lib/catalog.ts)
+    const basePrice = p.price || 0;
+    const variantPrice = primaryVariant?.price ?? basePrice;
+
     return {
       id: p.id,
       name: p.name,
       description: p.description,
       image: p.images?.[0],
-      price: p.price || 0, // Already in SEK
+      price: variantPrice, // priset vi visar i kortet
       currency: p.currency || 'SEK',
-      salePrice: undefined, // Will be handled by campaign pricing
+      salePrice: undefined, // hanteras av kampanjlogik
       inStock: true,
-      stripeProductId: p.stripeProductId, // Include Stripe Product ID
-      stripePriceId: p.variants?.[0]?.stripePriceId || undefined,
+      stripeProductId: p.stripeProductId, // Stripe Product ID behövs för kampanj-API
+      // Viktigt: använd samma Stripe Price ID som för varianten vars pris vi visar
+      stripePriceId: primaryVariant?.stripePriceId || undefined,
       category: category.id
     };
   });
