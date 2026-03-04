@@ -213,7 +213,9 @@ export default async function CategoryPage({ params }: { params: Promise<{ slug:
       stripeProductId: p.stripeProductId, // Stripe Product ID behövs för kampanj-API
       // Viktigt: använd samma Stripe Price ID som för varianten vars pris vi visar
       stripePriceId: primaryVariant?.stripePriceId || undefined,
-      category: category.id
+      category: category.id,
+      // Skicka med varianterna så kortet kan debugga/justera logik vid behov
+      variants: p.variants || []
     };
   });
   

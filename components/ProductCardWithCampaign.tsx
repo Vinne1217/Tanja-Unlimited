@@ -32,6 +32,10 @@ type Product = {
   stripePriceId?: string;
   type?: 'one_time' | 'subscription';
   subscription?: { interval: string; intervalCount: number };
+  variants?: {
+    stripePriceId?: string;
+    price?: number;
+  }[];
 };
 
 type ProductCardWithCampaignProps = {
@@ -41,21 +45,39 @@ type ProductCardWithCampaignProps = {
 };
 
 export default function ProductCardWithCampaign({ product, slug, idx }: ProductCardWithCampaignProps) {
+  // Välj primär variant för pris/kampanj (samma logik som på serversidan)
+  const variants = product.variants || [];
+  const primaryVariant =
+    variants.length > 0
+      ? variants.reduce((best, v) => {
+          const bestPrice = best?.price ?? Number.POSITIVE_INFINITY;
+          const currentPrice = v.price ?? Number.POSITIVE_INFINITY;
+          return currentPrice < bestPrice ? v : best;
+        }, variants[0])
+      : undefined;
+
+  const displayBasePrice = primaryVariant?.price ?? product.price;
+
   // Fetch campaign price for this product
   const productIdForCampaign = product.stripeProductId || product.id;
+  const variantPriceIdForCampaign = primaryVariant?.stripePriceId || product.stripePriceId;
+
   console.log(`🎨 ProductCardWithCampaign: Product ${product.id}`, {
     stripeProductId: product.stripeProductId,
     productIdForCampaign,
     price: product.price,
+    displayBasePrice,
     stripePriceId: product.stripePriceId,
+    variantPriceIdForCampaign,
+    hasVariants: variants.length,
     type: product.type,
     subscription: product.subscription
   });
   
   const campaignPrice = useCampaignPrice(
     productIdForCampaign,
-    product.price,
-    product.stripePriceId
+    displayBasePrice,
+    variantPriceIdForCampaign
   );
 
   console.log('💰 ProductCardWithCampaign: campaignPrice for', product.id, campaignPrice);
@@ -143,7 +165,7 @@ export default function ProductCardWithCampaign({ product, slug, idx }: ProductC
                   );
                 }
 
-              // Regular product pricing with campaign support
+              // Regular product pricing med kampanjstöd
               if (campaignPrice.hasCampaign && typeof campaignPrice.campaignPrice === 'number') {
                 console.log('💰 ProductCardWithCampaign: rendering CAMPAIGN price for', product.id, {
                   campaignPrice: campaignPrice.campaignPrice,
@@ -174,7 +196,7 @@ export default function ProductCardWithCampaign({ product, slug, idx }: ProductC
                 } else {
                   return (
                     <span className="text-2xl font-serif text-indigo">
-                      {formatPrice(product.price, product.currency)}
+                      {formatPrice(displayBasePrice, product.currency)}
                     </span>
                   );
                 }
