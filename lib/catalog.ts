@@ -292,6 +292,14 @@ export async function getProducts(params: { locale?: string; category?: string; 
     // Log first product structure to see Stripe IDs and category field
     if (data.products.length > 0) {
       const firstProduct = data.products[0];
+      
+      // 🔍 Full raw JSON for the first product – to verify exactly what Storefront returns
+      try {
+        console.log('📦 RAW STOREFRONT PRODUCT (first item):', JSON.stringify(firstProduct, null, 2));
+      } catch {
+        console.log('📦 RAW STOREFRONT PRODUCT (first item): [Could not stringify]');
+      }
+      
       console.log(`📦 First product raw structure from API:`, {
         baseSku: firstProduct.baseSku,
         name: firstProduct.name,
