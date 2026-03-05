@@ -273,6 +273,17 @@ export default async function CategoryPage({ params }: { params: Promise<{ slug:
     })));
   }
 
+  // SERVER-SIDE VERIFICATION: Log formattedProducts immediately before client boundary
+  console.log(
+    "SERVER formattedProducts sample",
+    formattedProducts.slice(0, 3).map(p => ({
+      id: p.id,
+      stripeProductId: p.stripeProductId,
+      stripePriceId: p.stripePriceId,
+      variantCount: p.variants?.length
+    }))
+  );
+
   return (
     <>
       <CategoryNavigation />
