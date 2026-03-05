@@ -248,6 +248,18 @@ export default async function CategoryPage({ params }: { params: Promise<{ slug:
     };
   });
   
+  // Debug: verify that formatted products still contain Stripe IDs and variants
+  console.log(
+    'DEBUG formattedProducts before client boundary:',
+    formattedProducts.slice(0, 2).map(p => ({
+      id: p.id,
+      stripeProductId: p.stripeProductId,
+      stripePriceId: p.stripePriceId,
+      variantCount: p.variants?.length,
+      firstVariantStripePriceId: p.variants?.[0]?.stripePriceId
+    }))
+  );
+  
   console.log(`✅ CategoryPage: Prepared ${formattedProducts.length} products for display`);
   
   // Log sample formatted products to verify Stripe IDs
