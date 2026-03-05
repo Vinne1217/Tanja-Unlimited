@@ -12,6 +12,16 @@ type Category = {
   icon: string;
 };
 
+// Keep a local variant type so we can pass variant data (including Stripe Price IDs)
+type Variant = {
+  key: string;
+  sku: string;
+  stock: number;
+  stripePriceId?: string;
+  price?: number;
+  priceSEK?: number;
+};
+
 type Product = {
   id: string;
   name: string;
@@ -24,6 +34,7 @@ type Product = {
   category: string;
   stripeProductId?: string; // Stripe Product ID for campaign price lookup
   stripePriceId?: string; // Stripe Price ID for variant-specific campaigns
+  variants?: Variant[];   // Ensure variants survive the server → client boundary
 };
 
 export default function CategoryPageClient({
