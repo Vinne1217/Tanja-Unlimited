@@ -170,6 +170,19 @@ export default async function CategoryPage({ params }: { params: Promise<{ slug:
     console.error(`❌ Error fetching products:`, error);
     products = [];
   }
+
+  // Debug: log raw storefront product structure before any mapping,
+  // so we can see exactly where stripeProductId and variants live.
+  if (products && products.length > 0) {
+    try {
+      console.log(
+        'RAW STOREFRONT PRODUCT SAMPLE',
+        JSON.stringify(products[0], null, 2)
+      );
+    } catch {
+      console.log('RAW STOREFRONT PRODUCT SAMPLE: [Could not stringify first product]');
+    }
+  }
   
   // Use Source API category for display info (preferred), or fallback to static category
   const category = (sourceCategory ? {
