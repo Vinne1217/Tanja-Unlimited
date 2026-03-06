@@ -193,91 +193,52 @@ export default async function CategoryPage({ params }: { params: Promise<{ slug:
     );
   }
 
-  // Convert Source API products to format expected by client component
-  const formattedProducts = products.map(p => {
-    // Välj den variant vars pris vi utgår från i kortet:
-    // - helst den billigaste varianten (lägsta price)
-    // - fall tillbaka till första varianten om pris saknas
-    const variants = p.variants || [];
-    const primaryVariant =
-      variants.length > 0
-        ? variants.reduce((best: any, v: any) => {
-            const bestPrice = best?.price ?? Number.POSITIVE_INFINITY;
-            const currentPrice = v.price ?? Number.POSITIVE_INFINITY;
-            return currentPrice < bestPrice ? v : best;
-          }, variants[0])
-        : undefined;
+  // Convert Source API products (Storefront shape) to the minimal format
+  // expected by the client component and ProductCardWithCampaign
+  const formattedProducts = products.map((p: any) => {
+    // Storefront fields: id, baseSku, stripeProductId, title, description, images, priceRange, variants[]
+    const id = p.baseSku || p.id;
+    const name = p.title || p.name;
+    const description = p.description;
+    const image = p.images?.[0];
 
-    // Price är redan i SEK från getProducts (konverterad från cents i lib/catalog.ts)
-    const basePrice = p.price || 0;
-    const variantPrice = primaryVariant?.price ?? basePrice;
+    // priceRange.min is in cents – convert to SEK
+    const priceInCents = p.priceRange?.min ?? (p.price ? Math.round(p.price * 100) : 0);
+    const price = priceInCents ? priceInCents / 100 : 0;
 
-    // Extract Stripe IDs - ensure they're not null (convert to undefined)
-    const stripeProductId = p.stripeProductId || undefined;
+    const stripeProductIdRaw = p.stripeProductId || p.stripe_product_id;
+
+    const variants = (p.variants || []).map((v: any) => ({
+      key: v.articleNumber || v.sku || v.id || null,
+      sku: v.articleNumber || v.sku || v.id || null,
+      stripePriceId: v.stripePriceId || v.priceId || undefined,
+      // priceSEK is in cents – convert to SEK for client logic
+      price: v.price ?? (v.priceSEK ? v.priceSEK / 100 : null),
+      priceSEK: v.priceSEK ?? null,
+      stock: v.stock ?? 0
+    }));
+
+    const primaryVariant = variants[0];
     const stripePriceId = primaryVariant?.stripePriceId || undefined;
 
-    // Log first few products to verify Stripe IDs are being passed correctly
-    if (products.indexOf(p) < 3) {
-      console.log(`🔍 CategoryPage: Preparing product ${p.id}:`, {
-        stripeProductId,
-        stripePriceId,
-        primaryVariantArticleNumber: primaryVariant?.sku || primaryVariant?.key,
-        variantCount: variants.length,
-        allVariantStripePriceIds: variants.map((v: any) => v.stripePriceId).filter(Boolean)
-      });
-    }
-
     return {
-      id: p.id,
-      name: p.name,
-      description: p.description,
-      image: p.images?.[0],
-      price: variantPrice, // priset vi visar i kortet
+      id,
+      name,
+      description,
+      image,
+      price,
       currency: p.currency || 'SEK',
-      salePrice: undefined, // hanteras av kampanjlogik
-      inStock: true,
-      // Serialize explicitly as string when present; otherwise leave undefined
-      stripeProductId: stripeProductId ? String(stripeProductId) : undefined,
-      // Viktigt: använd samma Stripe Price ID som för varianten vars pris vi visar
-      stripePriceId: stripePriceId || undefined,
-      category: category.id,
-      // Skicka med varianterna i ett rent serialiserbart format
-      variants: variants.map((v: any) => ({
-        key: v.key || v.articleNumber || v.sku || null,
-        sku: v.sku || v.articleNumber || v.key || null,
-        stripePriceId: v.stripePriceId || undefined,
-        // Storefront ger priceSEK i öre – konvertera till SEK för klientlogik
-        price: v.price ?? (v.priceSEK ? v.priceSEK / 100 : null),
-        priceSEK: v.priceSEK ?? null,
-        stock: v.stock ?? 0
-      }))
+      stripeProductId: stripeProductIdRaw ? String(stripeProductIdRaw) : undefined,
+      stripePriceId,
+      variants
     };
   });
   
-  // Debug: verify that formatted products still contain Stripe IDs and variants
+  // Debug: verify that formatted products are in the expected minimal shape
   console.log(
-    'DEBUG formattedProducts before client boundary:',
-    formattedProducts.slice(0, 2).map(p => ({
-      id: p.id,
-      stripeProductId: p.stripeProductId,
-      stripePriceId: p.stripePriceId,
-      variantCount: p.variants?.length,
-      firstVariantStripePriceId: p.variants?.[0]?.stripePriceId
-    }))
+    'FORMATTED PRODUCTS SENT TO CLIENT',
+    formattedProducts.slice(0, 3)
   );
-  
-  console.log(`✅ CategoryPage: Prepared ${formattedProducts.length} products for display`);
-  
-  // Log sample formatted products to verify Stripe IDs
-  if (formattedProducts.length > 0) {
-    console.log(`📦 CategoryPage: Sample formatted products (Stripe IDs):`, formattedProducts.slice(0, 3).map(p => ({
-      id: p.id,
-      name: p.name,
-      stripeProductId: p.stripeProductId,
-      stripePriceId: p.stripePriceId,
-      variantCount: p.variants?.length || 0
-    })));
-  }
 
   // SERVER-SIDE VERIFICATION: Log formattedProducts immediately before client boundary
   console.log(
