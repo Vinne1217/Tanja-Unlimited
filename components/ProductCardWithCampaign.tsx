@@ -28,8 +28,8 @@ type Product = {
   salePrice?: number;
   inStock?: boolean;
   category?: string;
-  stripeProductId?: string;
-  stripePriceId?: string;
+  stripeProductId?: string | null;
+  stripePriceId?: string | null;
   type?: 'one_time' | 'subscription';
   subscription?: { interval: string; intervalCount: number };
   variants?: {

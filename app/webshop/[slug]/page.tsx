@@ -193,33 +193,34 @@ export default async function CategoryPage({ params }: { params: Promise<{ slug:
     );
   }
 
-  // Convert Source API products (Storefront shape) to the minimal format
-  // expected by the client component and ProductCardWithCampaign
+  // Convert Storefront products to the minimal shape expected by the client
   const formattedProducts = products.map((p: any) => {
-    // Storefront fields: id, baseSku, stripeProductId, title, description, images, priceRange, variants[]
-    const id = p.baseSku || p.id;
-    const name = p.title || p.name;
-    const description = p.description;
-    const image = p.images?.[0];
+    // Storefront structure:
+    // { id, baseSku, stripeProductId, title, description, images, priceRange, variants[] }
+
+    const id = p.id;
+    const name = p.title;
+    const description = p.description || '';
+    const image = p.images?.[0] || null;
 
     // priceRange.min is in cents – convert to SEK
-    const priceInCents = p.priceRange?.min ?? (p.price ? Math.round(p.price * 100) : 0);
+    const priceInCents = p.priceRange?.min ?? 0;
     const price = priceInCents ? priceInCents / 100 : 0;
 
-    const stripeProductIdRaw = p.stripeProductId || p.stripe_product_id;
+    const stripeProductId = p.stripeProductId || p.stripe_product_id || null;
 
     const variants = (p.variants || []).map((v: any) => ({
-      key: v.articleNumber || v.sku || v.id || null,
-      sku: v.articleNumber || v.sku || v.id || null,
-      stripePriceId: v.stripePriceId || v.priceId || undefined,
-      // priceSEK is in cents – convert to SEK for client logic
-      price: v.price ?? (v.priceSEK ? v.priceSEK / 100 : null),
+      key: v.articleNumber,
+      sku: v.articleNumber,
+      stripePriceId: v.stripePriceId || null,
+      // priceSEK is in cents – convert to SEK
+      price: v.priceSEK ? v.priceSEK / 100 : null,
       priceSEK: v.priceSEK ?? null,
       stock: v.stock ?? 0
     }));
 
     const primaryVariant = variants[0];
-    const stripePriceId = primaryVariant?.stripePriceId || undefined;
+    const stripePriceId = primaryVariant?.stripePriceId || null;
 
     return {
       id,
@@ -228,28 +229,14 @@ export default async function CategoryPage({ params }: { params: Promise<{ slug:
       image,
       price,
       currency: p.currency || 'SEK',
-      stripeProductId: stripeProductIdRaw ? String(stripeProductIdRaw) : undefined,
+      stripeProductId,
       stripePriceId,
       variants
     };
   });
   
-  // Debug: verify that formatted products are in the expected minimal shape
-  console.log(
-    'FORMATTED PRODUCTS SENT TO CLIENT',
-    formattedProducts.slice(0, 3)
-  );
-
-  // SERVER-SIDE VERIFICATION: Log formattedProducts immediately before client boundary
-  console.log(
-    "SERVER formattedProducts sample",
-    formattedProducts.slice(0, 3).map(p => ({
-      id: p.id,
-      stripeProductId: p.stripeProductId,
-      stripePriceId: p.stripePriceId,
-      variantCount: p.variants?.length
-    }))
-  );
+  // Debug: verify that formatted products sent to client contain Stripe IDs and variants
+  console.log('FORMATTED PRODUCTS SENT TO CLIENT', formattedProducts.slice(0, 2));
 
   return (
     <>
