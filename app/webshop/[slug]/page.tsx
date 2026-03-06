@@ -236,16 +236,16 @@ export default async function CategoryPage({ params }: { params: Promise<{ slug:
       currency: p.currency || 'SEK',
       salePrice: undefined, // hanteras av kampanjlogik
       inStock: true,
-      // Serialize explicitly as string or null to avoid losing it over the client boundary
-      stripeProductId: stripeProductId ? String(stripeProductId) : null,
+      // Serialize explicitly as string when present; otherwise leave undefined
+      stripeProductId: stripeProductId ? String(stripeProductId) : undefined,
       // Viktigt: använd samma Stripe Price ID som för varianten vars pris vi visar
-      stripePriceId: stripePriceId || null,
+      stripePriceId: stripePriceId || undefined,
       category: category.id,
       // Skicka med varianterna i ett rent serialiserbart format
       variants: variants.map((v: any) => ({
         key: v.key || v.articleNumber || v.sku || null,
         sku: v.sku || v.articleNumber || v.key || null,
-        stripePriceId: v.stripePriceId || null,
+        stripePriceId: v.stripePriceId || undefined,
         // Storefront ger priceSEK i öre – konvertera till SEK för klientlogik
         price: v.price ?? (v.priceSEK ? v.priceSEK / 100 : null),
         priceSEK: v.priceSEK ?? null,
