@@ -206,30 +206,26 @@ export default async function CategoryPage({ params }: { params: Promise<{ slug:
     );
   }
 
-  // Convert Storefront products to the minimal shape expected by the client
+  // Convert normalized products from getProducts() to the shape expected by the client
   const formattedProducts = products.map((p: any) => {
     const variants = p.variants || [];
 
     return {
       id: p.id,
-      name: p.title,
+      name: p.name,
       description: p.description || '',
       image: p.images?.[0] || null,
-      price: p.priceRange?.min ? p.priceRange.min / 100 : 0,
-      currency: p.priceRange?.currency || 'SEK',
+      // getProducts() already returns price in SEK (not öre)
+      price: p.price || 0,
+      currency: p.currency || 'SEK',
 
       stripeProductId: p.stripeProductId || null,
 
+      // Use first variant's stripePriceId as default for card-level priceId
       stripePriceId: variants[0]?.stripePriceId || null,
 
-      variants: variants.map((v: any) => ({
-        key: v.articleNumber,
-        sku: v.articleNumber,
-        stripePriceId: v.stripePriceId || null,
-        price: v.priceSEK ? v.priceSEK / 100 : null,
-        priceSEK: v.priceSEK ?? null,
-        stock: v.stock ?? 0
-      }))
+      // Forward variants as-is from getProducts() (they already innehåller stripePriceId, price, priceSEK etc.)
+      variants: variants
     };
   });
 
