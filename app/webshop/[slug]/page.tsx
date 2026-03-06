@@ -240,10 +240,15 @@ export default async function CategoryPage({ params }: { params: Promise<{ slug:
       // Viktigt: använd samma Stripe Price ID som för varianten vars pris vi visar
       stripePriceId: stripePriceId, // Explicitly undefined if null
       category: category.id,
-      // Skicka med varianterna så kortet kan debugga/justera logik vid behov
+      // Skicka med varianterna i ett format som ProductCardWithCampaign förstår
       variants: variants.map((v: any) => ({
-        ...v,
-        stripePriceId: v.stripePriceId || undefined // Ensure null -> undefined
+        key: v.key || v.articleNumber || v.sku,
+        sku: v.sku || v.articleNumber || v.key,
+        stripePriceId: v.stripePriceId || undefined,
+        // Storefront ger priceSEK i öre – konvertera till SEK för klientlogik
+        price: v.price ?? (v.priceSEK ? v.priceSEK / 100 : undefined),
+        priceSEK: v.priceSEK,
+        stock: v.stock ?? 0
       }))
     };
   });
