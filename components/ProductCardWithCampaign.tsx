@@ -45,6 +45,14 @@ type ProductCardWithCampaignProps = {
 };
 
 export default function ProductCardWithCampaign({ product, slug, idx }: ProductCardWithCampaignProps) {
+  // Debug: log exactly what this card receives from the client component
+  console.log('PRODUCT CARD RECEIVED', {
+    id: product.id,
+    stripeProductId: product.stripeProductId,
+    variantCount: product.variants?.length,
+    firstVariantStripePriceId: product.variants?.[0]?.stripePriceId
+  });
+
   // Välj primär variant för pris/kampanj (samma logik som på serversidan)
   const variants = product.variants || [];
   const primaryVariant =
