@@ -46,6 +46,21 @@ export default function CategoryPageClient({
   products: Product[];
   slug: string;
 }) {
+  // Client-side verification: ensure stripeProductId and variants survive the server → client boundary
+  if (products && products.length > 0) {
+    console.log(
+      'CLIENT products sample',
+      products.slice(0, 3).map((p) => ({
+        id: p.id,
+        name: p.name,
+        stripeProductId: p.stripeProductId,
+        stripePriceId: p.stripePriceId,
+        variantCount: p.variants?.length,
+        firstVariantStripePriceId: p.variants?.[0]?.stripePriceId
+      }))
+    );
+  }
+
   return (
     <div className="min-h-screen">
       {/* Hero */}
