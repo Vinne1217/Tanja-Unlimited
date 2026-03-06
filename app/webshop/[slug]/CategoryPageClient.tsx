@@ -30,8 +30,8 @@ type Product = {
   price: number;
   currency: string;
   salePrice?: number;
-  inStock: boolean;
-  category: string;
+  inStock?: boolean;
+  category?: string;
   stripeProductId?: string; // Stripe Product ID for campaign price lookup
   stripePriceId?: string; // Stripe Price ID for variant-specific campaigns
   variants?: Variant[];   // Ensure variants survive the server → client boundary

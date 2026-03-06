@@ -26,8 +26,8 @@ type Product = {
   price: number;
   currency: string;
   salePrice?: number;
-  inStock: boolean;
-  category: string;
+  inStock?: boolean;
+  category?: string;
   stripeProductId?: string;
   stripePriceId?: string;
   type?: 'one_time' | 'subscription';
