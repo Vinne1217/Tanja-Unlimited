@@ -567,35 +567,46 @@ export async function getProducts(params: { locale?: string; category?: string; 
     // Deduplicate the price IDs
     const uniquePriceIds = [...new Set(allPriceIds)];
     
-    // Call the campaign API once if we have any price IDs
+    // Call the campaign API for each price ID in parallel
     let campaignPrices: Record<string, { discountPercent: number } | null> = {};
     if (uniquePriceIds.length > 0) {
-      try {
-        const campaignApiUrl = `${SOURCE_BASE}/api/campaigns/prices?priceIds=${uniquePriceIds.join(',')}`;
-        console.log(`🔍 Fetching campaign prices for ${uniquePriceIds.length} unique price IDs`);
-        
-        const campaignRes = await sourceFetch(campaignApiUrl, {
-          headers: {
-            'X-Tenant': TENANT_ID
+      console.log(`🔍 Fetching campaign prices for ${uniquePriceIds.length} unique price IDs`);
+      
+      await Promise.all(
+        uniquePriceIds.map(async (priceId) => {
+          try {
+            const res = await fetch(
+              `${SOURCE_BASE}/api/campaigns/price?priceId=${encodeURIComponent(priceId)}`,
+              {
+                headers: {
+                  'X-Tenant': TENANT_ID,
+                  'Content-Type': 'application/json'
+                },
+                cache: 'no-store'
+              }
+            );
+
+            if (res.ok) {
+              const data = await res.json();
+
+              if (data && data.hasCampaignPrice) {
+                campaignPrices[priceId] = {
+                  discountPercent: data.discountPercent || 0
+                };
+              } else {
+                campaignPrices[priceId] = null;
+              }
+            } else {
+              campaignPrices[priceId] = null;
+            }
+          } catch (err) {
+            console.error(`⚠️ Campaign fetch failed for priceId: ${priceId}`, err);
+            campaignPrices[priceId] = null;
           }
-        });
-        
-        if (campaignRes.ok) {
-          const campaignData = await campaignRes.json();
-          // Parse the response into a lookup map
-          // Expected format: { "prices": { "price_abc": { "discountPercent": 20 }, "price_xyz": null } }
-          if (campaignData.prices && typeof campaignData.prices === 'object') {
-            campaignPrices = campaignData.prices;
-            console.log(`✅ Received campaign prices for ${Object.keys(campaignPrices).filter(k => campaignPrices[k] !== null).length} price IDs`);
-          } else {
-            console.warn(`⚠️ Campaign API returned unexpected format:`, campaignData);
-          }
-        } else {
-          console.warn(`⚠️ Campaign API returned ${campaignRes.status}, skipping campaign prices`);
-        }
-      } catch (error) {
-        console.warn(`⚠️ Failed to fetch campaign prices:`, error instanceof Error ? error.message : 'Unknown error');
-      }
+        })
+      );
+      
+      console.log(`✅ Fetched campaign prices for ${Object.keys(campaignPrices).filter(k => campaignPrices[k] !== null).length} priceIds`);
     }
     
     // Inject campaign prices into variants
