@@ -265,6 +265,14 @@ export async function getProducts(params: { locale?: string; category?: string; 
   if (params.q) qs.set('q', params.q);
   if (params.limit) qs.set('limit', String(params.limit));
   if (params.cursor) qs.set('cursor', params.cursor);
+  // Ensure Storefront includes variants and Stripe metadata (needed for campaigns)
+  // If backend already supports an "include" parameter, this will request:
+  //   - variants: full variant list
+  //   - stripe: stripeProductId / stripePriceId fields
+  // This is safe even if backend ignores unknown include values.
+  if (!qs.has('include')) {
+    qs.set('include', 'variants,stripe');
+  }
   
   // Try storefront endpoint first, fallback to catalog
   let res = await sourceFetch(`/storefront/${TENANT_ID}/products?${qs.toString()}`, {
