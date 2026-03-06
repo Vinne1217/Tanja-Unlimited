@@ -110,7 +110,7 @@ export default function ProductCardWithCampaign({ product, slug, idx }: ProductC
   // Use subscription detection with Stripe Price fallback
   const { subscriptionInfo: detectedSubscriptionInfo } = useSubscriptionDetection(
     product,
-    product.stripePriceId
+    product.stripePriceId ?? undefined
   );
 
   return (
