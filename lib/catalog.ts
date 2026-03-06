@@ -73,6 +73,9 @@ export type Variant = {
   outOfStock?: boolean;
   lowStock?: boolean;
   inStock?: boolean;
+  price?: number; // Price in SEK
+  campaignPrice?: number; // Campaign price in SEK (server-side injected)
+  priceSEK?: number; // Price in cents from API
 };
 export type SubscriptionInfo = {
   interval: 'day' | 'week' | 'month' | 'year';
@@ -550,6 +553,68 @@ export async function getProducts(params: { locale?: string; category?: string; 
       };
     });
     
+    // Fetch campaign prices for all variants server-side
+    // Collect all Stripe price IDs from product variants
+    const allPriceIds: string[] = [];
+    for (const product of mappedProducts) {
+      for (const variant of product.variants || []) {
+        if (variant.stripePriceId) {
+          allPriceIds.push(variant.stripePriceId);
+        }
+      }
+    }
+    
+    // Deduplicate the price IDs
+    const uniquePriceIds = [...new Set(allPriceIds)];
+    
+    // Call the campaign API once if we have any price IDs
+    let campaignPrices: Record<string, { discountPercent: number } | null> = {};
+    if (uniquePriceIds.length > 0) {
+      try {
+        const campaignApiUrl = `${SOURCE_BASE}/api/campaigns/prices?priceIds=${uniquePriceIds.join(',')}`;
+        console.log(`🔍 Fetching campaign prices for ${uniquePriceIds.length} unique price IDs`);
+        
+        const campaignRes = await sourceFetch(campaignApiUrl, {
+          headers: {
+            'X-Tenant': TENANT_ID
+          }
+        });
+        
+        if (campaignRes.ok) {
+          const campaignData = await campaignRes.json();
+          // Parse the response into a lookup map
+          // Expected format: { "prices": { "price_abc": { "discountPercent": 20 }, "price_xyz": null } }
+          if (campaignData.prices && typeof campaignData.prices === 'object') {
+            campaignPrices = campaignData.prices;
+            console.log(`✅ Received campaign prices for ${Object.keys(campaignPrices).filter(k => campaignPrices[k] !== null).length} price IDs`);
+          } else {
+            console.warn(`⚠️ Campaign API returned unexpected format:`, campaignData);
+          }
+        } else {
+          console.warn(`⚠️ Campaign API returned ${campaignRes.status}, skipping campaign prices`);
+        }
+      } catch (error) {
+        console.warn(`⚠️ Failed to fetch campaign prices:`, error instanceof Error ? error.message : 'Unknown error');
+      }
+    }
+    
+    // Inject campaign prices into variants
+    let injectedCount = 0;
+    for (const product of mappedProducts) {
+      for (const variant of product.variants || []) {
+        const campaign = campaignPrices[variant.stripePriceId || ''];
+        
+        if (campaign && variant.price) {
+          // Calculate campaign price: original price * (1 - discountPercent / 100)
+          // variant.price is in SEK, campaignPrice should also be in SEK
+          variant.campaignPrice = Math.round(variant.price * (1 - campaign.discountPercent / 100) * 100) / 100; // Round to 2 decimals
+          injectedCount++;
+        }
+      }
+    }
+    
+    console.log(`✅ Injected campaign prices into ${injectedCount} variants`);
+    
     // Log sample mapped products to verify Stripe IDs and variants
     if (mappedProducts.length > 0) {
       console.log(`📦 Sample mapped products (Stripe IDs):`, mappedProducts.slice(0, 3).map(p => ({
@@ -557,7 +622,8 @@ export async function getProducts(params: { locale?: string; category?: string; 
         productName: p.name,
         stripeProductId: p.stripeProductId,
         variantCount: p.variants?.length || 0,
-        firstVariantStripePriceId: p.variants?.[0]?.stripePriceId
+        firstVariantStripePriceId: p.variants?.[0]?.stripePriceId,
+        firstVariantCampaignPrice: p.variants?.[0]?.campaignPrice
       })));
     }
     return { items: mappedProducts };
