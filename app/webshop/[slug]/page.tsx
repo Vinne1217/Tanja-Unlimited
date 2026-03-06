@@ -224,8 +224,12 @@ export default async function CategoryPage({ params }: { params: Promise<{ slug:
       // Use first variant's stripePriceId as default for card-level priceId
       stripePriceId: variants[0]?.stripePriceId || null,
 
-      // Forward variants as-is from getProducts() (they already innehåller stripePriceId, price, priceSEK etc.)
-      variants: variants
+      // Extra fält som underlättar loggning och kampanjlogik i klienten
+      variantCount: variants.length,
+      firstVariantStripePriceId: variants[0]?.stripePriceId || null,
+
+      // Forward variants as-is from getProducts() (de innehåller redan stripePriceId, price, priceSEK etc.)
+      variants
     };
   });
 
