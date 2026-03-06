@@ -73,7 +73,8 @@ export default function ProductCardWithCampaign({ product, slug, idx }: ProductC
   
   // CRITICAL: Use variant's stripePriceId if available (Stripe Price ID like "price_...")
   // This must match the originalPriceId that campaigns are linked to
-  const variantPriceIdForCampaign = primaryVariant?.stripePriceId || product.stripePriceId;
+  const variantPriceIdForCampaign: string | undefined =
+    (primaryVariant?.stripePriceId ?? product.stripePriceId ?? undefined) || undefined;
 
   console.log(`🎨 ProductCardWithCampaign: Product ${product.id}`, {
     stripeProductId: product.stripeProductId,
