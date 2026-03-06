@@ -195,48 +195,35 @@ export default async function CategoryPage({ params }: { params: Promise<{ slug:
 
   // Convert Storefront products to the minimal shape expected by the client
   const formattedProducts = products.map((p: any) => {
-    // Storefront structure:
-    // { id, baseSku, stripeProductId, title, description, images, priceRange, variants[] }
-
-    const id = p.id;
-    const name = p.title;
-    const description = p.description || '';
-    const image = p.images?.[0] || null;
-
-    // priceRange.min is in cents – convert to SEK
-    const priceInCents = p.priceRange?.min ?? 0;
-    const price = priceInCents ? priceInCents / 100 : 0;
-
-    const stripeProductId = p.stripeProductId || p.stripe_product_id || null;
-
-    const variants = (p.variants || []).map((v: any) => ({
-      key: v.articleNumber,
-      sku: v.articleNumber,
-      stripePriceId: v.stripePriceId || null,
-      // priceSEK is in cents – convert to SEK
-      price: v.priceSEK ? v.priceSEK / 100 : null,
-      priceSEK: v.priceSEK ?? null,
-      stock: v.stock ?? 0
-    }));
-
-    const primaryVariant = variants[0];
-    const stripePriceId = primaryVariant?.stripePriceId || null;
+    const variants = p.variants || [];
 
     return {
-      id,
-      name,
-      description,
-      image,
-      price,
-      currency: p.currency || 'SEK',
-      stripeProductId,
-      stripePriceId,
-      variants
+      id: p.id,
+      name: p.title,
+      description: p.description || '',
+      image: p.images?.[0] || null,
+      price: p.priceRange?.min ? p.priceRange.min / 100 : 0,
+      currency: p.priceRange?.currency || 'SEK',
+
+      stripeProductId: p.stripeProductId || null,
+
+      stripePriceId: variants[0]?.stripePriceId || null,
+
+      variants: variants.map((v: any) => ({
+        key: v.articleNumber,
+        sku: v.articleNumber,
+        stripePriceId: v.stripePriceId || null,
+        price: v.priceSEK ? v.priceSEK / 100 : null,
+        priceSEK: v.priceSEK ?? null,
+        stock: v.stock ?? 0
+      }))
     };
   });
-  
-  // Debug: verify that formatted products sent to client contain Stripe IDs and variants
-  console.log('FORMATTED PRODUCTS SENT TO CLIENT', formattedProducts.slice(0, 2));
+
+  console.log(
+    'FORMATTED PRODUCTS SENT TO CLIENT',
+    formattedProducts.slice(0, 2)
+  );
 
   return (
     <>
