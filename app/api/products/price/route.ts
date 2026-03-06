@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getLatestActivePriceForProduct } from '@/lib/stripe-products';
 import { getProductById } from '@/lib/products';
+import { getTenantStripeConnectAccountId } from '@/lib/tenant-connect';
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
@@ -24,8 +25,30 @@ export async function GET(req: NextRequest) {
       const stripe = new (await import('stripe')).default(process.env.STRIPE_SECRET_KEY, { 
         apiVersion: '2025-02-24.acacia' 
       });
-      
-      const price = await stripe.prices.retrieve(stripePriceId);
+
+      // Multi‑tenant Stripe Connect:
+      // Resolve tenant from request, then map tenant → connected account ID.
+      // If no mapping is found yet, fall back to platform account (no stripeAccount).
+      const tenantIdHeader = req.headers.get('x-tenant');
+      const tenantIdEnv = process.env.SOURCE_TENANT_ID;
+      const tenantId = tenantIdHeader || tenantIdEnv || 'tanjaunlimited';
+
+      const connectedAccountId = await getTenantStripeConnectAccountId(tenantId);
+
+      const retrieveOptions = connectedAccountId
+        ? { stripeAccount: connectedAccountId }
+        : undefined;
+
+      console.log('📦 Stripe price lookup:', {
+        stripePriceId,
+        tenantId,
+        stripeAccount: connectedAccountId || 'PLATFORM_ACCOUNT'
+      });
+
+      const price = await stripe.prices.retrieve(
+        stripePriceId,
+        retrieveOptions as any // TS: options typing is strict; cast is safe here.
+      );
       
       return NextResponse.json({
         found: true,
