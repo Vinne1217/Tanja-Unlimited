@@ -46,6 +46,19 @@ export default function CategoryPageClient({
   products: Product[];
   slug: string;
 }) {
+  // Client-side verification: ensure stripeProductId and variants survive the server → client boundary
+  if (products && products.length > 0) {
+    console.log(
+      'CATEGORY CLIENT PRODUCTS',
+      products.map((p) => ({
+        id: p.id,
+        stripeProductId: p.stripeProductId,
+        variantCount: p.variants?.length,
+        firstVariantStripePriceId: p.variants?.[0]?.stripePriceId
+      }))
+    );
+  }
+
   return (
     <div className="min-h-screen">
       {/* Hero */}
@@ -93,15 +106,6 @@ export default function CategoryPageClient({
             </div>
           ) : (
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-              {console.log(
-                'CATEGORY CLIENT PRODUCTS',
-                products.map((p) => ({
-                  id: p.id,
-                  stripeProductId: p.stripeProductId,
-                  variantCount: p.variants?.length,
-                  firstVariantStripePriceId: p.variants?.[0]?.stripePriceId
-                }))
-              )}
               {products.map((product, idx) => (
                 <ProductCardWithCampaign
                   key={product.id}
