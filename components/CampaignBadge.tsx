@@ -82,9 +82,8 @@ export default function CampaignBadge({
         // productId should already be Stripe Product ID from product.stripeProductId
         let url = `/api/campaigns/price?productId=${encodeURIComponent(productId)}`;
         if (normalizedVariantPriceId) {
-          // TypeScript: use local variable to ensure type safety
-          const variantPriceId: string = normalizedVariantPriceId;
-          url += `&originalPriceId=${encodeURIComponent(variantPriceId)}`;
+          // TypeScript: non-null assertion is safe here because of the if check
+          url += `&originalPriceId=${encodeURIComponent(normalizedVariantPriceId!)}`;
         }
 
         console.log(`📡 CampaignBadge: Fetching from: ${url}`);
@@ -242,9 +241,8 @@ export default function CampaignBadge({
               // Try to fetch original variant price if available (this should work as it's not a campaign price)
               if (normalizedVariantPriceId && normalizedVariantPriceId !== 'none') {
                 try {
-                  // TypeScript: use local variable to ensure type safety
-                  const variantPriceId: string = normalizedVariantPriceId;
-                  const originalPriceRes = await fetch(`/api/products/price?productId=${productId}&stripePriceId=${encodeURIComponent(variantPriceId)}`);
+                  // TypeScript: non-null assertion is safe here because of the if check
+                  const originalPriceRes = await fetch(`/api/products/price?productId=${productId}&stripePriceId=${encodeURIComponent(normalizedVariantPriceId!)}`);
                   if (originalPriceRes.ok) {
                     const originalPriceData = await originalPriceRes.json();
                     if (originalPriceData.found && originalPriceData.amount) {
