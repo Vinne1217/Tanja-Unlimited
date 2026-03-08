@@ -81,9 +81,10 @@ export default function CampaignBadge({
         // Build URL with optional originalPriceId for variant-specific campaigns
         // productId should already be Stripe Product ID from product.stripeProductId
         let url = `/api/campaigns/price?productId=${encodeURIComponent(productId)}`;
-        if (normalizedVariantPriceId && typeof normalizedVariantPriceId === 'string') {
-          // TypeScript: explicit type guard ensures normalizedVariantPriceId is string
-          url += `&originalPriceId=${encodeURIComponent(normalizedVariantPriceId)}`;
+        if (normalizedVariantPriceId) {
+          // TypeScript: use local variable to ensure type safety
+          const variantPriceId: string = normalizedVariantPriceId;
+          url += `&originalPriceId=${encodeURIComponent(variantPriceId)}`;
         }
 
         console.log(`📡 CampaignBadge: Fetching from: ${url}`);
@@ -239,9 +240,11 @@ export default function CampaignBadge({
               let originalAmount = defaultPrice * 100; // Default: convert SEK to cents
               
               // Try to fetch original variant price if available (this should work as it's not a campaign price)
-              if (normalizedVariantPriceId && normalizedVariantPriceId !== 'none' && typeof normalizedVariantPriceId === 'string') {
+              if (normalizedVariantPriceId && normalizedVariantPriceId !== 'none') {
                 try {
-                  const originalPriceRes = await fetch(`/api/products/price?productId=${productId}&stripePriceId=${encodeURIComponent(normalizedVariantPriceId)}`);
+                  // TypeScript: use local variable to ensure type safety
+                  const variantPriceId: string = normalizedVariantPriceId;
+                  const originalPriceRes = await fetch(`/api/products/price?productId=${productId}&stripePriceId=${encodeURIComponent(variantPriceId)}`);
                   if (originalPriceRes.ok) {
                     const originalPriceData = await originalPriceRes.json();
                     if (originalPriceData.found && originalPriceData.amount) {
