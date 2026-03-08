@@ -175,7 +175,8 @@ export default function CampaignBadge({
                 if (variantPriceId) {
                   try {
                     // Fetch original variant price from Stripe
-                    const originalPriceRes = await fetch(`/api/products/price?productId=${productId}&stripePriceId=${encodeURIComponent(variantPriceId)}`);
+                    // TypeScript: non-null assertion safe due to if check
+                    const originalPriceRes = await fetch(`/api/products/price?productId=${productId}&stripePriceId=${encodeURIComponent(variantPriceId!)}`);
                     if (originalPriceRes.ok) {
                       const originalPriceData = await originalPriceRes.json();
                       if (originalPriceData.found && originalPriceData.amount) {
