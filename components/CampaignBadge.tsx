@@ -149,9 +149,7 @@ export default function CampaignBadge({
               console.log(`🎯 CampaignBadge: Campaign price set from API! ${campaignPrice} SEK (${discountPercent}% off)`);
               
               // Notify parent component
-              if (onCampaignFound) {
-                onCampaignFound(campaignPrice);
-              }
+              onCampaignFound?.(campaignPrice!); // Optional chaining + non-null assertion
               return; // Exit early - we have all the data we need
             }
           }
@@ -222,9 +220,7 @@ export default function CampaignBadge({
                   console.log(`🎯 CampaignBadge: Campaign price set! ${campaignPrice} SEK (${discountPercent}% off)`);
                   
                   // Notify parent component
-                  if (onCampaignFound) {
-                    onCampaignFound(campaignPrice);
-                  }
+                  onCampaignFound?.(campaignPrice!); // Optional chaining + non-null assertion
                 } else {
                   console.warn(`⚠️ CampaignBadge: Discount percent is ${discountPercent}, not showing campaign`);
                 }
@@ -301,9 +297,7 @@ export default function CampaignBadge({
                 console.log(`🎯 CampaignBadge: Campaign price calculated! ${campaignAmount / 100} SEK (${calculatedDiscountPercent}% off)`);
                 
                 // Notify parent component
-                if (onCampaignFound) {
-                  onCampaignFound(campaignAmount / 100);
-                }
+                onCampaignFound?.(campaignAmount / 100); // Optional chaining
               } else {
                 console.warn(`⚠️ CampaignBadge: Calculated discount is ${calculatedDiscountPercent}%, not showing campaign`);
               }
