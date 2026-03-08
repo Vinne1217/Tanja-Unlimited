@@ -13,6 +13,7 @@ export type Variant = {
   inStock?: boolean;
   priceSEK?: number; // Price in cents from Storefront API
   price?: number; // Price in SEK (converted)
+  campaignPrice?: number; // Campaign price in SEK (server-side injected)
   priceFormatted?: string; // Formatted price string (e.g., "299.00 kr")
 };
 
