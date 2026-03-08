@@ -45,7 +45,18 @@ export default function CampaignBadge({
   });
 
   useEffect(() => {
+    // DISABLED: CampaignBadge now relies on server-injected variant.campaignPrice
+    // Campaign prices are resolved server-side via batch endpoint in catalog.ts
+    // This component should be replaced with direct variant.campaignPrice usage
+    console.log(`⚠️ CampaignBadge: Legacy component - campaign prices should come from variant.campaignPrice`);
+    setLoading(false);
+    setPriceInfo(null);
+    return;
+    
     async function fetchCampaignPrice() {
+      // DISABLED - This function is no longer used
+      return;
+      
       // Reset loading state when variant changes
       setLoading(true);
       setPriceInfo(null);
@@ -62,7 +73,7 @@ export default function CampaignBadge({
       }
       
       try {
-        // Use Source Portal API for campaign prices (supports variant-specific prices)
+        // DISABLED: Use Source Portal API for campaign prices (supports variant-specific prices)
         // IMPORTANT: productId should be Stripe Product ID (prod_...), not baseSku
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 3000);

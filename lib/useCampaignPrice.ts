@@ -28,7 +28,20 @@ export function useCampaignPrice(
   });
 
   useEffect(() => {
+    // DISABLED: useCampaignPrice hook is deprecated
+    // Campaign prices are now resolved server-side via batch endpoint in catalog.ts
+    // Components should use variant.campaignPrice directly instead of this hook
+    console.warn(`⚠️ useCampaignPrice: Legacy hook - campaign prices should come from variant.campaignPrice`);
+    setCampaignInfo({
+      hasCampaign: false,
+      originalPrice: defaultPrice,
+    });
+    return;
+    
     async function fetchCampaignPrice() {
+      // DISABLED - This function is no longer used
+      return;
+      
       // Normalize variantPriceId: convert 'none' string to undefined
       const normalizedVariantPriceId =
         variantPriceId && variantPriceId !== 'none' ? variantPriceId : undefined;
@@ -44,7 +57,7 @@ export function useCampaignPrice(
       });
 
       try {
-        // Bygg URL mot kampanj-API:t (ingen direkt Stripe-anrop här)
+        // DISABLED: Bygg URL mot kampanj-API:t (ingen direkt Stripe-anrop här)
         let url = `/api/campaigns/price?productId=${encodeURIComponent(productId)}`;
         if (normalizedVariantPriceId) {
           url += `&originalPriceId=${encodeURIComponent(normalizedVariantPriceId)}`;

@@ -106,83 +106,32 @@ export default function BuyNowButton({ product, onVariantChange }: BuyNowButtonP
     fetchStockStatus();
   }, [product.id, product.variants]);
 
-  // Fetch campaign price when variant is selected (for BuyNowButton's own display)
-  // Note: CampaignBadge also fetches campaign prices, but this is for the button's internal state
+  // Use server-injected campaignPrice from variant (from batch endpoint in catalog.ts)
+  // This replaces the legacy productId-based API calls
   useEffect(() => {
-    async function fetchCampaignPrice() {
-      if (!selectedVariant || !product.variants) {
-        setCampaignPrice(null);
-        return;
-      }
-
-      const variant = product.variants.find(v => v.key === selectedVariant);
-      if (!variant || !variant.stripePriceId) {
-        setCampaignPrice(null);
-        return;
-      }
-
-      try {
-        // Use Stripe Product ID if available, otherwise use product.id
-        const productIdForCampaign = product.stripeProductId || product.id;
-        const url = `/api/campaigns/price?productId=${encodeURIComponent(productIdForCampaign)}&originalPriceId=${encodeURIComponent(variant.stripePriceId)}`;
-        const res = await fetch(url, { cache: 'no-store' });
-        
-        if (res.ok) {
-          const data = await res.json();
-          if (data.hasCampaignPrice && data.priceId) {
-            // PRIORITY 1: Use amount and metadata from API response (customer portal provides this)
-            if (data.amount && data.metadata?.discount_percent) {
-              const campaignAmount = data.amount / 100; // Convert cents to SEK
-              const originalAmount = (data.metadata.original_unit_amount || (selectedVariantData?.price ?? product.price) * 100) / 100;
-              const discountPercent = data.metadata.discount_percent;
-              
-              console.log(`💰 BuyNowButton: Using API-provided campaign price:`, {
-                campaignAmount,
-                originalAmount,
-                discountPercent,
-                source: 'customer_portal_api'
-              });
-              
-              setCampaignPrice({
-                amount: campaignAmount,
-                originalAmount,
-                discountPercent
-              });
-              return;
-            }
-            
-            // PRIORITY 2: Fallback to fetching from Stripe (for backward compatibility)
-            console.log(`ℹ️ BuyNowButton: API response missing amount/metadata, trying Stripe fetch...`);
-            const priceRes = await fetch(`/api/products/price?productId=${encodeURIComponent(productIdForCampaign)}&stripePriceId=${encodeURIComponent(data.priceId)}`);
-            if (priceRes.ok) {
-              const priceData = await priceRes.json();
-              if (priceData.found && priceData.amount) {
-                const campaignAmount = priceData.amount / 100; // Convert cents to SEK
-                // ✅ Use variant-specific price as original amount if available
-                const originalAmount = selectedVariantData?.price ?? product.price;
-                const discountPercent = Math.round(((originalAmount - campaignAmount) / originalAmount) * 100);
-                
-                setCampaignPrice({
-                  amount: campaignAmount,
-                  originalAmount,
-                  discountPercent
-                });
-                return;
-              }
-            } else {
-              console.warn(`⚠️ BuyNowButton: Stripe price fetch failed (${priceRes.status}) - price may be in Stripe Connect account`);
-            }
-          }
-        }
-      } catch (error) {
-        console.warn('Failed to fetch campaign price:', error);
-      }
-      
+    if (!selectedVariant || !product.variants) {
       setCampaignPrice(null);
+      return;
     }
 
-    fetchCampaignPrice();
-  }, [selectedVariant, product.id, product.stripeProductId, product.variants, product.price]);
+    const variant = product.variants.find(v => v.key === selectedVariant);
+    if (!variant) {
+      setCampaignPrice(null);
+      return;
+    }
+
+    // Use server-injected campaignPrice if available
+    if (variant.campaignPrice && variant.price) {
+      const discountPercent = Math.round(((variant.price - variant.campaignPrice) / variant.price) * 100);
+      setCampaignPrice({
+        amount: variant.campaignPrice,
+        originalAmount: variant.price,
+        discountPercent
+      });
+    } else {
+      setCampaignPrice(null);
+    }
+  }, [selectedVariant, product.variants]);
 
   const selectedVariantData = product.variants?.find(v => v.key === selectedVariant);
   const priceId = selectedVariantData?.stripePriceId || product.stripePriceId;

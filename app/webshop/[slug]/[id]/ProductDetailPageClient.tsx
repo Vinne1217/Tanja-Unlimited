@@ -10,7 +10,7 @@ import { formatPrice } from '@/lib/products';
 import { formatSubscriptionInfo, getSubscriptionIntervalDescription } from '@/lib/subscription';
 import { useSubscriptionDetection } from '@/lib/useSubscriptionDetection';
 import BuyNowButton from '@/components/BuyNowButton';
-import CampaignBadge from '@/components/CampaignBadge';
+// Removed CampaignBadge import - campaign prices now come from server-injected variant.campaignPrice
 import StockStatus from '@/components/StockStatus';
 
 type Category = {
@@ -30,7 +30,7 @@ export default function ProductDetailPageClient({
   category: Category;
   slug: string;
 }) {
-  const [campaignPrice, setCampaignPrice] = useState<number | null>(null);
+  // Removed campaignPrice state - now using server-injected variant.campaignPrice
   const [selectedImageIndex, setSelectedImageIndex] = useState(0); // ✅ Add state for selected image
 
   // Samma logik som i BuyNowButton: välj om vi exponerar storlek eller färg
@@ -322,16 +322,21 @@ export default function ProductDetailPageClient({
                 )}
                 
                 {/* Campaign Badge & Price (if campaign exists) */}
-                {/* IMPORTANT: Use stripeProductId instead of id (baseSku) for campaign API */}
-                {product.type !== 'subscription' && (
-                  <CampaignBadge 
-                    productId={product.stripeProductId || product.id}
-                    defaultPrice={product.price}
-                    currency={product.currency || 'SEK'}
-                    onCampaignFound={setCampaignPrice}
-                    variantPriceId={variantPriceId}
-                    hasVariants={hasMultipleOptions}
-                  />
+                {/* DISABLED: CampaignBadge now uses server-injected variant.campaignPrice */}
+                {/* Campaign prices are now resolved server-side via batch endpoint in catalog.ts */}
+                {product.type !== 'subscription' && selectedVariantData?.campaignPrice && (
+                  <div className="mb-4">
+                    <div className="inline-flex items-center gap-2 px-4 py-2 bg-terracotta text-ivory text-sm font-medium tracking-wider">
+                      <span>
+                        {(() => {
+                          const discount = selectedVariantData.price && selectedVariantData.campaignPrice
+                            ? Math.round(((selectedVariantData.price - selectedVariantData.campaignPrice) / selectedVariantData.price) * 100)
+                            : 0;
+                          return discount > 0 ? `${discount}% rabatt` : 'Kampanj';
+                        })()}
+                      </span>
+                    </div>
+                  </div>
                 )}
                 
                 {/* Price Display - Show subscription price even if campaign exists */}
@@ -356,14 +361,17 @@ export default function ProductDetailPageClient({
                     }
 
                     // PRIORITY 2: Show campaign price if available (only for non-subscriptions)
-                    if (campaignPrice) {
+                    // Use server-injected variant.campaignPrice from batch endpoint
+                    const variantCampaignPrice = selectedVariantData?.campaignPrice;
+                    if (variantCampaignPrice) {
+                      const originalPrice = selectedVariantData?.price ?? product.price;
                       return (
                         <>
                           <span className="text-4xl font-serif text-terracotta">
-                            {formatPrice(campaignPrice, product.currency)}
+                            {formatPrice(variantCampaignPrice, product.currency)}
                           </span>
                           <span className="text-2xl text-softCharcoal/50 line-through">
-                            {formatPrice(product.price, product.currency)}
+                            {formatPrice(originalPrice, product.currency)}
                           </span>
                         </>
                       );

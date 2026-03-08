@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import { ShoppingCart } from 'lucide-react';
 import Link from 'next/link';
 import { formatPrice } from '@/lib/products';
-import { useCampaignPrice } from '@/lib/useCampaignPrice';
+// Removed useCampaignPrice import - now using server-injected variant.campaignPrice
 import { formatSubscriptionInfo } from '@/lib/subscription';
 import { useSubscriptionDetection } from '@/lib/useSubscriptionDetection';
 
@@ -66,46 +66,26 @@ export default function ProductCardWithCampaign({ product, slug, idx }: ProductC
 
   const displayBasePrice = primaryVariant?.price ?? product.price;
 
-  // Fetch campaign price for this product
-  // CRITICAL: Use stripeProductId if available (Stripe Product ID like "prod_...")
-  // Only fall back to product.id (baseSku/slug) if stripeProductId is missing
-  const productIdForCampaign = product.stripeProductId || product.id;
-  
-  // CRITICAL: Use variant's stripePriceId if available (Stripe Price ID like "price_...")
-  // This must match the originalPriceId that campaigns are linked to
-  const variantPriceIdForCampaign: string | undefined =
-    (primaryVariant?.stripePriceId ?? product.stripePriceId ?? undefined) || undefined;
+  // Use server-injected campaignPrice from variant (from batch endpoint in catalog.ts)
+  // This replaces the legacy productId-based API calls
+  const variantCampaignPrice = primaryVariant?.campaignPrice;
+  const displayPrice = variantCampaignPrice ?? displayBasePrice;
+  const hasCampaign = variantCampaignPrice !== undefined && variantCampaignPrice !== null;
+  const discountPercent = hasCampaign && displayBasePrice > 0
+    ? Math.round(((displayBasePrice - variantCampaignPrice!) / displayBasePrice) * 100)
+    : undefined;
 
   console.log(`🎨 ProductCardWithCampaign: Product ${product.id}`, {
-    stripeProductId: product.stripeProductId,
-    productIdForCampaign,
-    price: product.price,
     displayBasePrice,
-    stripePriceId: product.stripePriceId,
-    variantPriceIdForCampaign,
+    variantCampaignPrice,
+    displayPrice,
+    hasCampaign,
+    discountPercent,
     primaryVariantStripePriceId: primaryVariant?.stripePriceId,
     hasVariants: variants.length,
-    variantCount: variants.length,
-    allVariantStripePriceIds: variants.map(v => v.stripePriceId).filter(Boolean),
     type: product.type,
     subscription: product.subscription
   });
-  
-  // Warn if we're using fallback IDs (not Stripe IDs)
-  if (!product.stripeProductId || !product.stripeProductId.startsWith('prod_')) {
-    console.warn(`⚠️ ProductCardWithCampaign: Product ${product.id} missing valid stripeProductId (prod_...), using fallback: ${productIdForCampaign}`);
-  }
-  if (!variantPriceIdForCampaign || !variantPriceIdForCampaign.startsWith('price_')) {
-    console.warn(`⚠️ ProductCardWithCampaign: Product ${product.id} missing valid stripePriceId (price_...), campaign lookup may fail`);
-  }
-  
-  const campaignPrice = useCampaignPrice(
-    productIdForCampaign,
-    displayBasePrice,
-    variantPriceIdForCampaign
-  );
-
-  console.log('💰 ProductCardWithCampaign: campaignPrice for', product.id, campaignPrice);
   
   // Use subscription detection with Stripe Price fallback
   const { subscriptionInfo: detectedSubscriptionInfo } = useSubscriptionDetection(
@@ -158,9 +138,9 @@ export default function ProductCardWithCampaign({ product, slug, idx }: ProductC
           )}
           
           {/* Campaign/Sale Badge */}
-          {product.type !== 'subscription' && (campaignPrice.hasCampaign || product.salePrice) && (
+          {product.type !== 'subscription' && (hasCampaign || product.salePrice) && (
             <div className="absolute top-4 right-4 px-3 py-1 bg-terracotta text-ivory text-xs uppercase tracking-widest font-medium z-10">
-              {campaignPrice.discountPercent ? `${campaignPrice.discountPercent}% OFF` : 'Sale'}
+              {discountPercent ? `${discountPercent}% OFF` : 'Sale'}
             </div>
           )}
         </div>
@@ -190,20 +170,20 @@ export default function ProductCardWithCampaign({ product, slug, idx }: ProductC
                   );
                 }
 
-              // Regular product pricing med kampanjstöd
-              if (campaignPrice.hasCampaign && typeof campaignPrice.campaignPrice === 'number') {
+              // Regular product pricing med kampanjstöd (using server-injected campaignPrice)
+              if (hasCampaign && typeof variantCampaignPrice === 'number') {
                 console.log('💰 ProductCardWithCampaign: rendering CAMPAIGN price for', product.id, {
-                  campaignPrice: campaignPrice.campaignPrice,
-                  originalPrice: campaignPrice.originalPrice,
-                  discountPercent: campaignPrice.discountPercent,
+                  campaignPrice: variantCampaignPrice,
+                  originalPrice: displayBasePrice,
+                  discountPercent,
                 });
                   return (
                     <>
                       <span className="text-2xl font-serif text-terracotta">
-                        {formatPrice(campaignPrice.campaignPrice, product.currency)}
+                        {formatPrice(variantCampaignPrice, product.currency)}
                       </span>
                       <span className="text-lg text-graphite/50 line-through">
-                        {formatPrice(campaignPrice.originalPrice, product.currency)}
+                        {formatPrice(displayBasePrice, product.currency)}
                       </span>
                     </>
                   );
