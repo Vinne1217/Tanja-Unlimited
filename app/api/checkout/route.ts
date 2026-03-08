@@ -8,12 +8,13 @@ const TENANT_ID = process.env.SOURCE_TENANT_ID ?? TENANT;
 
 type CartItem = {
   quantity: number;
-  stripePriceId: string; // fallback price ID
-  productId?: string; // To query Stripe for latest price
+  stripePriceId: string; // Stripe Price ID (required)
+  productId?: string; // Product ID (optional, for logging only)
   variantKey?: string; // Variant key/ID (article number/SKU)
   // Gift card fields (only when type === 'gift_card')
   type?: 'gift_card' | 'product';
   giftCardAmount?: number; // Amount in cents (e.g., 50000 = 500 SEK)
+  // NOTE: price and campaignPrice removed for security - backend resolves prices server-side
 };
 
 export async function POST(req: NextRequest) {
@@ -71,7 +72,7 @@ export async function POST(req: NextRequest) {
     console.log(`✅ Gift card purchase allowed for tenant ${tenantId}`);
   }
 
-  // Get latest prices from Stripe (campaigns are newer prices on same product)
+  // Campaign metadata for tracking (no longer fetching prices - using storefront prices)
   const campaignData: Record<string, string> = {};
   
   // Check inventory using Storefront API - simpler and more reliable
@@ -143,151 +144,94 @@ export async function POST(req: NextRequest) {
         };
       }
 
-      let priceId = item.stripePriceId; // fallback to provided price
+      // SECURITY: Backend must resolve prices server-side - never trust frontend prices
+      // Resolve campaign price using stripePriceId → campaign lookup
+      let originalPrice: number | undefined;
+      let campaignPrice: number | undefined;
+      let finalPrice: number | undefined;
       let isCampaign = false;
-
-      // If productId and variant price ID provided, check Source Portal for campaign price
-      if (item.productId && item.stripePriceId) {
-        try {
-          // ✅ IMPROVED: Fetch Stripe Product ID from Storefront API instead of using mapping
-          // This ensures we always use the correct Stripe Product ID
-          let apiProductId: string;
-          
-          // Check if productId is already a Stripe Product ID
-          if (item.productId.startsWith('prod_')) {
-            apiProductId = item.productId;
-            console.log(`✅ Using Stripe Product ID directly: ${apiProductId}`);
-          } else {
-            // Fetch product from Storefront API to get stripeProductId
-            const product = await getProductFromStorefront(item.productId, { revalidate: 0 });
-            
-            if (product?.stripeProductId) {
-              apiProductId = product.stripeProductId;
-              console.log(`✅ Fetched Stripe Product ID from Storefront API: ${item.productId} → ${apiProductId}`);
-            } else {
-              // Fallback to mapping if Storefront API doesn't have stripeProductId
-              console.warn(`⚠️ No stripeProductId in Storefront API for ${item.productId}, using mapping fallback`);
-              const tanjaProductId = mapProductId(item.productId);
-              apiProductId = STRIPE_PRODUCT_MAPPING[tanjaProductId] || item.productId;
-            }
+      let priceId = item.stripePriceId; // Default to original price ID
+      
+      try {
+        // Step 1: Get original price from Stripe using stripePriceId
+        // Use internal API route (server-side)
+        const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || process.env.VERCEL_URL 
+          ? `https://${process.env.VERCEL_URL}` 
+          : 'http://localhost:3000';
+        const priceRes = await fetch(`${baseUrl}/api/products/price?stripePriceId=${encodeURIComponent(item.stripePriceId)}`, {
+          headers: {
+            'X-Tenant': TENANT_ID
+          },
+          cache: 'no-store'
+        });
+        
+        if (priceRes.ok) {
+          const priceData = await priceRes.json();
+          if (priceData.found && priceData.amount) {
+            // Convert from cents to SEK
+            originalPrice = priceData.amount / 100;
           }
+        }
+        
+        // Step 2: Check for campaign price using batch endpoint
+        const campaignApiUrl = `${SOURCE_BASE}/api/campaigns/prices?priceIds=${encodeURIComponent(item.stripePriceId)}`;
+        
+        const campaignResponse = await fetch(campaignApiUrl, {
+          headers: {
+            'X-Tenant': TENANT_ID,
+            'Content-Type': 'application/json'
+          },
+          cache: 'no-store'
+        });
+        
+        if (campaignResponse.ok) {
+          const campaignData_response = await campaignResponse.json();
           
-          // Check Source Portal API for variant-specific campaign price
-          const SOURCE_BASE = process.env.SOURCE_DATABASE_URL ?? 'https://source-database-809785351172.europe-north1.run.app';
-          const TENANT_ID = process.env.SOURCE_TENANT_ID ?? 'tanjaunlimited';
-          
-          const campaignUrl = `${SOURCE_BASE}/api/campaigns/price/${apiProductId}?originalPriceId=${encodeURIComponent(item.stripePriceId)}&tenant=${TENANT_ID}`;
-          
-          console.log(`🔍 Checking campaign price for ${item.productId} → ${apiProductId} (variant: ${item.stripePriceId})`);
-          
-          const campaignResponse = await fetch(campaignUrl, {
-            headers: {
-              'X-Tenant': TENANT_ID,
-              'Content-Type': 'application/json'
-            },
-            cache: 'no-store'
-          });
-
-          if (campaignResponse.ok) {
-            const campaignData_response = await campaignResponse.json();
+          // Parse batch response: { "prices": { "price_abc": { "discountPercent": 20 }, "price_xyz": null } }
+          if (campaignData_response.prices && campaignData_response.prices[item.stripePriceId]) {
+            const campaignInfo = campaignData_response.prices[item.stripePriceId];
             
-            if (campaignData_response.hasCampaignPrice && campaignData_response.priceId) {
-              // Use campaign price
-              priceId = campaignData_response.priceId;
+            if (campaignInfo && campaignInfo.discountPercent && originalPrice) {
+              // Campaign exists - calculate campaign price from original price
+              campaignPrice = Math.round(originalPrice * (1 - campaignInfo.discountPercent / 100) * 100) / 100;
+              finalPrice = campaignPrice;
               isCampaign = true;
               
-              console.log(`🎯 Using campaign price for ${item.productId}:`);
-              console.log(`   Campaign: ${campaignData_response.campaignName || 'Unknown'}`);
-              console.log(`   Price ID: ${priceId}`);
-              
               campaignData[`product_${index}_campaign`] = 'active';
-              campaignData[`product_${index}_campaign_id`] = campaignData_response.campaignId || '';
-              campaignData[`product_${index}_campaign_name`] = campaignData_response.campaignName || '';
-            } else {
-              // No campaign, use regular variant price
-              console.log(`💰 Using standard price for ${item.productId} (variant: ${item.stripePriceId})`);
-            }
-          } else {
-            // API call failed, fall back to regular price
-            console.warn(`⚠️ Campaign API returned ${campaignResponse.status}, using regular price`);
-          }
-        } catch (error) {
-          // Campaign API failed - use fallback price
-          console.warn(`⚠️ Campaign price lookup failed for ${item.productId}, using regular price:`, error instanceof Error ? error.message : 'Unknown error');
-        }
-      } else if (item.productId) {
-        // No variant price ID, check Source Portal for campaign price (for products without variants)
-        // Also check if stripePriceId is provided - use it as originalPriceId
-        try {
-          // ✅ IMPROVED: Fetch Stripe Product ID from Storefront API instead of using mapping
-          let apiProductId: string;
-          
-          // Check if productId is already a Stripe Product ID
-          if (item.productId.startsWith('prod_')) {
-            apiProductId = item.productId;
-            console.log(`✅ Using Stripe Product ID directly: ${apiProductId}`);
-          } else {
-            // Fetch product from Storefront API to get stripeProductId
-            const product = await getProductFromStorefront(item.productId, { revalidate: 0 });
-            
-            if (product?.stripeProductId) {
-              apiProductId = product.stripeProductId;
-              console.log(`✅ Fetched Stripe Product ID from Storefront API: ${item.productId} → ${apiProductId}`);
-            } else {
-              // Fallback to mapping if Storefront API doesn't have stripeProductId
-              console.warn(`⚠️ No stripeProductId in Storefront API for ${item.productId}, using mapping fallback`);
-              const tanjaProductId = mapProductId(item.productId);
-              apiProductId = STRIPE_PRODUCT_MAPPING[tanjaProductId] || item.productId;
-            }
-          }
-          
-          // Check Source Portal API for campaign price
-          const SOURCE_BASE = process.env.SOURCE_DATABASE_URL ?? 'https://source-database-809785351172.europe-north1.run.app';
-          
-          let campaignUrl = `${SOURCE_BASE}/api/campaigns/price/${apiProductId}?tenant=${TENANT_ID}`;
-          // If stripePriceId is provided, use it as originalPriceId (for products without variants)
-          if (item.stripePriceId) {
-            campaignUrl += `&originalPriceId=${encodeURIComponent(item.stripePriceId)}`;
-          }
-          
-          console.log(`🔍 Checking campaign price for ${item.productId} → ${apiProductId} (no variant)`);
-          
-          const campaignResponse = await fetch(campaignUrl, {
-            headers: {
-              'X-Tenant': TENANT_ID,
-              'Content-Type': 'application/json'
-            },
-            cache: 'no-store'
-          });
-
-          if (campaignResponse.ok) {
-            const campaignData_response = await campaignResponse.json();
-            
-            if (campaignData_response.hasCampaignPrice && campaignData_response.priceId) {
-              // Use campaign price
-              priceId = campaignData_response.priceId;
-              isCampaign = true;
+              campaignData[`product_${index}_discount_percent`] = campaignInfo.discountPercent.toString();
               
-              console.log(`🎯 Using campaign price for ${item.productId}:`);
-              console.log(`   Campaign: ${campaignData_response.campaignName || 'Unknown'}`);
-              console.log(`   Price ID: ${priceId}`);
-              
-              campaignData[`product_${index}_campaign`] = 'active';
-              campaignData[`product_${index}_campaign_id`] = campaignData_response.campaignId || '';
-              campaignData[`product_${index}_campaign_name`] = campaignData_response.campaignName || '';
+              console.log(`🎯 Campaign found for ${item.stripePriceId}: ${campaignInfo.discountPercent}% discount`);
             } else {
-              // No campaign found, use provided stripePriceId or fallback
-              console.log(`💰 Using standard price for ${item.productId} (no campaign)`);
+              // No campaign or missing original price
+              finalPrice = originalPrice;
             }
           } else {
-            // API call failed, fall back to provided price
-            console.warn(`⚠️ Campaign API returned ${campaignResponse.status}, using provided price`);
+            // No campaign found
+            finalPrice = originalPrice;
           }
-        } catch (error) {
-          // Campaign API failed - use fallback price
-          console.warn(`⚠️ Campaign price lookup failed for ${item.productId}, using provided price:`, error instanceof Error ? error.message : 'Unknown error');
+        } else {
+          // Campaign API failed - use original price
+          finalPrice = originalPrice;
         }
+      } catch (error) {
+        console.warn(`⚠️ Price resolution failed for ${item.stripePriceId}:`, error instanceof Error ? error.message : 'Unknown error');
+        // Fallback: use original price if available
+        finalPrice = originalPrice;
       }
+      
+      // Log backend price resolution
+      console.log("Checkout backend price resolution", {
+        stripePriceId: item.stripePriceId,
+        originalPrice: originalPrice,
+        campaignPrice: campaignPrice,
+        finalPrice: finalPrice,
+        isCampaign,
+        productId: item.productId
+      });
+      
+      // Note: Final price resolution happens in Source Portal backend
+      // We send stripePriceId and let the backend determine the correct Stripe Price ID
+      // The backend is the source of truth for payment amounts
 
       // Validate that we have a price ID
       if (!priceId) {
