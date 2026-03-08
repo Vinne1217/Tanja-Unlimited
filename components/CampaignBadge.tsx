@@ -64,7 +64,7 @@ export default function CampaignBadge({
       console.log(`🔍 CampaignBadge: useEffect triggered for product: ${productId}${variantPriceId ? ` (variant: ${variantPriceId})` : ' (no variant)'}`);
       
       // Normalize variantPriceId: convert 'none' string to undefined for API call
-      const normalizedVariantPriceId = variantPriceId && variantPriceId !== 'none' ? variantPriceId : undefined;
+      const normalizedVariantPriceId: string | undefined = variantPriceId && variantPriceId !== 'none' ? variantPriceId : undefined;
       
       // If we have variants but no variantPriceId selected yet, still fetch for product-level campaigns
       // We'll fetch without originalPriceId to check for product-level campaigns
@@ -81,7 +81,8 @@ export default function CampaignBadge({
         // Build URL with optional originalPriceId for variant-specific campaigns
         // productId should already be Stripe Product ID from product.stripeProductId
         let url = `/api/campaigns/price?productId=${encodeURIComponent(productId)}`;
-        if (normalizedVariantPriceId) {
+        if (normalizedVariantPriceId && typeof normalizedVariantPriceId === 'string') {
+          // TypeScript: explicit type guard ensures normalizedVariantPriceId is string
           url += `&originalPriceId=${encodeURIComponent(normalizedVariantPriceId)}`;
         }
 
@@ -238,7 +239,7 @@ export default function CampaignBadge({
               let originalAmount = defaultPrice * 100; // Default: convert SEK to cents
               
               // Try to fetch original variant price if available (this should work as it's not a campaign price)
-              if (normalizedVariantPriceId && normalizedVariantPriceId !== 'none') {
+              if (normalizedVariantPriceId && normalizedVariantPriceId !== 'none' && typeof normalizedVariantPriceId === 'string') {
                 try {
                   const originalPriceRes = await fetch(`/api/products/price?productId=${productId}&stripePriceId=${encodeURIComponent(normalizedVariantPriceId)}`);
                   if (originalPriceRes.ok) {
