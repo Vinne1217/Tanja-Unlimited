@@ -206,32 +206,15 @@ export default async function CategoryPage({ params }: { params: Promise<{ slug:
     );
   }
 
-  // Convert normalized products from getProducts() to the shape expected by the client
-  const formattedProducts = products.map((p: any) => {
-    const variants = p.variants || [];
-
-    return {
-      id: p.id,
-      name: p.name,
-      description: p.description || '',
-      image: p.images?.[0] || null,
-      // getProducts() already returns price in SEK (not öre)
-      price: p.price || 0,
-      currency: p.currency || 'SEK',
-
-      stripeProductId: p.stripeProductId || null,
-
-      // Use first variant's stripePriceId as default for card-level priceId
-      stripePriceId: variants[0]?.stripePriceId || null,
-
-      // Extra fält som underlättar loggning och kampanjlogik i klienten
-      variantCount: variants.length,
-      firstVariantStripePriceId: variants[0]?.stripePriceId || null,
-
-      // Forward variants as-is from getProducts() (de innehåller redan stripePriceId, price, priceSEK etc.)
-      variants
-    };
-  });
+  // Forward full products from getProducts() and only add a few helper fields
+  const formattedProducts = products.map((p: any) => ({
+    ...p,
+    // Use first variant's stripePriceId as default for card-level priceId
+    stripePriceId: p.variants?.[0]?.stripePriceId ?? null,
+    // Extra fält som underlättar loggning och kampanjlogik i klienten
+    variantCount: p.variants?.length ?? 0,
+    firstVariantStripePriceId: p.variants?.[0]?.stripePriceId ?? null,
+  }));
 
   console.log(
     'SERVER PRODUCTS SENT TO LISTING',
