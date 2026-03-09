@@ -311,7 +311,7 @@ export default function CampaignBadge({
                 console.warn(`⚠️ CampaignBadge: Calculated discount is ${calculatedDiscountPercent}%, not showing campaign`);
               }
             }
-          } catch (error) {
+          } catch (error: any) {
             // Campaign price is likely in Stripe Connect account (not accessible via platform key)
             // Show campaign badge anyway - checkout will use the correct price
             console.warn(`⚠️ CampaignBadge: Could not fetch campaign price (likely Stripe Connect):`, error instanceof Error ? error.message : 'Unknown error');
@@ -336,7 +336,7 @@ export default function CampaignBadge({
         } else {
           console.log(`ℹ️ CampaignBadge: No campaign found for ${productId}${variantPriceId ? ` (variant: ${variantPriceId})` : ''}`);
         }
-      } catch (error) {
+      } catch (error: any) {
         // Silently fail - just don't show campaign badge
         console.warn('Campaign lookup skipped:', error instanceof Error ? error.message : 'Unknown error');
       } finally {
