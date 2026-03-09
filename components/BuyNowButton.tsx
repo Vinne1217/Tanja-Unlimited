@@ -121,11 +121,23 @@ export default function BuyNowButton({ product, onVariantChange }: BuyNowButtonP
     }
 
     // Use server-injected campaignPrice if available
-    if (variant.campaignPrice && variant.price) {
-      const discountPercent = Math.round(((variant.price - variant.campaignPrice) / variant.price) * 100);
+    const campaignPriceValue = variant.campaignPrice ?? undefined;
+    const basePriceValue = variant.price ?? product.price ?? 0;
+    const finalPrice = campaignPriceValue ?? basePriceValue;
+
+    console.log('Price render (BuyNowButton)', {
+      productId: product.id,
+      variantKey: variant.key,
+      price: basePriceValue,
+      campaignPrice: campaignPriceValue,
+      finalPrice,
+    });
+
+    if (campaignPriceValue && basePriceValue) {
+      const discountPercent = Math.round(((basePriceValue - campaignPriceValue) / basePriceValue) * 100);
       setCampaignPrice({
-        amount: variant.campaignPrice,
-        originalAmount: variant.price,
+        amount: campaignPriceValue,
+        originalAmount: basePriceValue,
         discountPercent
       });
     } else {

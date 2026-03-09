@@ -360,25 +360,35 @@ export default function ProductDetailPageClient({
                       );
                     }
 
-                    // PRIORITY 2: Show campaign price if available (only for non-subscriptions)
+                    // PRIORITY 2 & 3: Show campaign price if available (only for non-subscriptions)
                     // Use server-injected variant.campaignPrice from batch endpoint
+                    const basePrice = selectedVariantData?.price ?? product.price;
                     const variantCampaignPrice = selectedVariantData?.campaignPrice;
+                    const finalPrice = variantCampaignPrice ?? basePrice;
+
+                    console.log('Price render (ProductDetailPage)', {
+                      productId: product.id,
+                      variantKey: selectedVariantData?.key,
+                      price: basePrice,
+                      campaignPrice: variantCampaignPrice,
+                      finalPrice,
+                    });
+
                     if (variantCampaignPrice) {
-                      const originalPrice = selectedVariantData?.price ?? product.price;
                       return (
                         <>
                           <span className="text-4xl font-serif text-terracotta">
-                            {formatPrice(variantCampaignPrice, product.currency)}
+                            {formatPrice(finalPrice, product.currency)}
                           </span>
                           <span className="text-2xl text-softCharcoal/50 line-through">
-                            {formatPrice(originalPrice, product.currency)}
+                            {formatPrice(basePrice, product.currency)}
                           </span>
                         </>
                       );
                     }
 
                     // PRIORITY 3: Regular price (use variant-specific price if available and variant is selected)
-                    const displayPrice = selectedVariantData?.price ?? product.price;
+                    const displayPrice = basePrice;
                     const displayPriceFormatted = selectedVariantData?.priceFormatted 
                       ? selectedVariantData.priceFormatted.replace(/\.00/, '') // Remove .00 if present
                       : formatPrice(displayPrice, product.currency);

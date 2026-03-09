@@ -174,12 +174,18 @@ export default function ProductCardWithCampaign({ product, slug, idx }: ProductC
                 }
 
               // Regular product pricing med kampanjstöd (using server-injected campaignPrice)
+              const finalPrice = hasCampaign && typeof variantCampaignPrice === 'number'
+                ? variantCampaignPrice
+                : displayBasePrice;
+
+              console.log('Price render (ProductCardWithCampaign)', {
+                productId: product.id,
+                price: displayBasePrice,
+                campaignPrice: variantCampaignPrice,
+                finalPrice,
+              });
+
               if (hasCampaign && typeof variantCampaignPrice === 'number') {
-                console.log('💰 ProductCardWithCampaign: rendering CAMPAIGN price for', product.id, {
-                  campaignPrice: variantCampaignPrice,
-                  originalPrice: displayBasePrice,
-                  discountPercent,
-                });
                   return (
                     <>
                       <span className="text-2xl font-serif text-terracotta">
