@@ -79,12 +79,12 @@ export default async function CategoryPage({ params }: { params: Promise<{ slug:
       categoryParam
     });
     
-    let result = await getProducts({ 
-      locale: 'sv', 
+    const { items } = await getProducts({
+      locale: 'sv',
       category: categoryParam,
-      limit: 100 
+      limit: 100,
     });
-    products = result.items || [];
+    products = items || [];
     console.log(`✅ Fetched ${products.length} products with category filter: ${categoryParam}`);
     
     // Log first few products to verify Stripe IDs are present
@@ -100,11 +100,11 @@ export default async function CategoryPage({ params }: { params: Promise<{ slug:
     
     // If no products found with filter, fetch all and filter manually
     if (products.length === 0) {
-      const allProductsResult = await getProducts({ 
-        locale: 'sv', 
-        limit: 100 
+      const { items: allItems } = await getProducts({
+        locale: 'sv',
+        limit: 100,
       });
-      const allProducts = allProductsResult.items || [];
+      const allProducts = allItems || [];
       console.log(`✅ Fetched ${allProducts.length} total products from Source API`);
       
       // Log sample product categoryIds to see what we're working with
