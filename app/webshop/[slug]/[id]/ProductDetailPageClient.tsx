@@ -56,6 +56,13 @@ export default function ProductDetailPageClient({
   
   // Get selected variant's price ID for campaign badge and subscription detection
   const selectedVariantData = product.variants?.find(v => v.key === selectedVariant);
+
+  // Debug: log client-side variant data to verify campaignPrice propagation
+  console.log('Client variant data (ProductDetailPageClient)', {
+    productId: product.id,
+    selectedVariant,
+    variant: selectedVariantData,
+  });
   const variantPriceId = selectedVariantData?.stripePriceId;
   
   // Use subscription detection hook with Stripe Price fallback

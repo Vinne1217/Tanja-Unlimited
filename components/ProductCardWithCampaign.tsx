@@ -53,7 +53,8 @@ export default function ProductCardWithCampaign({ product, slug, idx }: ProductC
     id: product.id,
     stripeProductId: product.stripeProductId,
     variantCount: product.variants?.length,
-    firstVariantStripePriceId: product.variants?.[0]?.stripePriceId
+    firstVariantStripePriceId: product.variants?.[0]?.stripePriceId,
+    firstVariant: product.variants?.[0],
   });
 
   // Välj primär variant för pris/kampanj (samma logik som på serversidan)

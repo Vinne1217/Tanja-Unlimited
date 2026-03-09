@@ -289,7 +289,7 @@ export default async function ProductDetailPage({
             });
           }
           
-          return {
+          const mappedVariant: any = {
             key: v.key,
             sku: v.sku,
             stock: v.stock ?? 0,
@@ -304,6 +304,21 @@ export default async function ProductDetailPage({
             price: variantPrice, // Price in SEK (converted)
             priceFormatted: v.priceFormatted || (variantPrice ? `${variantPrice.toFixed(2)} kr` : undefined) // Formatted price string
           };
+
+          // Propagate server-injected campaignPrice from catalog.getProduct if present
+          if (sourceProduct.variants?.[index]?.campaignPrice) {
+            mappedVariant.campaignPrice = sourceProduct.variants[index].campaignPrice;
+          }
+
+          console.log('Client variant data (page mapping)', {
+            productId: product.id,
+            variantKey: mappedVariant.key,
+            price: mappedVariant.price,
+            campaignPrice: mappedVariant.campaignPrice,
+            finalPrice: mappedVariant.campaignPrice ?? mappedVariant.price,
+          });
+
+          return mappedVariant;
         });
       } catch (error) {
         console.error(`❌ Error mapping variants for product ${id}:`, error);
