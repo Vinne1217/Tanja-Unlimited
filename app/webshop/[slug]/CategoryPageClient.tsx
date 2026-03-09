@@ -12,6 +12,7 @@ type Category = {
   icon: string;
 };
 
+// Match the Product/Variant shape expected by ProductCardWithCampaign
 type Variant = {
   stripePriceId?: string;
   price?: number;
@@ -20,15 +21,18 @@ type Variant = {
 
 type Product = {
   id: string;
-  name?: string;
+  name: string;
   description?: string;
   image?: string;
-  price?: number;
-  currency?: string;
+  price: number;
+  currency: string;
+  salePrice?: number;
+  inStock?: boolean;
+  category?: string;
   stripeProductId?: string | null;
   stripePriceId?: string | null;
-  variantCount?: number;
-  firstVariantStripePriceId?: string | null;
+  type?: 'one_time' | 'subscription';
+  subscription?: { interval: string; intervalCount: number };
   variants?: Variant[];
 };
 
