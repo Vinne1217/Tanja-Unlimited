@@ -13,6 +13,7 @@ export default async function ProductDetailPage({
 }: { 
   params: Promise<{ slug: string; id: string }> 
 }) {
+  console.log('🔥 ROUTE EXECUTED: app/webshop/[slug]/[id]/page.tsx');
   try {
     const { slug, id } = await params;
     
@@ -148,16 +149,24 @@ export default async function ProductDetailPage({
         description: sourceSubcategory.description || category.description
       };
       
+      // Debug: ensure subcategory listing receives variants with campaignPrice from getProducts()
+      console.log(
+        'SERVER LISTING PRODUCTS (subcategory)',
+        products.map((p: any) => ({
+          id: p.id,
+          hasVariants: Array.isArray(p.variants),
+          variantCount: p.variants?.length,
+          firstVariantCampaignPrice: p.variants?.[0]?.campaignPrice,
+        }))
+      );
+
+      // Forward full products from getProducts() and only add minimal helper fields
       const formattedProducts = products.map((p: any) => ({
-        id: p.id,
-        name: p.name,
-        description: p.description,
-        image: p.images?.[0],
-        price: p.price || 0,
-        currency: p.currency || 'SEK',
-        salePrice: undefined,
-        inStock: p.variants?.some((v: any) => v.inStock !== false) ?? true,
-        category: p.categoryId || slug,
+        ...p,
+        name: p.name ?? p.title ?? '',
+        image: p.images?.[0] ?? null,
+        price: typeof p.price === 'number' ? p.price : p.priceRange?.min ? p.priceRange.min / 100 : 0,
+        currency: p.currency || p.priceRange?.currency || 'SEK',
       }));
       
       return (

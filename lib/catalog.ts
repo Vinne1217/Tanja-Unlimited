@@ -623,16 +623,32 @@ export async function getProducts(params: { locale?: string; category?: string; 
     
     // Log sample mapped products to verify Stripe IDs and variants
     if (mappedProducts.length > 0) {
-      console.log(`📦 Sample mapped products (Stripe IDs):`, mappedProducts.slice(0, 3).map(p => ({
-        productId: p.id,
-        productName: p.name,
-        stripeProductId: p.stripeProductId,
-        variantCount: p.variants?.length || 0,
-        firstVariantStripePriceId: p.variants?.[0]?.stripePriceId,
-        firstVariantCampaignPrice: p.variants?.[0]?.campaignPrice
-      })));
+      console.log(
+        `📦 Sample mapped products (Stripe IDs):`,
+        mappedProducts.slice(0, 3).map((p) => ({
+          productId: p.id,
+          productName: p.name,
+          stripeProductId: p.stripeProductId,
+          variantCount: p.variants?.length || 0,
+          firstVariantStripePriceId: p.variants?.[0]?.stripePriceId,
+          firstVariantCampaignPrice: p.variants?.[0]?.campaignPrice,
+        }))
+      );
     }
-    return { items: mappedProducts };
+
+    // Debug: verify final getProducts return structure (including variants & campaignPrice)
+    const items = mappedProducts;
+    console.log(
+      'DEBUG getProducts return structure',
+      items.slice(0, 2).map((p) => ({
+        id: p.id,
+        hasVariants: Array.isArray(p.variants),
+        variantCount: p.variants?.length,
+        firstVariantCampaignPrice: p.variants?.[0]?.campaignPrice,
+      }))
+    );
+
+    return { items };
   } else if (data.items) {
     // Catalog format: { items: [...], nextCursor?: string }
     return data;
