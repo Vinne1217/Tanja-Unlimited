@@ -369,8 +369,18 @@ export default function ProductDetailPageClient({
 
                     // PRIORITY 2 & 3: Show campaign price if available (only for non-subscriptions)
                     // Use server-injected variant.campaignPrice from batch endpoint
-                    const basePrice = selectedVariantData?.price ?? product.price;
-                    const variantCampaignPrice = selectedVariantData?.campaignPrice;
+                    // Fallback to first variant when no variant is selected so campaigns show immediately
+                    const fallbackVariant = product.variants?.[0];
+
+                    const basePrice =
+                      selectedVariantData?.price ??
+                      fallbackVariant?.price ??
+                      product.price;
+
+                    const variantCampaignPrice =
+                      selectedVariantData?.campaignPrice ??
+                      fallbackVariant?.campaignPrice;
+
                     const finalPrice = variantCampaignPrice ?? basePrice;
 
                     console.log('Price render (ProductDetailPage)', {
