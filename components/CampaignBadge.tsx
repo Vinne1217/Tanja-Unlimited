@@ -253,14 +253,13 @@ export default function CampaignBadge({
               }
               
               // Try to calculate campaign price from metadata discount_percent
-              let campaignAmount: number | null = null;
-              const discountPercent = data.metadata?.discount_percent || data.metadata?.discountPercent;
-              
-              if (discountPercent && typeof discountPercent === 'number' && discountPercent > 0) {
-                campaignAmount = Math.round(originalAmount * (1 - discountPercent / 100));
-                console.log(`💰 CampaignBadge: Calculated campaign price from metadata: ${campaignAmount / 100} SEK (${discountPercent}% off from ${originalAmount / 100} SEK)`);
-              } else {
-                console.log(`ℹ️ CampaignBadge: No discount metadata available - showing badge without price details`);
+              const discountPercent =
+                data.metadata?.discount_percent || data.metadata?.discountPercent;
+
+              if (!discountPercent || typeof discountPercent !== 'number' || discountPercent <= 0) {
+                console.log(
+                  `ℹ️ CampaignBadge: No valid discount metadata available - showing badge without price details`
+                );
                 // Don't show price if we can't calculate it - just show badge
                 const campaignInfo: PriceInfo = {
                   found: true,
@@ -277,9 +276,18 @@ export default function CampaignBadge({
                 setPriceInfo(campaignInfo);
                 return; // Exit early - badge will show but without price
               }
-              
+
+              const campaignAmount = Math.round(
+                originalAmount * (1 - discountPercent / 100)
+              );
+              console.log(
+                `💰 CampaignBadge: Calculated campaign price from metadata: ${campaignAmount / 100} SEK (${discountPercent}% off from ${originalAmount / 100} SEK)`
+              );
+
               // Calculate discount percentage
-              const calculatedDiscountPercent = Math.round(((originalAmount - campaignAmount) / originalAmount) * 100);
+              const calculatedDiscountPercent = Math.round(
+                ((originalAmount - campaignAmount) / originalAmount) * 100
+              );
               
               if (calculatedDiscountPercent > 0) {
                 const campaignInfo: PriceInfo = {
