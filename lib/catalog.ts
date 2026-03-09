@@ -683,17 +683,8 @@ export async function getProduct(productId: string, locale = 'sv'): Promise<Prod
         }
       : undefined;
     
-    return {
-      id: p.baseSku || p.id,
-      name: p.title || p.name,
-      description: p.description,
-      images: p.images || [],
-      price: priceInSEK, // Store price in SEK, not cents
-      currency: 'SEK',
-      stripeProductId: p.stripeProductId || p.stripe_product_id, // Use Stripe Product ID from Source API
-      type: p.type || (isSubscription ? 'subscription' : 'one_time'),
-      subscription: subscriptionInfo,
-      variants: p.variants?.map((v: any) => {
+    // Map variants first so we can inject campaign prices using the batch endpoint
+    const variants = (p.variants || []).map((v: any) => {
         const articleNumber = v.articleNumber || v.sku || v.id || v.key;
         
         // ✅ Use size and color fields directly from API (Source Portal provides these)
@@ -741,7 +732,78 @@ export async function getProduct(productId: string, locale = 'sv'): Promise<Prod
           price: variantPrice, // Price in SEK (converted)
           priceFormatted: v.priceFormatted || (variantPrice ? `${variantPrice.toFixed(2)} kr` : undefined) // Formatted price string
         };
-      }),
+    });
+
+    // Inject campaign prices into product detail variants using the same batch endpoint logic
+    (async () => {
+      const allPriceIds: string[] = [];
+      for (const variant of variants) {
+        if (variant.stripePriceId) {
+          allPriceIds.push(variant.stripePriceId);
+        }
+      }
+
+      const uniquePriceIds = [...new Set(allPriceIds)];
+      let campaignPrices: Record<string, { discountPercent: number } | null> = {};
+
+      if (uniquePriceIds.length > 0) {
+        try {
+          const res = await fetch(
+            `${SOURCE_BASE}/api/campaigns/prices?priceIds=${uniquePriceIds.join(',')}`,
+            {
+              headers: {
+                'X-Tenant': TENANT_ID
+              },
+              cache: 'no-store'
+            }
+          );
+
+          if (res.ok) {
+            const batchData = await res.json();
+            campaignPrices = (batchData && typeof batchData === 'object' && batchData.prices) || {};
+          } else {
+            console.warn(
+              `⚠️ Batch campaign API (product detail) returned ${res.status}, skipping campaign prices`
+            );
+          }
+        } catch (error) {
+          console.warn(
+            `⚠️ Batch campaign price lookup (product detail) failed:`,
+            error instanceof Error ? error.message : 'Unknown error'
+          );
+        }
+      }
+
+      let injectedCount = 0;
+      for (const variant of variants) {
+        const campaign = campaignPrices[variant.stripePriceId || ''];
+        if (campaign && variant.price) {
+          variant.campaignPrice =
+            Math.round(variant.price * (1 - campaign.discountPercent / 100) * 100) / 100;
+          injectedCount++;
+        }
+      }
+
+      console.log('✅ Injected campaign prices into product detail variants', {
+        productId: p.baseSku || p.id,
+        variantCount: variants.length,
+        injectedCount
+      });
+    })().catch(() => {
+      // Fail silently for detail page; product will still render with original prices
+    });
+
+    return {
+      id: p.baseSku || p.id,
+      name: p.title || p.name,
+      description: p.description,
+      images: p.images || [],
+      price: priceInSEK, // Store price in SEK, not cents
+      currency: 'SEK',
+      stripeProductId: p.stripeProductId || p.stripe_product_id, // Use Stripe Product ID from Source API
+      type: p.type || (isSubscription ? 'subscription' : 'one_time'),
+      subscription: subscriptionInfo,
+      variants,
       categoryId: p.category || p.categoryId || p.category_id || undefined
     };
   } else if (data.id) {
