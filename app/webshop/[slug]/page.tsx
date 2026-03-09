@@ -68,7 +68,7 @@ export default async function CategoryPage({ params }: { params: Promise<{ slug:
   }
 
   // Fetch products from Source API
-  let products: any[] = [];
+  let productsForCategory: any[] = [];
   try {
     // Try fetching with category filter first
     const categoryParam = sourceCategory?.id || sourceCategory?.slug || slug;
@@ -84,12 +84,12 @@ export default async function CategoryPage({ params }: { params: Promise<{ slug:
       category: categoryParam,
       limit: 100,
     });
-    products = items || [];
-    console.log(`✅ Fetched ${products.length} products with category filter: ${categoryParam}`);
+    const categoryItems = items || [];
+    console.log(`✅ Fetched ${categoryItems.length} products with category filter: ${categoryParam}`);
     
     // Log first few products to verify Stripe IDs are present
-    if (products.length > 0) {
-      console.log(`📦 First products from getProducts (Stripe IDs check):`, products.slice(0, 3).map(p => ({
+    if (categoryItems.length > 0) {
+      console.log(`📦 First products from getProducts (Stripe IDs check):`, categoryItems.slice(0, 3).map(p => ({
         id: p.id,
         name: p.name,
         stripeProductId: p.stripeProductId,
@@ -99,7 +99,7 @@ export default async function CategoryPage({ params }: { params: Promise<{ slug:
     }
     
     // If no products found with filter, fetch all and filter manually
-    if (products.length === 0) {
+    if (categoryItems.length === 0) {
       const { items: allItems } = await getProducts({
         locale: 'sv',
         limit: 100,
@@ -137,7 +137,7 @@ export default async function CategoryPage({ params }: { params: Promise<{ slug:
       console.log(`🔍 Category IDs to match:`, categoryIdsToMatch);
       
       // Filter products that match any of the category IDs
-      products = allProducts.filter(p => {
+      productsForCategory = allProducts.filter(p => {
         const productCategoryId = p.categoryId;
         if (!productCategoryId) {
           // Log products without categoryId for debugging
@@ -164,20 +164,23 @@ export default async function CategoryPage({ params }: { params: Promise<{ slug:
         return matches;
       });
       
-      console.log(`✅ Filtered to ${products.length} products matching categories:`, categoryIdsToMatch);
+      console.log(`✅ Filtered to ${productsForCategory.length} products matching categories:`, categoryIdsToMatch);
+    } else {
+      // We already have category-filtered items from the first getProducts call
+      productsForCategory = categoryItems;
     }
   } catch (error) {
     console.error(`❌ Error fetching products:`, error);
-    products = [];
+    productsForCategory = [];
   }
 
   // Debug: log raw storefront product structure before any mapping,
   // so we can see exactly where stripeProductId and variants live.
-  if (products && products.length > 0) {
+  if (productsForCategory && productsForCategory.length > 0) {
     try {
       console.log(
         'RAW STOREFRONT PRODUCT SAMPLE',
-        JSON.stringify(products[0], null, 2)
+        JSON.stringify(productsForCategory[0], null, 2)
       );
     } catch {
       console.log('RAW STOREFRONT PRODUCT SAMPLE: [Could not stringify first product]');
@@ -207,7 +210,7 @@ export default async function CategoryPage({ params }: { params: Promise<{ slug:
   }
 
   // Forward full products from getProducts() and only add a few helper fields
-  const formattedProducts = products.map((p: any) => ({
+  const formattedProducts = productsForCategory.map((p: any) => ({
     ...p,
     // Use first variant's stripePriceId as default for card-level priceId
     stripePriceId: p.variants?.[0]?.stripePriceId ?? null,
