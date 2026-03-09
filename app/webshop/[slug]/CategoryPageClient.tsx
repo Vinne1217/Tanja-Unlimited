@@ -12,29 +12,24 @@ type Category = {
   icon: string;
 };
 
-// Keep a local variant type so we can pass variant data (including Stripe Price IDs)
 type Variant = {
-  key: string;
-  sku: string;
-  stock: number;
   stripePriceId?: string;
   price?: number;
-  priceSEK?: number;
+  campaignPrice?: number;
 };
 
 type Product = {
   id: string;
-  name: string;
+  name?: string;
   description?: string;
   image?: string;
-  price: number;
-  currency: string;
-  salePrice?: number;
-  inStock?: boolean;
-  category?: string;
-  stripeProductId?: string | null; // Stripe Product ID for campaign price lookup
-  stripePriceId?: string | null; // Stripe Price ID for variant-specific campaigns
-  variants?: Variant[];   // Ensure variants survive the server → client boundary
+  price?: number;
+  currency?: string;
+  stripeProductId?: string | null;
+  stripePriceId?: string | null;
+  variantCount?: number;
+  firstVariantStripePriceId?: string | null;
+  variants?: Variant[];
 };
 
 export default function CategoryPageClient({
@@ -46,15 +41,15 @@ export default function CategoryPageClient({
   products: Product[];
   slug: string;
 }) {
-  // Client-side verification: ensure stripeProductId and variants survive the server → client boundary
+  // Client-side verification: ensure variants and campaignPrice survive the server → client boundary
   if (products && products.length > 0) {
     console.log(
-      'CATEGORY CLIENT PRODUCTS',
+      'CATEGORY CLIENT PRODUCTS FULL',
       products.map((p) => ({
         id: p.id,
-        stripeProductId: p.stripeProductId,
+        hasVariants: Array.isArray(p.variants),
         variantCount: p.variants?.length,
-        firstVariantStripePriceId: p.variants?.[0]?.stripePriceId
+        firstVariantCampaignPrice: p.variants?.[0]?.campaignPrice,
       }))
     );
   }
