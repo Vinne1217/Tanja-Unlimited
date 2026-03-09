@@ -38,9 +38,7 @@ export default async function CategoryPage({
                 image: product.images?.[0],
                 price: product.price || 0,
                 currency: product.currency || 'SEK',
-                salePrice: product.salePrice,
-                inStock: product.inStock,
-                category: product.categoryId,
+                // Only pass fields that exist on the Product type returned by getProducts()
                 stripeProductId: product.stripeProductId,
                 stripePriceId: product.variants?.[0]?.stripePriceId || null,
                 type: product.type,
