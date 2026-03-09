@@ -68,7 +68,8 @@ export default async function CategoryPage({ params }: { params: Promise<{ slug:
   }
 
   // Fetch products from Source API
-  let productsForCategory: any[] = [];
+  // Always derive listing items directly from getProducts().items to preserve variants
+  let listingItems: any[] = [];
   try {
     // Try fetching with category filter first
     const categoryParam = sourceCategory?.id || sourceCategory?.slug || slug;
@@ -137,7 +138,7 @@ export default async function CategoryPage({ params }: { params: Promise<{ slug:
       console.log(`🔍 Category IDs to match:`, categoryIdsToMatch);
       
       // Filter products that match any of the category IDs
-      productsForCategory = allProducts.filter(p => {
+      const filtered = allProducts.filter(p => {
         const productCategoryId = p.categoryId;
         if (!productCategoryId) {
           // Log products without categoryId for debugging
@@ -164,23 +165,24 @@ export default async function CategoryPage({ params }: { params: Promise<{ slug:
         return matches;
       });
       
-      console.log(`✅ Filtered to ${productsForCategory.length} products matching categories:`, categoryIdsToMatch);
+      console.log(`✅ Filtered to ${filtered.length} products matching categories:`, categoryIdsToMatch);
+      listingItems = filtered;
     } else {
-      // We already have category-filtered items from the first getProducts call
-      productsForCategory = categoryItems;
+      // We already have category-filtered items directly from getProducts().items
+      listingItems = categoryItems;
     }
   } catch (error) {
     console.error(`❌ Error fetching products:`, error);
-    productsForCategory = [];
+    listingItems = [];
   }
 
   // Debug: log raw storefront product structure before any mapping,
   // so we can see exactly where stripeProductId and variants live.
-  if (productsForCategory && productsForCategory.length > 0) {
+  if (listingItems && listingItems.length > 0) {
     try {
       console.log(
         'RAW STOREFRONT PRODUCT SAMPLE',
-        JSON.stringify(productsForCategory[0], null, 2)
+        JSON.stringify(listingItems[0], null, 2)
       );
     } catch {
       console.log('RAW STOREFRONT PRODUCT SAMPLE: [Could not stringify first product]');
@@ -210,7 +212,7 @@ export default async function CategoryPage({ params }: { params: Promise<{ slug:
   }
 
   // Build client-facing products directly from normalized items (preserve variants)
-  const formattedProducts = productsForCategory.map((p: any) => ({
+  const formattedProducts = listingItems.map((p: any) => ({
     ...p,
     name: p.name ?? p.title ?? '',
     image: p.images?.[0] ?? null,
