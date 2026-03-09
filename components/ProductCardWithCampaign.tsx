@@ -18,6 +18,12 @@ const getProxiedImageUrl = (url: string) => {
   return url;
 };
 
+type Variant = {
+  stripePriceId?: string;
+  price?: number;
+  campaignPrice?: number; // Campaign price in SEK (server-side injected)
+};
+
 type Product = {
   id: string;
   name: string;
@@ -32,10 +38,7 @@ type Product = {
   stripePriceId?: string | null;
   type?: 'one_time' | 'subscription';
   subscription?: { interval: string; intervalCount: number };
-  variants?: {
-    stripePriceId?: string;
-    price?: number;
-  }[];
+  variants?: Variant[];
 };
 
 type ProductCardWithCampaignProps = {
