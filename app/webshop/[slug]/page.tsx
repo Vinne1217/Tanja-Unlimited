@@ -209,12 +209,20 @@ export default async function CategoryPage({ params }: { params: Promise<{ slug:
     );
   }
 
-  // Forward full products from getProducts() and only add a few helper fields
+  // Build client-facing products directly from normalized items (preserve variants)
   const formattedProducts = productsForCategory.map((p: any) => ({
     ...p,
-    // Use first variant's stripePriceId as default for card-level priceId
+    name: p.name ?? p.title ?? '',
+    image: p.images?.[0] ?? null,
+    // Prefer normalized price from catalog; fallback to raw priceRange if present
+    price:
+      typeof p.price === 'number'
+        ? p.price
+        : p.priceRange?.min
+        ? p.priceRange.min / 100
+        : 0,
+    currency: p.currency ?? p.priceRange?.currency ?? 'SEK',
     stripePriceId: p.variants?.[0]?.stripePriceId ?? null,
-    // Extra fält som underlättar loggning och kampanjlogik i klienten
     variantCount: p.variants?.length ?? 0,
     firstVariantStripePriceId: p.variants?.[0]?.stripePriceId ?? null,
   }));
