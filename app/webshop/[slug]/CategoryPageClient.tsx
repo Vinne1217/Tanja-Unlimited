@@ -48,7 +48,7 @@ export default function CategoryPageClient({
   // Client-side verification: ensure variants and campaignPrice survive the server → client boundary
   if (products && products.length > 0) {
     console.log(
-      'CATEGORY CLIENT PRODUCTS FULL',
+      'CATEGORY CLIENT PRODUCTS RAW',
       products.map((p) => ({
         id: p.id,
         hasVariants: Array.isArray(p.variants),
