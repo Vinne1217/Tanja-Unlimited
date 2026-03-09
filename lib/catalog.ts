@@ -608,11 +608,12 @@ export async function getProducts(params: { locale?: string; category?: string; 
     for (const product of mappedProducts) {
       for (const variant of product.variants || []) {
         const campaign = campaignPrices[variant.stripePriceId || ''];
-        
-        if (campaign && variant.price) {
+
+        if (campaign && typeof variant.price === 'number') {
           // Calculate campaign price: original price * (1 - discountPercent / 100)
           // variant.price is in SEK, campaignPrice should also be in SEK
-          variant.campaignPrice = Math.round(variant.price * (1 - campaign.discountPercent / 100) * 100) / 100; // Round to 2 decimals
+          variant.campaignPrice =
+            Math.round(variant.price * (1 - campaign.discountPercent / 100) * 100) / 100; // Round to 2 decimals
           injectedCount++;
         }
       }
@@ -778,7 +779,7 @@ export async function getProduct(productId: string, locale = 'sv'): Promise<Prod
     let injectedCount = 0;
     for (const variant of variants) {
       const campaign = campaignPrices[variant.stripePriceId || ''];
-      if (campaign && variant.price) {
+      if (campaign && typeof variant.price === 'number') {
         variant.campaignPrice =
           Math.round(variant.price * (1 - campaign.discountPercent / 100) * 100) / 100;
         injectedCount++;
