@@ -11,6 +11,17 @@ export default async function CategoryPage({
 }) {
   const { category } = await params;
   const { items } = await getProducts({ locale: 'sv', category, limit: 24 });
+
+  // Debug: ensure listing pages receive variants with campaignPrice from getProducts()
+  console.log(
+    'SERVER PRODUCTS SENT TO LISTING (collection/[category])',
+    items.map((p) => ({
+      id: p.id,
+      hasVariants: Array.isArray(p.variants),
+      variantCount: p.variants?.length,
+      firstVariantCampaignPrice: p.variants?.[0]?.campaignPrice,
+    }))
+  );
   
   return (
     <section className="min-h-screen py-16 bg-ivory">

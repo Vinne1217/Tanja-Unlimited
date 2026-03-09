@@ -234,12 +234,7 @@ export default async function CategoryPage({ params }: { params: Promise<{ slug:
   });
 
   console.log(
-    'FORMATTED PRODUCTS SENT TO CLIENT',
-    formattedProducts.slice(0, 2)
-  );
-
-  console.log(
-    'SERVER PRODUCTS SENT TO CLIENT',
+    'SERVER PRODUCTS SENT TO LISTING',
     formattedProducts.map((p: any) => ({
       id: p.id,
       hasVariants: Array.isArray(p.variants),
