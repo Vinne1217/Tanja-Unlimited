@@ -589,19 +589,29 @@ function DirectCheckoutButton({
     setLoading(true);
     
     try {
+      const items = [{
+        variantId: selectedVariant.key,
+        quantity: 1,
+        stripePriceId: selectedVariant.stripePriceId,
+        productId: product.id,
+        variantKey: selectedVariant.key,
+        // Pass through campaignPrice so backend can use it when creating Stripe line_items
+        campaignPrice: selectedVariant.campaignPrice ?? null,
+      }];
+
+      console.log("Checkout request items", items.map(i => ({
+        variantId: i.variantId,
+        stripePriceId: i.stripePriceId,
+        campaignPrice: i.campaignPrice,
+      })));
+
       const response = await fetch('/api/checkout', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          items: [{
-            variantId: selectedVariant.key,
-            quantity: 1,
-            stripePriceId: selectedVariant.stripePriceId,
-            productId: product.id,
-            variantKey: selectedVariant.key,
-          }],
+          items,
           successUrl: `${window.location.origin}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
           cancelUrl: window.location.href,
         }),

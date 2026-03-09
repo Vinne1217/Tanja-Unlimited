@@ -11,6 +11,9 @@ type CartItem = {
   stripePriceId: string; // Stripe Price ID (required)
   productId?: string; // Product ID (optional, for logging only)
   variantKey?: string; // Variant key/ID (article number/SKU)
+  // Optional campaign price hint from storefront (in major currency units, e.g. 7200 = 7200 SEK cents / 72.00 SEK)
+  // SECURITY: Backend and Source Portal must NOT trust this value without verification
+  campaignPrice?: number | null;
   // Gift card fields (only when type === 'gift_card')
   type?: 'gift_card' | 'product';
   giftCardAmount?: number; // Amount in cents (e.g., 50000 = 500 SEK)
@@ -246,7 +249,9 @@ export async function POST(req: NextRequest) {
       return {
         variantId: item.variantKey || item.productId || `item-${index}`, // Use variantKey or productId as variantId
         quantity: item.quantity || 1,
-        stripePriceId: priceId // Use campaign price if found, otherwise original price
+        stripePriceId: priceId, // Use campaign price if found, otherwise original price
+        // Forward storefront campaignPrice hint unchanged so Source Portal can decide how to use it
+        campaignPrice: item.campaignPrice ?? null
       };
     })
   );
