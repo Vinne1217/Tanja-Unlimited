@@ -84,7 +84,8 @@ export default function CartItem({ item, onUpdateQuantity, onRemove }: CartItemP
             {isSubscription ? (
               <>
                 <p className="text-lg font-serif text-deepIndigo">
-                  {formatPrice((subscriptionPricePerUnit || 0) * item.quantity, item.product.currency)}{subscriptionIntervalText ? ` /${subscriptionIntervalText}` : ''}
+                  {formatPrice((subscriptionPricePerUnit || 0) * item.quantity, item.product.currency)}
+                  {subscriptionIntervalText ? ` /${subscriptionIntervalText}` : ''}
                 </p>
                 {item.quantity > 1 && subscriptionPricePerUnit !== null && (
                   <p className="text-xs text-softCharcoal/60 mt-1">
@@ -92,7 +93,6 @@ export default function CartItem({ item, onUpdateQuantity, onRemove }: CartItemP
                   </p>
                 )}
               </>
-            ) : campaignPrice.hasCampaign && campaignPrice.campaignPrice ? (
             ) : !isSubscription && originalPriceForDisplay > unitPrice ? (
               <>
                 <p className="text-lg font-serif text-terracotta">
@@ -110,11 +110,11 @@ export default function CartItem({ item, onUpdateQuantity, onRemove }: CartItemP
             ) : (
               <>
                 <p className="text-lg font-serif text-deepIndigo">
-                  {formatPrice(displayPrice * item.quantity, item.product.currency)}
+                  {formatPrice(unitPrice * item.quantity, item.product.currency)}
                 </p>
                 {item.quantity > 1 && (
                   <p className="text-sm text-softCharcoal/60">
-                    {formatPrice(displayPrice, item.product.currency)} each
+                    {formatPrice(unitPrice, item.product.currency)} each
                   </p>
                 )}
               </>
