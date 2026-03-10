@@ -367,21 +367,30 @@ export default function ProductDetailPageClient({
                       );
                     }
 
-                    // PRIORITY 2 & 3: Show campaign price if available (only for non-subscriptions)
-                    // Use server-injected variant.campaignPrice from batch endpoint
+                    // PRIORITY 2 & 3: Show price from new pricing engine (only for non-subscriptions)
+                    // Use server-injected variant.finalPrice / campaignPrice / originalPrice from price index
                     // Fallback to first variant when no variant is selected so campaigns show immediately
                     const fallbackVariant = product.variants?.[0];
 
                     const basePrice =
+                      selectedVariantData?.originalPrice ??
+                      fallbackVariant?.originalPrice ??
                       selectedVariantData?.price ??
                       fallbackVariant?.price ??
                       product.price;
+
+                    const variantFinalPrice =
+                      selectedVariantData?.finalPrice ??
+                      fallbackVariant?.finalPrice;
 
                     const variantCampaignPrice =
                       selectedVariantData?.campaignPrice ??
                       fallbackVariant?.campaignPrice;
 
-                    const finalPrice = variantCampaignPrice ?? basePrice;
+                    const finalPrice =
+                      variantFinalPrice ??
+                      variantCampaignPrice ??
+                      basePrice;
 
                     console.log('Price render (ProductDetailPage)', {
                       productId: product.id,
@@ -391,7 +400,12 @@ export default function ProductDetailPageClient({
                       finalPrice,
                     });
 
-                    if (variantCampaignPrice) {
+                    const hasCampaign =
+                      typeof basePrice === 'number' &&
+                      typeof finalPrice === 'number' &&
+                      finalPrice < basePrice;
+
+                    if (hasCampaign) {
                       return (
                         <>
                           <span className="text-4xl font-serif text-terracotta">
@@ -589,20 +603,27 @@ function DirectCheckoutButton({
     setLoading(true);
     
     try {
+      const finalPrice =
+        selectedVariant.finalPrice ??
+        selectedVariant.campaignPrice ??
+        selectedVariant.originalPrice ??
+        selectedVariant.price ??
+        product.price;
+
       const items = [{
         variantId: selectedVariant.key,
         quantity: 1,
         stripePriceId: selectedVariant.stripePriceId,
         productId: product.id,
         variantKey: selectedVariant.key,
-        // Pass through campaignPrice so backend can use it when creating Stripe line_items
-        campaignPrice: selectedVariant.campaignPrice ?? null,
+        // Pass through finalPrice so backend can verify against price index
+        finalPrice,
       }];
 
       console.log("Checkout request items", items.map(i => ({
         variantId: i.variantId,
         stripePriceId: i.stripePriceId,
-        campaignPrice: i.campaignPrice,
+        finalPrice: i.finalPrice,
       })));
 
       const response = await fetch('/api/checkout', {

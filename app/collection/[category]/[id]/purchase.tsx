@@ -72,10 +72,17 @@ export default function ProductPurchase({ product }: { product: Product }) {
     }
 
     // Convert catalog product to cart product format
+    // ✅ Use new pricing engine fields with correct fallback order for unit price
+    const catalogUnitPrice =
+      selectedVariant?.finalPrice ??
+      selectedVariant?.campaignPrice ??
+      selectedVariant?.originalPrice ??
+      (product.price ? product.price / 100 : 0);
+
     const cartProduct: CartProduct = {
       id: product.id,
       name: product.name,
-      price: product.price ? product.price / 100 : 0, // Convert from cents to SEK
+      price: catalogUnitPrice,
       currency: product.currency || 'SEK',
       category: product.categoryId,
       description: product.description,
@@ -85,6 +92,12 @@ export default function ProductPurchase({ product }: { product: Product }) {
       stripeProductId: product.stripeProductId, // Include Stripe Product ID for campaign price lookup
       variantKey: variantKey,
       variantPriceId: selectedPriceId,
+      // Copy pricing engine fields from catalog product / variant
+      originalPrice:
+        selectedVariant?.originalPrice ??
+        (product.price ? product.price / 100 : undefined),
+      campaignPrice: selectedVariant?.campaignPrice,
+      finalPrice: selectedVariant?.finalPrice ?? catalogUnitPrice,
     };
 
     addItem(cartProduct, 1);

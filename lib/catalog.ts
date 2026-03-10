@@ -73,9 +73,12 @@ export type Variant = {
   outOfStock?: boolean;
   lowStock?: boolean;
   inStock?: boolean;
-  price?: number; // Price in SEK
-  campaignPrice?: number; // Campaign price in SEK (server-side injected)
-  priceSEK?: number; // Price in cents from API
+  price?: number; // Legacy/base price in SEK (from Storefront API, derived from cents)
+  // New pricing engine fields (all in SEK, derived from /storefront/{tenant}/prices index)
+  originalPrice?: number; // Original list price in SEK
+  campaignPrice?: number; // Campaign price in SEK
+  finalPrice?: number; // Final effective price in SEK (what user should pay)
+  priceSEK?: number; // Raw price in cents from API (fallback only)
 };
 export type SubscriptionInfo = {
   interval: 'day' | 'week' | 'month' | 'year';
@@ -544,7 +547,11 @@ export async function getProducts(params: { locale?: string; category?: string; 
             lowStock: v.lowStock ?? (v.status === 'low_stock' ? true : false),
             inStock: v.inStock ?? (v.status === 'in_stock' || v.status === 'low_stock' ? true : (v.outOfStock === false ? true : false)),
             priceSEK: variantPriceSEK, // Price in cents from API
-            price: variantPrice, // Price in SEK (converted)
+            price: variantPrice, // Base price in SEK (converted from cents)
+            // New pricing engine fields will be injected later using /storefront/{tenant}/prices
+            // For now, initialize originalPrice/finalPrice to base price as a fallback
+            originalPrice: variantPrice ?? undefined,
+            finalPrice: variantPrice ?? undefined,
             priceFormatted: v.priceFormatted || (variantPrice ? `${variantPrice.toFixed(2)} kr` : undefined) // Formatted price string
           };
         }),
@@ -553,7 +560,7 @@ export async function getProducts(params: { locale?: string; category?: string; 
       };
     });
     
-    // Fetch campaign prices for all variants server-side
+    // New pricing engine: fetch price index for all variants server-side
     // Collect all Stripe price IDs from product variants
     const allPriceIds: string[] = [];
     for (const product of mappedProducts) {
@@ -564,62 +571,93 @@ export async function getProducts(params: { locale?: string; category?: string; 
       }
     }
     
-    // Deduplicate the price IDs
     const uniquePriceIds = [...new Set(allPriceIds)];
 
-    // Batch fetch campaign prices for all price IDs in a single request
-    let campaignPrices: Record<string, { discountPercent: number } | null> = {};
+    let priceIndex: Record<
+      string,
+      { originalPrice?: number; campaignPrice?: number; finalPrice?: number }
+    > = {};
+
     if (uniquePriceIds.length > 0) {
       const priceIds = Array.from(uniquePriceIds);
 
       try {
-        const res = await fetch(
-          `${SOURCE_BASE}/api/campaigns/prices?priceIds=${priceIds.join(',')}`,
+        const res = await sourceFetch(
+          `/storefront/${TENANT_ID}/prices?priceIds=${priceIds.join(',')}`,
           {
             headers: {
               'X-Tenant': TENANT_ID
-            },
-            cache: 'no-store'
+            }
           }
         );
 
         if (res.ok) {
           const data = await res.json();
-          campaignPrices = (data && typeof data === 'object' && data.prices) || {};
+          priceIndex = (data && typeof data === 'object' && data.prices) || {};
+          console.log('✅ Price index fetched for listing', {
+            priceIds: priceIds.length,
+            firstEntry: priceIds[0]
+              ? { id: priceIds[0], value: priceIndex[priceIds[0]] }
+              : null
+          });
         } else {
-          console.warn(`⚠️ Batch campaign API returned ${res.status}, skipping campaign prices`);
+          console.warn(
+            `⚠️ Price index API returned ${res.status} for listing, skipping price enrichment`
+          );
         }
       } catch (error) {
         console.warn(
-          `⚠️ Batch campaign price lookup failed:`,
+          `⚠️ Price index lookup failed for listing:`,
           error instanceof Error ? error.message : 'Unknown error'
         );
       }
-
-      console.log(
-        '📦 Batch campaign lookup',
-        priceIds.length,
-        'priceIds resolved'
-      );
     }
     
-    // Inject campaign prices into variants
-    let injectedCount = 0;
+    // Enrich variants with originalPrice / campaignPrice / finalPrice (all in SEK)
+    let enrichedCount = 0;
     for (const product of mappedProducts) {
       for (const variant of product.variants || []) {
-        const campaign = campaignPrices[variant.stripePriceId || ''];
+        const priceInfo = variant.stripePriceId
+          ? priceIndex[variant.stripePriceId]
+          : undefined;
 
-        if (campaign && typeof variant.price === 'number') {
-          // Calculate campaign price: original price * (1 - discountPercent / 100)
-          // variant.price is in SEK, campaignPrice should also be in SEK
-          variant.campaignPrice =
-            Math.round(variant.price * (1 - campaign.discountPercent / 100) * 100) / 100; // Round to 2 decimals
-          injectedCount++;
+        if (priceInfo) {
+          const originalSEK =
+            typeof priceInfo.originalPrice === 'number'
+              ? priceInfo.originalPrice / 100
+              : undefined;
+          const campaignSEK =
+            typeof priceInfo.campaignPrice === 'number'
+              ? priceInfo.campaignPrice / 100
+              : undefined;
+          const finalSEK =
+            typeof priceInfo.finalPrice === 'number'
+              ? priceInfo.finalPrice / 100
+              : undefined;
+
+          // Apply enrichment with correct fallback order
+          variant.originalPrice = originalSEK ?? variant.originalPrice ?? variant.price;
+          variant.campaignPrice = campaignSEK ?? variant.campaignPrice ?? undefined;
+          variant.finalPrice =
+            finalSEK ??
+            variant.campaignPrice ??
+            variant.originalPrice ??
+            variant.price ??
+            variant.finalPrice;
+
+          enrichedCount++;
+        } else {
+          // No entry in price index – keep existing fallbacks
+          variant.finalPrice =
+            variant.finalPrice ??
+            variant.campaignPrice ??
+            variant.originalPrice ??
+            variant.price;
         }
       }
     }
     
-    console.log(`✅ Injected campaign prices into ${injectedCount} variants`);
+    console.log(`✅ Enriched variants with price index for ${enrichedCount} variant entries`);
     
     // Log sample mapped products to verify Stripe IDs and variants
     if (mappedProducts.length > 0) {
@@ -644,7 +682,14 @@ export async function getProducts(params: { locale?: string; category?: string; 
         id: p.id,
         hasVariants: Array.isArray(p.variants),
         variantCount: p.variants?.length,
-        firstVariantCampaignPrice: p.variants?.[0]?.campaignPrice,
+        firstVariantPriceDebug: p.variants?.[0]
+          ? {
+              price: p.variants[0].price,
+              originalPrice: p.variants[0].originalPrice,
+              campaignPrice: p.variants[0].campaignPrice,
+              finalPrice: p.variants[0].finalPrice
+            }
+          : null
       }))
     );
 
@@ -700,7 +745,7 @@ export async function getProduct(productId: string, locale = 'sv'): Promise<Prod
         }
       : undefined;
     
-    // Map variants first so we can inject campaign prices using the batch endpoint
+    // Map variants first so we can enrich prices using the price index endpoint
     const variants = (p.variants || []).map((v: any) => {
         const articleNumber = v.articleNumber || v.sku || v.id || v.key;
         
@@ -746,13 +791,15 @@ export async function getProduct(productId: string, locale = 'sv'): Promise<Prod
           lowStock: v.lowStock ?? (v.status === 'low_stock' ? true : false),
           inStock: v.inStock ?? (v.status === 'in_stock' || v.status === 'low_stock' ? true : (v.outOfStock === false ? true : false)),
           priceSEK: variantPriceSEK, // Price in cents from API
-          price: variantPrice, // Price in SEK (converted)
+          price: variantPrice, // Base price in SEK (converted)
+          // Initialize new pricing engine fields – will be overridden by price index when available
+          originalPrice: variantPrice ?? undefined,
+          finalPrice: variantPrice ?? undefined,
           priceFormatted: v.priceFormatted || (variantPrice ? `${variantPrice.toFixed(2)} kr` : undefined) // Formatted price string
         };
     });
-
-    // Inject campaign prices into product detail variants using the same batch endpoint logic.
-    // IMPORTANT: This is awaited so that campaignPrice is present before returning the product.
+    
+    // Enrich product detail variants using new price index endpoint
     const allPriceIds: string[] = [];
     for (const variant of variants) {
       if (variant.stripePriceId) {
@@ -761,51 +808,81 @@ export async function getProduct(productId: string, locale = 'sv'): Promise<Prod
     }
 
     const uniquePriceIds = [...new Set(allPriceIds)];
-    let campaignPrices: Record<string, { discountPercent: number } | null> = {};
+    let priceIndex: Record<
+      string,
+      { originalPrice?: number; campaignPrice?: number; finalPrice?: number }
+    > = {};
 
     if (uniquePriceIds.length > 0) {
       try {
-        const res = await fetch(
-          `${SOURCE_BASE}/api/campaigns/prices?priceIds=${uniquePriceIds.join(',')}`,
+        const res = await sourceFetch(
+          `/storefront/${TENANT_ID}/prices?priceIds=${uniquePriceIds.join(',')}`,
           {
             headers: {
               'X-Tenant': TENANT_ID
-            },
-            cache: 'no-store'
+            }
           }
         );
 
         if (res.ok) {
-          const batchData = await res.json();
-          campaignPrices =
-            (batchData && typeof batchData === 'object' && batchData.prices) || {};
+          const data = await res.json();
+          priceIndex = (data && typeof data === 'object' && data.prices) || {};
         } else {
           console.warn(
-            `⚠️ Batch campaign API (product detail) returned ${res.status}, skipping campaign prices`
+            `⚠️ Price index API (product detail) returned ${res.status}, skipping price enrichment`
           );
         }
       } catch (error) {
         console.warn(
-          `⚠️ Batch campaign price lookup (product detail) failed:`,
+          `⚠️ Price index lookup (product detail) failed:`,
           error instanceof Error ? error.message : 'Unknown error'
         );
       }
     }
 
-    let injectedCount = 0;
+    let enrichedCount = 0;
     for (const variant of variants) {
-      const campaign = campaignPrices[variant.stripePriceId || ''];
-      if (campaign && typeof variant.price === 'number') {
-        variant.campaignPrice =
-          Math.round(variant.price * (1 - campaign.discountPercent / 100) * 100) / 100;
-        injectedCount++;
+      const priceInfo = variant.stripePriceId
+        ? priceIndex[variant.stripePriceId]
+        : undefined;
+
+      if (priceInfo) {
+        const originalSEK =
+          typeof priceInfo.originalPrice === 'number'
+            ? priceInfo.originalPrice / 100
+            : undefined;
+        const campaignSEK =
+          typeof priceInfo.campaignPrice === 'number'
+            ? priceInfo.campaignPrice / 100
+            : undefined;
+        const finalSEK =
+          typeof priceInfo.finalPrice === 'number'
+            ? priceInfo.finalPrice / 100
+            : undefined;
+
+        variant.originalPrice = originalSEK ?? variant.originalPrice ?? variant.price;
+        variant.campaignPrice = campaignSEK ?? variant.campaignPrice ?? undefined;
+        variant.finalPrice =
+          finalSEK ??
+          variant.campaignPrice ??
+          variant.originalPrice ??
+          variant.price ??
+          variant.finalPrice;
+
+        enrichedCount++;
+      } else {
+        variant.finalPrice =
+          variant.finalPrice ??
+          variant.campaignPrice ??
+          variant.originalPrice ??
+          variant.price;
       }
     }
 
-    console.log('✅ Injected campaign prices into product detail variants', {
+    console.log('✅ Enriched product detail variants with price index', {
       productId: p.baseSku || p.id,
       variantCount: variants.length,
-      injectedCount
+      enrichedCount
     });
 
     return {

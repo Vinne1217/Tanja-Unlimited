@@ -12,8 +12,11 @@ export type Variant = {
   lowStock?: boolean;
   inStock?: boolean;
   priceSEK?: number; // Price in cents from Storefront API
-  price?: number; // Price in SEK (converted)
-  campaignPrice?: number; // Campaign price in SEK (server-side injected)
+  price?: number; // Legacy/base price in SEK (converted)
+  // New pricing engine fields (all in SEK, injected server-side from price index)
+  originalPrice?: number; // Original list price in SEK
+  campaignPrice?: number; // Campaign price in SEK
+  finalPrice?: number; // Final effective price in SEK (what should be charged)
   priceFormatted?: string; // Formatted price string (e.g., "299.00 kr")
 };
 

@@ -8,6 +8,7 @@ import type { Product as CatalogProduct } from '@/lib/catalog';
 export type CartProduct = {
   id: string;
   name: string;
+  // Effective unit price in SEK used when cart item was added (may already be a campaign/final price)
   price: number;
   currency: string;
   // Optional product type (supports subscriptions)
@@ -27,6 +28,10 @@ export type CartProduct = {
   // For catalog products with variants
   variantKey?: string;
   variantPriceId?: string;
+  // New pricing engine fields (all in SEK, copied from product/variant at add-to-cart time)
+  originalPrice?: number;
+  campaignPrice?: number;
+  finalPrice?: number;
 };
 
 export type CartItem = {

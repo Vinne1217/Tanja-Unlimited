@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useCampaignPrice } from '@/lib/useCampaignPrice';
 import { formatPrice } from '@/lib/products';
 import { getSubscriptionIntervalLabel } from '@/lib/subscription';
 import type { CartItem } from '@/lib/cart-context';
@@ -19,20 +18,17 @@ function CartItemPriceCalculator({
   item: CartItem;
   onPriceCalculated: (itemKey: string, price: number) => void;
 }) {
-  const productIdForCampaign = item.product.stripeProductId || item.product.id;
   const itemKey = `${item.product.id}${item.product.variantKey ? `:${item.product.variantKey}` : ''}`;
   
-  const campaignPrice = useCampaignPrice(
-    productIdForCampaign,
-    item.product.price || 0,
-    item.product.variantPriceId
-  );
+  // Use new pricing engine fields with correct fallback order (all in SEK)
+  const unitPrice =
+    item.product.finalPrice ??
+    item.product.campaignPrice ??
+    item.product.originalPrice ??
+    item.product.price ??
+    0;
 
-  const displayPrice = campaignPrice.hasCampaign && campaignPrice.campaignPrice 
-    ? campaignPrice.campaignPrice 
-    : item.product.price || 0;
-
-  const totalPrice = displayPrice * item.quantity;
+  const totalPrice = unitPrice * item.quantity;
 
   useEffect(() => {
     onPriceCalculated(itemKey, totalPrice);

@@ -3,7 +3,6 @@
 import { motion } from 'framer-motion';
 import { Trash2, Plus, Minus } from 'lucide-react';
 import { formatPrice } from '@/lib/products';
-import { useCampaignPrice } from '@/lib/useCampaignPrice';
 import { formatSubscriptionInfo, getSubscriptionIntervalDescription } from '@/lib/subscription';
 import StockStatus from './StockStatus';
 import type { CartItem as CartItemType } from '@/lib/cart-context';
@@ -17,22 +16,16 @@ type CartItemProps = {
 export default function CartItem({ item, onUpdateQuantity, onRemove }: CartItemProps) {
   const image = item.product.image || item.product.images?.[0];
   
-  // Fetch campaign price for this cart item
-  // Use stripeProductId if available, otherwise fallback to product id
-  const productIdForCampaign = item.product.stripeProductId || item.product.id;
-  const campaignPrice = useCampaignPrice(
-    productIdForCampaign,
-    item.product.price || 0,
-    item.product.variantPriceId
-  );
+  // Use new pricing engine fields with correct fallback order (all in SEK)
+  const unitPrice =
+    item.product.finalPrice ??
+    item.product.campaignPrice ??
+    item.product.originalPrice ??
+    item.product.price ??
+    0;
 
-  // Use campaign price if available, otherwise use regular price
-  const displayPrice = campaignPrice.hasCampaign && campaignPrice.campaignPrice 
-    ? campaignPrice.campaignPrice 
-    : item.product.price || 0;
-  const originalPrice = campaignPrice.hasCampaign && campaignPrice.campaignPrice
-    ? campaignPrice.originalPrice
-    : item.product.price || 0;
+  const originalPriceForDisplay =
+    item.product.originalPrice ?? item.product.price ?? unitPrice;
 
   // Check if this cart item is a subscription
   const isSubscription = item.product.type === 'subscription' && !!item.product.subscription;
@@ -100,16 +93,17 @@ export default function CartItem({ item, onUpdateQuantity, onRemove }: CartItemP
                 )}
               </>
             ) : campaignPrice.hasCampaign && campaignPrice.campaignPrice ? (
+            ) : !isSubscription && originalPriceForDisplay > unitPrice ? (
               <>
                 <p className="text-lg font-serif text-terracotta">
-                  {formatPrice(displayPrice * item.quantity, item.product.currency)}
+                  {formatPrice(unitPrice * item.quantity, item.product.currency)}
                 </p>
                 <p className="text-sm text-softCharcoal/60 line-through">
-                  {formatPrice(originalPrice * item.quantity, item.product.currency)}
+                  {formatPrice(originalPriceForDisplay * item.quantity, item.product.currency)}
                 </p>
                 {item.quantity > 1 && (
                   <p className="text-xs text-softCharcoal/60 mt-1">
-                    {formatPrice(displayPrice, item.product.currency)} each
+                    {formatPrice(unitPrice, item.product.currency)} each
                   </p>
                 )}
               </>

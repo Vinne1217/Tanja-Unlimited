@@ -20,8 +20,11 @@ const getProxiedImageUrl = (url: string) => {
 
 type Variant = {
   stripePriceId?: string;
-  price?: number;
-  campaignPrice?: number; // Campaign price in SEK (server-side injected)
+  price?: number; // Base price in SEK (legacy)
+  // New pricing engine fields (all in SEK)
+  originalPrice?: number;
+  campaignPrice?: number;
+  finalPrice?: number;
 };
 
 type Product = {
@@ -62,25 +65,33 @@ export default function ProductCardWithCampaign({ product, slug, idx }: ProductC
   const primaryVariant =
     variants.length > 0
       ? variants.reduce((best, v) => {
-          const bestPrice = best?.price ?? Number.POSITIVE_INFINITY;
-          const currentPrice = v.price ?? Number.POSITIVE_INFINITY;
+          const bestPrice = best?.finalPrice ?? best?.campaignPrice ?? best?.price ?? Number.POSITIVE_INFINITY;
+          const currentPrice = v.finalPrice ?? v.campaignPrice ?? v.price ?? Number.POSITIVE_INFINITY;
           return currentPrice < bestPrice ? v : best;
         }, variants[0])
       : undefined;
 
-  const displayBasePrice = primaryVariant?.price ?? product.price;
+  const basePrice =
+    primaryVariant?.originalPrice ??
+    primaryVariant?.price ??
+    product.price;
 
-  // Use server-injected campaignPrice from variant (from batch endpoint in catalog.ts)
-  // This replaces the legacy productId-based API calls
+  // Use new pricing engine fields with correct fallback order
+  const variantFinalPrice = primaryVariant?.finalPrice;
   const variantCampaignPrice = primaryVariant?.campaignPrice;
-  const displayPrice = variantCampaignPrice ?? displayBasePrice;
-  const hasCampaign = variantCampaignPrice !== undefined && variantCampaignPrice !== null;
-  const discountPercent = hasCampaign && displayBasePrice > 0
-    ? Math.round(((displayBasePrice - variantCampaignPrice!) / displayBasePrice) * 100)
+  const displayPrice =
+    variantFinalPrice ??
+    variantCampaignPrice ??
+    basePrice;
+
+  const hasCampaign = displayPrice !== undefined && basePrice !== undefined && displayPrice < basePrice;
+
+  const discountPercent = hasCampaign && basePrice && basePrice > 0
+    ? Math.round(((basePrice - displayPrice) / basePrice) * 100)
     : undefined;
 
   console.log(`🎨 ProductCardWithCampaign: Product ${product.id}`, {
-    displayBasePrice,
+    basePrice,
     variantCampaignPrice,
     displayPrice,
     hasCampaign,
@@ -175,9 +186,7 @@ export default function ProductCardWithCampaign({ product, slug, idx }: ProductC
                 }
 
               // Regular product pricing med kampanjstöd (using server-injected campaignPrice)
-              const finalPrice = hasCampaign && typeof variantCampaignPrice === 'number'
-                ? variantCampaignPrice
-                : displayBasePrice;
+              const finalPrice = displayPrice;
 
               console.log('Price render (ProductCardWithCampaign)', {
                 productId: product.id,
@@ -190,10 +199,10 @@ export default function ProductCardWithCampaign({ product, slug, idx }: ProductC
                   return (
                     <>
                       <span className="text-2xl font-serif text-terracotta">
-                        {formatPrice(variantCampaignPrice, product.currency)}
+                        {formatPrice(finalPrice, product.currency)}
                       </span>
                       <span className="text-lg text-graphite/50 line-through">
-                        {formatPrice(displayBasePrice, product.currency)}
+                        {formatPrice(basePrice, product.currency)}
                       </span>
                     </>
                   );
@@ -211,7 +220,7 @@ export default function ProductCardWithCampaign({ product, slug, idx }: ProductC
                 } else {
                   return (
                     <span className="text-2xl font-serif text-indigo">
-                      {formatPrice(displayBasePrice, product.currency)}
+                      {formatPrice(displayPrice, product.currency)}
                     </span>
                   );
                 }

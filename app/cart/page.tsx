@@ -141,12 +141,24 @@ export default function CartPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          items: items.map((item) => ({
-            quantity: item.quantity,
-            stripePriceId: item.product.variantPriceId || item.product.stripePriceId,
-            productId: item.product.id,
-            variantKey: item.product.variantKey, // Include variant key if present
-          })),
+          items: items.map((item) => {
+            // Use new pricing engine fields with correct fallback order for unit price
+            const unitPrice =
+              item.product.finalPrice ??
+              item.product.campaignPrice ??
+              item.product.originalPrice ??
+              item.product.price ??
+              0;
+
+            return {
+              quantity: item.quantity,
+              stripePriceId: item.product.variantPriceId || item.product.stripePriceId,
+              productId: item.product.id,
+              variantKey: item.product.variantKey, // Include variant key if present
+              // Forward finalPrice (in SEK) so backend can verify against price index
+              finalPrice: unitPrice,
+            };
+          }),
           giftCardCode: giftCardCodeToSend, // ✅ Direct property (preferred)
           successUrl: `${window.location.origin}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
           cancelUrl: window.location.href,

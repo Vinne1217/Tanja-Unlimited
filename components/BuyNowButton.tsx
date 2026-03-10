@@ -120,23 +120,29 @@ export default function BuyNowButton({ product, onVariantChange }: BuyNowButtonP
       return;
     }
 
-    // Use server-injected campaignPrice if available
-    const campaignPriceValue = variant.campaignPrice ?? undefined;
-    const basePriceValue = variant.price ?? product.price ?? 0;
-    const finalPrice = campaignPriceValue ?? basePriceValue;
+    // Use new pricing engine fields with correct fallback order (all in SEK)
+    const basePriceValue =
+      variant.originalPrice ??
+      variant.price ??
+      product.price ??
+      0;
+    const finalPriceValue =
+      variant.finalPrice ??
+      variant.campaignPrice ??
+      basePriceValue;
 
     console.log('Price render (BuyNowButton)', {
       productId: product.id,
       variantKey: variant.key,
-      price: basePriceValue,
-      campaignPrice: campaignPriceValue,
-      finalPrice,
+      basePrice: basePriceValue,
+      campaignPrice: variant.campaignPrice,
+      finalPrice: finalPriceValue,
     });
 
-    if (campaignPriceValue && basePriceValue) {
-      const discountPercent = Math.round(((basePriceValue - campaignPriceValue) / basePriceValue) * 100);
+    if (finalPriceValue < basePriceValue) {
+      const discountPercent = Math.round(((basePriceValue - finalPriceValue) / basePriceValue) * 100);
       setCampaignPrice({
-        amount: campaignPriceValue,
+        amount: finalPriceValue,
         originalAmount: basePriceValue,
         discountPercent
       });
@@ -188,12 +194,17 @@ export default function BuyNowButton({ product, onVariantChange }: BuyNowButtonP
     }
 
     // Convert Product to CartProduct format
-    // ✅ Use variant-specific price if available, otherwise use product price
-    const variantPrice = selectedVariantData?.price ?? product.price;
+    // ✅ Use new pricing engine fields with correct fallback order for unit price
+    const variantUnitPrice =
+      selectedVariantData?.finalPrice ??
+      selectedVariantData?.campaignPrice ??
+      selectedVariantData?.originalPrice ??
+      selectedVariantData?.price ??
+      product.price;
     const cartProduct: CartProduct = {
       id: product.id,
       name: product.name,
-      price: product.salePrice || variantPrice, // Use variant price if available
+      price: product.salePrice || variantUnitPrice, // Effective unit price used in cart
       currency: product.currency,
       category: product.category,
       description: product.description,
@@ -203,6 +214,10 @@ export default function BuyNowButton({ product, onVariantChange }: BuyNowButtonP
       stripeProductId: product.stripeProductId, // Include Stripe Product ID for campaign price lookup
       variantKey: selectedVariant || undefined,
       variantPriceId: selectedVariantData?.stripePriceId,
+      // Copy pricing engine fields to cart for later calculations
+      originalPrice: selectedVariantData?.originalPrice ?? selectedVariantData?.price ?? product.price,
+      campaignPrice: selectedVariantData?.campaignPrice,
+      finalPrice: selectedVariantData?.finalPrice ?? variantUnitPrice,
       // Preserve subscription metadata so cart UI can detect subscriptions
       type: (product as any).type,
       subscription: (product as any).subscription,
