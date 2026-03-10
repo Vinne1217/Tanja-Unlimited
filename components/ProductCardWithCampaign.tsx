@@ -190,7 +190,7 @@ export default function ProductCardWithCampaign({ product, slug, idx }: ProductC
 
               console.log('Price render (ProductCardWithCampaign)', {
                 productId: product.id,
-                price: displayBasePrice,
+                basePrice,
                 campaignPrice: variantCampaignPrice,
                 finalPrice,
               });
