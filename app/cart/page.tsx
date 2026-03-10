@@ -100,6 +100,7 @@ export default function CartPage() {
     setGiftCardVerified(null);
     setGiftCardError(null);
   }
+  const [postalCode, setPostalCode] = useState('');
 
   async function handleCheckout() {
     if (items.length === 0) return;
@@ -160,6 +161,12 @@ export default function CartPage() {
             };
           }),
           giftCardCode: giftCardCodeToSend, // ✅ Direct property (preferred)
+          recipientAddress: {
+            address1: 'Customer address',
+            city: 'Stockholm',
+            postalCode: postalCode,
+            country: 'SE',
+          },
           successUrl: `${window.location.origin}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
           cancelUrl: window.location.href,
           metadata: {
@@ -402,6 +409,13 @@ export default function CartPage() {
                   </>
                 );
               })()}
+              <input
+                type="text"
+                placeholder="Postal code"
+                value={postalCode}
+                onChange={(e) => setPostalCode(e.target.value)}
+                style={{ padding: '8px', marginBottom: '10px', width: '200px' }}
+              />
               <button
                 onClick={handleCheckout}
                 disabled={checkingOut}
