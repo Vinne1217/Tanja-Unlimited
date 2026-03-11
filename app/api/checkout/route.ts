@@ -36,7 +36,12 @@ export async function POST(req: NextRequest) {
       [key: string]: any;
     };
   };
-  console.log("[CHECKOUT PAYLOAD DEBUG] Incoming frontend payload:", JSON.stringify(requestBody, null, 2));
+  console.log("[CHECKOUT PAYLOAD DEBUG]", {
+    hasRecipientAddress: !!requestBody.recipientAddress,
+    postalCode: requestBody.recipientAddress?.postalCode,
+    country: requestBody.recipientAddress?.country,
+    bodyKeys: Object.keys(requestBody)
+  });
 
   const { items, customerEmail, successUrl, cancelUrl, recipientAddress } = requestBody;
   
