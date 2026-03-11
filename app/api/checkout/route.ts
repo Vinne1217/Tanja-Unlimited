@@ -77,9 +77,6 @@ export async function POST(req: NextRequest) {
     console.log(`✅ Gift card purchase allowed for tenant ${tenantId}`);
   }
 
-  // Campaign metadata for tracking (no longer fetching prices - using storefront prices)
-  const campaignData: Record<string, string> = {};
-  
   // Check inventory using Storefront API - simpler and more reliable
   const { getVariantByPriceId, getProductFromStorefront } = await import('@/lib/inventory-storefront');
   
@@ -201,7 +198,6 @@ export async function POST(req: NextRequest) {
     tenant: tenantId,
     source: 'tanja_website',
     website: websiteDomain,
-    ...campaignData
   };
 
   // Add gift card code to metadata (forward only - no redemption)
@@ -272,33 +268,6 @@ export async function POST(req: NextRequest) {
       ...(isGiftCardPurchase && { disableShipping: true }), // Disable shipping for gift cards
       metadata: sessionMetadata
     };
-
-    // Log detailed request body for debugging
-    if (giftCardCode) {
-      console.log(`🎁 [API CHECKOUT] Including giftCardCode in backend request body: ${maskGiftCardCode(giftCardCode)}`);
-    } else {
-      console.log(`⚠️ [API CHECKOUT] No giftCardCode to include in backend request`);
-    }
-
-    // Log request body structure
-    console.log('📦 Backend request body structure:', {
-      items: backendItems.length,
-      hasGiftCardCode: !!backendRequestBody.giftCardCode,
-      giftCardCodeValue: backendRequestBody.giftCardCode ? maskGiftCardCode(backendRequestBody.giftCardCode) : 'NOT SET',
-      giftCardCodeInMetadata: !!sessionMetadata.giftCardCode,
-      requestBodyKeys: Object.keys(backendRequestBody),
-      itemsDetail: backendItems.map(item => ({
-        variantId: item.variantId,
-        quantity: item.quantity,
-        stripePriceId: item.stripePriceId
-      }))
-    });
-    
-    // Log full request body (for debugging - sanitize gift card code)
-    console.log('📦 Full backend request body (sanitized):', JSON.stringify({
-      ...backendRequestBody,
-      giftCardCode: backendRequestBody.giftCardCode ? maskGiftCardCode(backendRequestBody.giftCardCode) : undefined
-    }, null, 2));
 
     console.log(`📤 [TENANT BACKEND] Sending request to Source Portal...`);
     

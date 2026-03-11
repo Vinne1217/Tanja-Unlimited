@@ -110,70 +110,7 @@ export default function ProductDetailPageClient({
   const proxiedImages = images.map(getProxiedImageUrl);
   const mainImage = proxiedImages[selectedImageIndex] || proxiedImages[0];
   
-  // ✅ Add image loading diagnostics
-  useEffect(() => {
-    console.log('🖼️ ProductDetailPageClient: useEffect triggered', {
-      productImages: product.images,
-      productImage: product.image,
-      imagesArray: images,
-      proxiedImages,
-      mainImage,
-      imageCount: images.length,
-      selectedImageIndex
-    });
-    
-    // Test if images are accessible (using proxied URL to bypass CORS)
-    if (proxiedImages.length > 0 && proxiedImages[0]) {
-      console.log('🧪 Testing image accessibility:', {
-        original: images[0],
-        proxied: proxiedImages[0]
-      });
-      const testImg = new Image();
-      testImg.onload = () => {
-        console.log('✅ Image loaded successfully (test):', proxiedImages[0]);
-        console.log('   Image dimensions:', testImg.width, 'x', testImg.height);
-      };
-      testImg.onerror = (e) => {
-        console.error('❌ Image failed to load (test):', proxiedImages[0]);
-        console.error('   Original URL:', images[0]);
-        console.error('   Error event:', e);
-        if (e instanceof Event) {
-          console.error('   Error type:', e.type);
-        }
-        console.error('   This might be a proxy issue or invalid URL');
-      };
-      testImg.src = proxiedImages[0];
-      
-      // Also check if image element exists in DOM after a short delay
-      setTimeout(() => {
-        const imgElements = document.querySelectorAll(`img[src="${proxiedImages[0]}"]`);
-        console.log('🔍 Image elements in DOM:', imgElements.length);
-        if (imgElements.length > 0) {
-          const img = imgElements[0] as HTMLImageElement;
-          console.log('   Image element found:', {
-            complete: img.complete,
-            naturalWidth: img.naturalWidth,
-            naturalHeight: img.naturalHeight,
-            src: img.src
-          });
-        }
-      }, 1000);
-    } else {
-      console.warn('⚠️ No images found in product:', product.id);
-    }
-  }, [product.images, product.image, product.id, images, proxiedImages, mainImage, selectedImageIndex]);
-  
-  // Debug logging
-  console.log(`📦 ProductDetailPageClient: Product ${product.id}`, {
-    hasVariants: !!product.variants,
-    variantCount: product.variants?.length || 0,
-    selectedVariant,
-    variantPriceId: variantPriceId || 'none',
-    productPrice: product.price,
-    imageCount: images.length,
-    hasImages: images.length > 0,
-    mainImageUrl: mainImage || 'none'
-  });
+  // Image loading diagnostics and verbose product logging removed now that migration is complete.
 
   return (
     <div className="min-h-screen bg-ivory">
@@ -392,14 +329,6 @@ export default function ProductDetailPageClient({
                       variantCampaignPrice ??
                       basePrice;
 
-                    console.log('Price render (ProductDetailPage)', {
-                      productId: product.id,
-                      variantKey: selectedVariantData?.key,
-                      price: basePrice,
-                      campaignPrice: variantCampaignPrice,
-                      finalPrice,
-                    });
-
                     const hasCampaign =
                       typeof basePrice === 'number' &&
                       typeof finalPrice === 'number' &&
@@ -603,28 +532,13 @@ function DirectCheckoutButton({
     setLoading(true);
     
     try {
-      const finalPrice =
-        selectedVariant.finalPrice ??
-        selectedVariant.campaignPrice ??
-        selectedVariant.originalPrice ??
-        selectedVariant.price ??
-        product.price;
-
       const items = [{
         variantId: selectedVariant.key,
         quantity: 1,
         stripePriceId: selectedVariant.stripePriceId,
         productId: product.id,
         variantKey: selectedVariant.key,
-        // Pass through finalPrice so backend can verify against price index
-        finalPrice,
       }];
-
-      console.log("Checkout request items", items.map(i => ({
-        variantId: i.variantId,
-        stripePriceId: i.stripePriceId,
-        finalPrice: i.finalPrice,
-      })));
 
       const response = await fetch('/api/checkout', {
         method: 'POST',

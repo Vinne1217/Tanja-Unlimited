@@ -1,7 +1,6 @@
 'use client';
 
 import { useMemo } from 'react';
-import { useCampaignPrice } from '@/lib/useCampaignPrice';
 import { formatPrice } from '@/lib/products';
 import type { CartItem } from '@/lib/cart-context';
 
@@ -10,14 +9,16 @@ type CartTotalProps = {
 };
 
 export function CartTotal({ items }: CartTotalProps) {
-  // Calculate total with campaign prices
   const total = useMemo(() => {
     return items.reduce((sum, item) => {
-      // For each item, we need to check if it has a campaign price
-      // Since hooks can't be called conditionally, we'll calculate this differently
-      // We'll use a placeholder that will be updated by the CartItem components
-      // For now, use regular price
-      return sum + (item.product.price || 0) * item.quantity;
+      const unitPrice =
+        item.product.finalPrice ??
+        item.product.campaignPrice ??
+        item.product.originalPrice ??
+        item.product.price ??
+        0;
+
+      return sum + unitPrice * item.quantity;
     }, 0);
   }, [items]);
 

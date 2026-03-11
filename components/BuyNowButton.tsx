@@ -46,7 +46,6 @@ export default function BuyNowButton({ product, onVariantChange }: BuyNowButtonP
   const [variantInventories, setVariantInventories] = useState<Map<string, InventoryData>>(new Map());
   const [checkingStock, setCheckingStock] = useState(true);
   const [added, setAdded] = useState(false);
-  const [campaignPrice, setCampaignPrice] = useState<{ amount: number; originalAmount: number; discountPercent: number } | null>(null);
   const { addItem } = useCart();
 
   useEffect(() => {
@@ -106,50 +105,7 @@ export default function BuyNowButton({ product, onVariantChange }: BuyNowButtonP
     fetchStockStatus();
   }, [product.id, product.variants]);
 
-  // Use server-injected campaignPrice from variant (from batch endpoint in catalog.ts)
-  // This replaces the legacy productId-based API calls
-  useEffect(() => {
-    if (!selectedVariant || !product.variants) {
-      setCampaignPrice(null);
-      return;
-    }
-
-    const variant = product.variants.find(v => v.key === selectedVariant);
-    if (!variant) {
-      setCampaignPrice(null);
-      return;
-    }
-
-    // Use new pricing engine fields with correct fallback order (all in SEK)
-    const basePriceValue =
-      variant.originalPrice ??
-      variant.price ??
-      product.price ??
-      0;
-    const finalPriceValue =
-      variant.finalPrice ??
-      variant.campaignPrice ??
-      basePriceValue;
-
-    console.log('Price render (BuyNowButton)', {
-      productId: product.id,
-      variantKey: variant.key,
-      basePrice: basePriceValue,
-      campaignPrice: variant.campaignPrice,
-      finalPrice: finalPriceValue,
-    });
-
-    if (finalPriceValue < basePriceValue) {
-      const discountPercent = Math.round(((basePriceValue - finalPriceValue) / basePriceValue) * 100);
-      setCampaignPrice({
-        amount: finalPriceValue,
-        originalAmount: basePriceValue,
-        discountPercent
-      });
-    } else {
-      setCampaignPrice(null);
-    }
-  }, [selectedVariant, product.variants]);
+  // Client-side campaign badge state removed – pricing now comes fully resolved from Source Portal.
 
   const selectedVariantData = product.variants?.find(v => v.key === selectedVariant);
   const priceId = selectedVariantData?.stripePriceId || product.stripePriceId;
@@ -248,26 +204,6 @@ export default function BuyNowButton({ product, onVariantChange }: BuyNowButtonP
 
   return (
     <div className="space-y-4">
-      {/* Campaign Price Display */}
-      {campaignPrice && (
-        <div className="bg-terracotta/10 border border-terracotta/20 p-4 space-y-2">
-          <div className="flex items-baseline gap-3">
-            <span className="text-2xl font-serif text-terracotta">
-              {campaignPrice.amount.toLocaleString('sv-SE')} {product.currency || 'SEK'}
-            </span>
-            <span className="text-lg text-graphite/50 line-through">
-              {campaignPrice.originalAmount.toLocaleString('sv-SE')} {product.currency || 'SEK'}
-            </span>
-            <span className="px-2 py-1 bg-terracotta text-ivory text-xs font-medium">
-              {campaignPrice.discountPercent}% rabatt
-            </span>
-          </div>
-          <div className="text-sm text-graphite/70">
-            Spara {(campaignPrice.originalAmount - campaignPrice.amount).toLocaleString('sv-SE')} {product.currency || 'SEK'}
-          </div>
-        </div>
-      )}
-
       {/* Variantväljare – visar antingen storlekar eller färger beroende på data */}
       {hasMultipleOptions && (
         <div>
