@@ -549,6 +549,9 @@ function DirectCheckoutButton({
           items,
           successUrl: `${window.location.origin}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
           cancelUrl: window.location.href,
+          recipientAddress: {
+            country: 'SE'
+          }
         }),
       });
       
