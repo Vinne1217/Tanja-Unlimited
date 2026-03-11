@@ -281,6 +281,7 @@ export async function POST(req: NextRequest) {
       postalCode: backendRequestBody.recipientAddress?.postalCode,
       bodyKeys: Object.keys(backendRequestBody)
     });
+    console.log("[FINAL FORWARD PAYLOAD TO SOURCE]", JSON.stringify(backendRequestBody, null, 2));
     
     const backendResponse = await fetch(backendUrl, {
       method: 'POST',
