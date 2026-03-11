@@ -23,6 +23,13 @@ export async function POST(req: NextRequest) {
     customerEmail?: string;
     successUrl: string;
     cancelUrl: string;
+    recipientAddress?: {
+      address1?: string;
+      address2?: string;
+      city?: string;
+      postalCode?: string;
+      country?: string;
+    };
     giftCardCode?: string; // Optional gift card code (direct property - preferred)
     metadata?: {
       giftCardCode?: string; // Optional gift card code in metadata (fallback)
@@ -30,7 +37,7 @@ export async function POST(req: NextRequest) {
     };
   };
 
-  const { items, customerEmail, successUrl, cancelUrl } = requestBody;
+  const { items, customerEmail, successUrl, cancelUrl, recipientAddress } = requestBody;
   
   // Extract gift card code from direct property or metadata (as per documentation)
   // Direct property is preferred, but metadata is checked as fallback
@@ -260,6 +267,7 @@ export async function POST(req: NextRequest) {
       customerEmail: customerEmail || undefined,
       successUrl: successUrl,
       cancelUrl: cancelUrl,
+      ...(recipientAddress && { recipientAddress }),
       ...(giftCardCode && { giftCardCode: giftCardCode }), // Explicitly include if present
       ...(isGiftCardPurchase && { disableShipping: true }), // Disable shipping for gift cards
       metadata: sessionMetadata
