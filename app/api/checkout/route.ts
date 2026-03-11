@@ -276,6 +276,11 @@ export async function POST(req: NextRequest) {
     };
 
     console.log(`📤 [TENANT BACKEND] Sending request to Source Portal...`);
+    console.log("[CHECKOUT BACKEND PAYLOAD]", {
+      hasRecipientAddress: !!backendRequestBody.recipientAddress,
+      postalCode: backendRequestBody.recipientAddress?.postalCode,
+      bodyKeys: Object.keys(backendRequestBody)
+    });
     
     const backendResponse = await fetch(backendUrl, {
       method: 'POST',
